@@ -1,0 +1,5 @@
+import { Alert, Button, Group, Paper, Stepper } from '@mantine/core';
+import { useState } from 'react';
+import ScreenForm from '../components/common/ScreenForm';
+import OutputsPanel from '../components/common/OutputsPanel';
+export default function WizardLayout({ spec }) { const [step,setStep]=useState(1); return <Paper p="lg"><Stepper active={step} onStepClick={setStep} mb="xl"><Stepper.Step label="Context" description="Confirm scope"/><Stepper.Step label="Inputs" description="Structured data"/><Stepper.Step label="Evidence" description="Validate package"/><Stepper.Step label="Confirm" description="Controlled action"/></Stepper><ScreenForm fields={spec.fields}/><Alert color="green" variant="light" mt="lg">The final action will create an immutable audited record. Demo mode does not write to backend services.</Alert><Group justify="space-between" mt="lg"><Button variant="default" disabled={step===0} onClick={()=>setStep((v)=>Math.max(0,v-1))}>Back</Button><Button onClick={()=>setStep((v)=>Math.min(3,v+1))}>{step===3?'Validate':'Continue'}</Button></Group>{step===3&&<Paper mt="lg" p="md"><OutputsPanel outputs={spec.outputs}/></Paper>}</Paper>; }

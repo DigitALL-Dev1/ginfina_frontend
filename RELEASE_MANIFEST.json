@@ -1,0 +1,9 @@
+{
+  "release": "R1.0 D0.1",
+  "mainScreens": 39,
+  "actionBranches": 148,
+  "sourceScreenPack": "GINFINA_GX1_UI_Screen_Design_Pack_R1.0_D0.1",
+  "framework": "React.js + Mantine",
+  "generatedAt": "2026-08-16",
+  "coverage": "GIN-UI-001..GIN-UI-039"
+}

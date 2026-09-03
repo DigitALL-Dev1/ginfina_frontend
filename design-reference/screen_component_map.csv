@@ -1,0 +1,40 @@
+Screen ID,Screen Name,GX1 Layout,Task Density,Route,GX1 / Mantine Components
+GIN-UI-001,"Secure Login, SSO and MFA",GX1-L6 / authentication pattern,40%,/ginfina/login,GX1-C-SHL-001 App Shell; GX1 authentication controls; TextInput / PasswordInput / PinInput; Alert / Loader; Button
+GIN-UI-002,Consultant Profile and Engineering Readiness,GX1-L2 Record Detail,50%,/ginfina/consultants/:consultantId/readiness,GX1-L2 Record Detail; Page Header; Tabs / DataList; Timeline / Badge; Right Rail / Drawer
+GIN-UI-003,Engineering Workbench Home,GX1-L4 Executive Dashboard,55%,/ginfina/workbench,GX1-L4 Dashboard; SimpleGrid / Grid; Paper; Badge / Progress; Table / Drawer
+GIN-UI-004,"My Work, Reviews and Approvals",GX1-L1 ERP Workbench,60%,/ginfina/my-work,GX1-L1 Workbench; TextInput / Select / MultiSelect; Data grid / Table; Badge / Pagination; Drawer / Menu
+GIN-UI-005,Project Register,GX1-L1 ERP Workbench,58%,/ginfina/projects,GX1-L1 Workbench; TextInput / Select / MultiSelect; Data grid / Table; Badge / Pagination; Drawer / Menu
+GIN-UI-006,Project Engineering Workspace,GX1-L7 Master-Detail Intelligence,56%,/ginfina/projects/:projectId,GX1-L2 Record Detail; Page Header; Tabs / DataList; Timeline / Badge; Right Rail / Drawer
+GIN-UI-007,Site Engineering Context and Location,GX1-L2 Record Detail,48%,/ginfina/projects/:projectId/sites/:siteId,GX1-L2 Record Detail; Page Header; Tabs / DataList; Timeline / Badge; Right Rail / Drawer
+GIN-UI-008,Engineering Work Package Register,GX1-L1 ERP Workbench,60%,/ginfina/ewp,GX1-L1 Workbench; TextInput / Select / MultiSelect; Data grid / Table; Badge / Pagination; Drawer / Menu
+GIN-UI-009,Create and Baseline Engineering Work Package,GX1-L3 Guided Wizard,50%,/ginfina/ewp/new,GX1-L3 Guided Wizard; Stepper; Fixed-label form controls; Alert / validation summary; Button
+GIN-UI-010,Engineering Work Package Control Centre,GX1-L2 + GX1-L7,58%,/ginfina/ewp/:ewpId,GX1-L2 Record Detail; Page Header; Tabs / DataList; Timeline / Badge; Right Rail / Drawer
+GIN-UI-011,Issue Engineering Work Order,GX1-L3 Guided Wizard,48%,/ginfina/ewp/:ewpId/ewo/issue,GX1-L2 or L3 form composition; Fixed-label form controls; File/Dropzone where required; Alert / evidence links; Button
+GIN-UI-012,Consultant EWO Acceptance and Clarification,GX1-L6 Portal Self-Service,45%,/ginfina/consultant/ewo/:ewoId,GX1-L6 Portal Self-Service; Paper / DataList; Radio / Textarea; File links; Button / Alert
+GIN-UI-013,Engineering Input Register,GX1-L1 ERP Workbench,58%,/ginfina/ewp/:ewpId/inputs,GX1-L1 Workbench; TextInput / Select / MultiSelect; Data grid / Table; Badge / Pagination; Drawer / Menu
+GIN-UI-014,Input Readiness and Design Start Gate,GX1-L2 Record Detail,45%,/ginfina/ewp/:ewpId/readiness,GX1-L2 Gate / Decision; DataList / Progress; Radio / Textarea; Evidence links / Alert; Button
+GIN-UI-015,Engineering RFI and Technical Query,GX1-L2 Record Detail,48%,/ginfina/ewp/:ewpId/rfis,GX1-L2 or L3 form composition; Fixed-label form controls; File/Dropzone where required; Alert / evidence links; Button
+GIN-UI-016,Engineering Deliverable Register,GX1-L1 ERP Workbench,60%,/ginfina/ewp/:ewpId/deliverables,GX1-L1 Workbench; TextInput / Select / MultiSelect; Data grid / Table; Badge / Pagination; Drawer / Menu
+GIN-UI-017,Document Upload and Revision Registration,GX1-L3 Guided Wizard,46%,/ginfina/ewp/:ewpId/documents/upload,GX1-L2 or L3 form composition; Fixed-label form controls; File/Dropzone where required; Alert / evidence links; Button
+GIN-UI-018,Document Detail and Revision History,GX1-L2 Record Detail,52%,/ginfina/documents/:documentId,GX1-L2 Record Detail; Page Header; Tabs / DataList; Timeline / Badge; Right Rail / Drawer
+GIN-UI-019,Formal Submission and Transmittal,GX1-L3 Guided Wizard,50%,/ginfina/ewp/:ewpId/submissions/new,GX1-L3 Guided Wizard; Stepper; Fixed-label form controls; Alert / validation summary; Button
+GIN-UI-020,Review Cycle Configuration and Routing,GX1-L3 Guided Wizard,48%,/ginfina/submissions/:submissionId/review/setup,GX1-L2 or L3 form composition; Fixed-label form controls; File/Dropzone where required; Alert / evidence links; Button
+GIN-UI-021,Engineering Review Workspace,GX1-L7 Master-Detail Intelligence,60%,/ginfina/reviews/:reviewCycleId,GX1-L7 Master-Detail; PDF/document viewer wrapper; Data grid / comments; Drawer / Right Rail; Button / Tabs
+GIN-UI-022,"Comment Response, Verification and Closure",GX1-L2 Record Detail,48%,/ginfina/review-comments/:commentId,GX1-L2 Record Detail; Page Header; Tabs / DataList; Timeline / Badge; Right Rail / Drawer
+GIN-UI-023,Engineering Approval and Technical Sign-Off,GX1-L2 Record Detail,44%,/ginfina/ewp/:ewpId/approval,GX1-L2 Gate / Decision; DataList / Progress; Radio / Textarea; Evidence links / Alert; Button
+GIN-UI-024,Controlled Engineering Release - IFR / IFA / IFC,GX1-L3 + GX1-L2,50%,/ginfina/ewp/:ewpId/releases/new,GX1-L3 + L9 release composition; Stepper / Manifest Table; Hash/evidence display; Select / MultiSelect; Button / Alert
+GIN-UI-025,Current Released Engineering Set,GX1-L1 + GX1-L2,56%,/ginfina/ewp/:ewpId/releases/current,GX1-L1 Workbench; TextInput / Select / MultiSelect; Data grid / Table; Badge / Pagination; Drawer / Menu
+GIN-UI-026,Engineering Bill of Materials (EBOM) Workspace,GX1-L1 ERP Workbench,60%,/ginfina/ewp/:ewpId/ebom,GX1-L1 data workbench; Data grid / Table; NumberInput / Select; Badge / Alert; Drawer / Button
+GIN-UI-027,Engineering Bill of Quantities (BOQ) Workspace,GX1-L1 ERP Workbench,60%,/ginfina/ewp/:ewpId/boq,GX1-L1 data workbench; Data grid / Table; NumberInput / Select; Badge / Alert; Drawer / Button
+GIN-UI-028,Procurement Engineering Package,GX1-L3 + GX1-L9,52%,/ginfina/ewp/:ewpId/procurement-package,GX1-L3 + L9 release composition; Stepper / Manifest Table; Hash/evidence display; Select / MultiSelect; Button / Alert
+GIN-UI-029,Technical Substitution and Deviation Request,GX1-L2 Record Detail,50%,/ginfina/procurement-packages/:pepId/deviations,GX1-L2 or L3 form composition; Fixed-label form controls; File/Dropzone where required; Alert / evidence links; Button
+GIN-UI-030,Technical Completion Certification,GX1-L2 + GX1-L9,46%,/ginfina/ewp/:ewpId/completion,GX1-L2 Gate / Decision; DataList / Progress; Radio / Textarea; Evidence links / Alert; Button
+GIN-UI-031,Invoice Eligibility and Commercial Handoff,GX1-L2 Record Detail,42%,/ginfina/ewp/:ewpId/invoice-eligibility,GX1-L2 Record Detail; Page Header; Tabs / DataList; Timeline / Badge; Right Rail / Drawer
+GIN-UI-032,"Standards, Design Basis and Applicable Requirements",GX1-L1 + GX1-L2,56%,/ginfina/governance/design-basis,GX1-L1 Workbench; TextInput / Select / MultiSelect; Data grid / Table; Badge / Pagination; Drawer / Menu
+GIN-UI-033,Engineering Authority and Reviewer Matrix,GX1-L1 ERP Workbench,55%,/ginfina/governance/authority-matrix,GX1-L1 admin workbench; People Select / Select; Table / DatePickerInput; Modal / Timeline; Button
+GIN-UI-034,"Technical Exception, Deviation and Waiver Control",GX1-L1 + GX1-L2,54%,/ginfina/governance/exceptions,GX1-L1 Workbench; TextInput / Select / MultiSelect; Data grid / Table; Badge / Pagination; Drawer / Menu
+GIN-UI-035,Audit and Immutable Engineering Evidence,GX1-L7 Master-Detail Intelligence,58%,/ginfina/governance/audit,GX1-L7 intelligence workbench; Filters; Data grid; Drawer / Timeline; Code/evidence values
+GIN-UI-036,"Notifications, Escalations and GCONNECT Actions",GX1-L1 ERP Workbench,50%,/ginfina/notifications,GX1-L1 Workbench; TextInput / Select / MultiSelect; Data grid / Table; Badge / Pagination; Drawer / Menu
+GIN-UI-037,Management Engineering Command Dashboard,GX1-L10 Command Centre,60%,/ginfina/management,GX1-L10 Command Centre; SimpleGrid / Grid; Table; Badge / Progress; Charts / Alerts
+GIN-UI-039,"Access, Role and Scope Administration",GX1-L1 ERP Workbench,50%,/ginfina/admin/access,GX1-L1 admin workbench; People Select / Select; Table / DatePickerInput; Modal / Timeline; Button
+GIN-UI-038,AI Evidence and Human Disposition Ledger,GX1-L5 AI Studio,50%,/ginfina/ai/evidence,GX1-L5 AI Studio; AI violet run status; Evidence/source rail; Human disposition controls; Stop/retry/revert where applicable

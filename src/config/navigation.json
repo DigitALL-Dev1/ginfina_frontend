@@ -1,0 +1,111 @@
+{
+  "SIA (Site Intelligence and Assessment)": {
+    "screens": [],
+    "sections": [
+      {
+        "label": "Start and Case Control",
+        "items": [
+          { "label": "Start and Case Control", "route": "/ginfina/sia/start-case-control" }
+        ]
+      },
+      {
+        "label": "Sites and Survey",
+        "items": [
+          { "label": "Sites and Survey", "route": "/ginfina/sia/sites-and-survey" }
+        ]
+      },
+      {
+        "label": "Engineering Assessment",
+        "items": [
+          { "label": "Engineering Assessment", "route": "/ginfina/sia/engineering-assessment" }
+        ]
+      },
+      {
+        "label": "Drone, GIS and Climate",
+        "items": [
+          { "label": "Drone, GIS and Climate", "route": "/ginfina/sia/drone-gis-climate" }
+        ]
+      },
+      {
+        "label": "Evidence, AI and Readiness",
+        "items": [
+          { "label": "Evidence, AI and Readiness", "route": "/ginfina/sia/evidence-ai-readiness" }
+        ]
+      },
+      {
+        "label": "SEB and EWB Handoff",
+        "items": [
+          { "label": "SEB and EWB Handoff", "route": "/ginfina/sia/seb-ewb-handoff" }
+        ]
+      },
+      {
+        "label": "Android Field Operations",
+        "items": [
+          { "label": "Android Field Operations", "route": "/ginfina/sia/android-field-ops" }
+        ]
+      }
+    ]
+  },
+  "SEB (Site Engineering Baseline)": {
+    "screens": [],
+    "sections": [
+      {
+        "label": "SEB Preparation",
+        "items": []
+      },
+      {
+        "label": "Engineering Review",
+        "items": []
+      },
+      {
+        "label": "Readiness & Conditions",
+        "items": []
+      },
+      {
+        "label": "Approval & Release",
+        "items": []
+      },
+      {
+        "label": "Revision & Change Control",
+        "items": []
+      },
+      {
+        "label": "Impact Assessment",
+        "items": []
+      },
+      {
+        "label": "EWB / EWP Handoff",
+        "items": []
+      }
+    ]
+  },
+  "EWP (Engineering Workbench Project)": {
+    "screens": [],
+    "sections": [
+      {
+        "label": "Integrated Start",
+        "items": []
+      },
+      {
+        "label": "Identity and Portfolio",
+        "items": []
+      },
+      {
+        "label": "EWP, EWO and Inputs",
+        "items": []
+      },
+      {
+        "label": "Deliverables and Review",
+        "items": []
+      },
+      {
+        "label": "Release and Procurement",
+        "items": []
+      },
+      {
+        "label": "Standards, QC and Governance",
+        "items": []
+      }
+    ]
+  }
+}

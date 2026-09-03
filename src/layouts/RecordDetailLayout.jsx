@@ -1,0 +1,6 @@
+import { Alert, Grid, Paper, Tabs, Text, Timeline } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
+import ScreenForm from '../components/common/ScreenForm';
+import OutputsPanel from '../components/common/OutputsPanel';
+import EvidenceTimeline from '../components/common/EvidenceTimeline';
+export default function RecordDetailLayout({ spec }) { return <Grid gutter="md"><Grid.Col span={{base:12,lg:8}}><Paper p="md"><Tabs defaultValue="overview"><Tabs.List><Tabs.Tab value="overview">Overview</Tabs.Tab><Tabs.Tab value="evidence">Evidence</Tabs.Tab><Tabs.Tab value="history">History</Tabs.Tab></Tabs.List><Tabs.Panel value="overview" pt="md"><ScreenForm fields={spec.fields}/></Tabs.Panel><Tabs.Panel value="evidence" pt="md"><OutputsPanel outputs={spec.outputs}/></Tabs.Panel><Tabs.Panel value="history" pt="md"><EvidenceTimeline/></Tabs.Panel></Tabs></Paper><Alert mt="md" color="green" variant="light" icon={<IconInfoCircle size={18}/>}>GX1 controlled record: all material state changes require named audit evidence.</Alert></Grid.Col><Grid.Col span={{base:12,lg:4}}><EvidenceTimeline/><Paper p="md" mt="md"><Text fw={700} size="sm" mb="sm">System outputs</Text><OutputsPanel outputs={spec.outputs.slice(0,4)}/></Paper></Grid.Col></Grid>; }

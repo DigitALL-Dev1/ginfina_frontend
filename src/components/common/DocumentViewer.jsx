@@ -1,0 +1,2 @@
+import { Badge, Group, Paper, Text } from '@mantine/core';
+export default function DocumentViewer() { return <Paper p="md"><Group justify="space-between" mb="sm"><Text fw={700} size="sm">Controlled review rendition</Text><Badge color="blue" variant="light">R2 · PDF</Badge></Group><div className="gx1-document-sheet"><div className="gx1-document-page"><div className="gx1-doc-line short"/><div className="gx1-doc-line"/><div className="gx1-doc-diagram"/><div className="gx1-doc-line"/><div className="gx1-doc-line short"/></div></div></Paper>; }

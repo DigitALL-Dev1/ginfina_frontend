@@ -1,0 +1,40 @@
+Screen ID,Module,Screen,Controlled Route,GX1 Layout,Density,BRD,Primary Action,Branch Count
+GIN-UI-001,Access and Identity,"Secure Login, SSO and MFA",/ginfina/login,GX1-L6 / authentication pattern,40%,F01,Sign in,3
+GIN-UI-002,Access and Identity,Consultant Profile and Engineering Readiness,/ginfina/consultants/:consultantId/readiness,GX1-L2 Record Detail,50%,"F03, F04",Submit readiness evidence,4
+GIN-UI-003,Home and Work,Engineering Workbench Home,/ginfina/workbench,GX1-L4 Executive Dashboard,55%,F38,Open next priority item,4
+GIN-UI-004,Home and Work,"My Work, Reviews and Approvals",/ginfina/my-work,GX1-L1 ERP Workbench,60%,F38,Open selected work item,4
+GIN-UI-005,Projects,Project Register,/ginfina/projects,GX1-L1 ERP Workbench,58%,"F05, F41",Open project,3
+GIN-UI-006,Projects,Project Engineering Workspace,/ginfina/projects/:projectId,GX1-L7 Master-Detail Intelligence,56%,"F05, F38, F41",Create engineering work package,4
+GIN-UI-007,Projects,Site Engineering Context and Location,/ginfina/projects/:projectId/sites/:siteId,GX1-L2 Record Detail,48%,F06,Confirm site engineering context,3
+GIN-UI-008,Engineering Work,Engineering Work Package Register,/ginfina/ewp,GX1-L1 ERP Workbench,60%,"F07, F38",Open selected EWP,4
+GIN-UI-009,Engineering Work,Create and Baseline Engineering Work Package,/ginfina/ewp/new,GX1-L3 Guided Wizard,50%,"F07, F48, F49",Create EWP baseline,3
+GIN-UI-010,Engineering Work,Engineering Work Package Control Centre,/ginfina/ewp/:ewpId,GX1-L2 + GX1-L7,58%,"F07, F08, F11, F15, F38",Execute next permitted action,5
+GIN-UI-011,Engineering Work,Issue Engineering Work Order,/ginfina/ewp/:ewpId/ewo/issue,GX1-L3 Guided Wizard,48%,"F08, F04, F49",Issue EWO,4
+GIN-UI-012,Consultant Portal,Consultant EWO Acceptance and Clarification,/ginfina/consultant/ewo/:ewoId,GX1-L6 Portal Self-Service,45%,F09,Accept work order,4
+GIN-UI-013,Inputs and Deliverables,Engineering Input Register,/ginfina/ewp/:ewpId/inputs,GX1-L1 ERP Workbench,58%,F11,Add or update engineering input,4
+GIN-UI-014,Inputs and Deliverables,Input Readiness and Design Start Gate,/ginfina/ewp/:ewpId/readiness,GX1-L2 Record Detail,45%,F12,Authorise design start,3
+GIN-UI-015,Inputs and Deliverables,Engineering RFI and Technical Query,/ginfina/ewp/:ewpId/rfis,GX1-L2 Record Detail,48%,F14,Submit technical query,4
+GIN-UI-016,Inputs and Deliverables,Engineering Deliverable Register,/ginfina/ewp/:ewpId/deliverables,GX1-L1 ERP Workbench,60%,F15,Open deliverable,4
+GIN-UI-017,Documents and Reviews,Document Upload and Revision Registration,/ginfina/ewp/:ewpId/documents/upload,GX1-L3 Guided Wizard,46%,"F16, F17",Register revision,3
+GIN-UI-018,Documents and Reviews,Document Detail and Revision History,/ginfina/documents/:documentId,GX1-L2 Record Detail,52%,"F16, F17, F40",Open current review rendition,4
+GIN-UI-019,Documents and Reviews,Formal Submission and Transmittal,/ginfina/ewp/:ewpId/submissions/new,GX1-L3 Guided Wizard,50%,F18,Submit formal transmittal,4
+GIN-UI-020,Documents and Reviews,Review Cycle Configuration and Routing,/ginfina/submissions/:submissionId/review/setup,GX1-L3 Guided Wizard,48%,"F19, F49",Start review cycle,3
+GIN-UI-021,Documents and Reviews,Engineering Review Workspace,/ginfina/reviews/:reviewCycleId,GX1-L7 Master-Detail Intelligence,60%,"F20, F21, F22",Submit review decision,5
+GIN-UI-022,Documents and Reviews,"Comment Response, Verification and Closure",/ginfina/review-comments/:commentId,GX1-L2 Record Detail,48%,"F21, F22",Verify and close comment,4
+GIN-UI-023,Approval and Release,Engineering Approval and Technical Sign-Off,/ginfina/ewp/:ewpId/approval,GX1-L2 Record Detail,44%,"F23, F49",Approve technical package,4
+GIN-UI-024,Approval and Release,Controlled Engineering Release - IFR / IFA / IFC,/ginfina/ewp/:ewpId/releases/new,GX1-L3 + GX1-L2,50%,F24,Release controlled baseline,3
+GIN-UI-025,Approval and Release,Current Released Engineering Set,/ginfina/ewp/:ewpId/releases/current,GX1-L1 + GX1-L2,56%,F25,Open released document,3
+GIN-UI-026,Quantities and Procurement,Engineering Bill of Materials (EBOM) Workspace,/ginfina/ewp/:ewpId/ebom,GX1-L1 ERP Workbench,60%,F26,Submit EBOM for engineering review,5
+GIN-UI-027,Quantities and Procurement,Engineering Bill of Quantities (BOQ) Workspace,/ginfina/ewp/:ewpId/boq,GX1-L1 ERP Workbench,60%,F27,Submit BOQ for review,4
+GIN-UI-028,Quantities and Procurement,Procurement Engineering Package,/ginfina/ewp/:ewpId/procurement-package,GX1-L3 + GX1-L9,52%,"F29, F42",Release package to GSOLVE,4
+GIN-UI-029,Quantities and Procurement,Technical Substitution and Deviation Request,/ginfina/procurement-packages/:pepId/deviations,GX1-L2 Record Detail,50%,"F30, F50",Submit engineering disposition,4
+GIN-UI-030,Completion,Technical Completion Certification,/ginfina/ewp/:ewpId/completion,GX1-L2 + GX1-L9,46%,F35,Certify technical completion,3
+GIN-UI-031,Completion,Invoice Eligibility and Commercial Handoff,/ginfina/ewp/:ewpId/invoice-eligibility,GX1-L2 Record Detail,42%,"F36, F42",Send eligibility signal,3
+GIN-UI-032,Governance,"Standards, Design Basis and Applicable Requirements",/ginfina/governance/design-basis,GX1-L1 + GX1-L2,56%,F48,Approve design basis record,4
+GIN-UI-033,Governance,Engineering Authority and Reviewer Matrix,/ginfina/governance/authority-matrix,GX1-L1 ERP Workbench,55%,F49,Publish authority change,4
+GIN-UI-034,Governance,"Technical Exception, Deviation and Waiver Control",/ginfina/governance/exceptions,GX1-L1 + GX1-L2,54%,F50,Open selected exception,4
+GIN-UI-035,Governance,Audit and Immutable Engineering Evidence,/ginfina/governance/audit,GX1-L7 Master-Detail Intelligence,58%,F40,Inspect selected event evidence,4
+GIN-UI-036,Governance,"Notifications, Escalations and GCONNECT Actions",/ginfina/notifications,GX1-L1 ERP Workbench,50%,F39,Open actionable notification,4
+GIN-UI-037,Management,Management Engineering Command Dashboard,/ginfina/management,GX1-L10 Command Centre,60%,"F38, F39",Open highest-impact decision,4
+GIN-UI-038,Conditional AI,AI Evidence and Human Disposition Ledger,/ginfina/ai/evidence,GX1-L5 AI Studio,50%,F46 (conditional),Record human disposition,4
+GIN-UI-039,Administration,"Access, Role and Scope Administration",/ginfina/admin/access,GX1-L1 ERP Workbench,50%,F02,Publish access change,4
