@@ -32,7 +32,7 @@ export default function ProjectRegisterLayout() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('http://127.0.0.1:8001/api/projects', { signal: controller.signal })
+    fetch('/api/projects', { signal: controller.signal })
       .then((res) => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
       .then((data) => setProjects(Array.isArray(data) ? data : []))
       .catch((err) => { if (err.name !== 'AbortError') setError(err.message); })

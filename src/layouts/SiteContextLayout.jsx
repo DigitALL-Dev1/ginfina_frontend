@@ -32,7 +32,7 @@ export default function SiteContextLayout({ spec }) {
 
   // Fetch projects list
   useEffect(() => {
-    fetch('http://127.0.0.1:8001/api/projects')
+    fetch('/api/projects')
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -55,7 +55,7 @@ export default function SiteContextLayout({ spec }) {
     setLoading(true);
     const targetSiteId = siteId || '1';
 
-    fetch(`http://127.0.0.1:8001/api/projects/sites/${targetSiteId}`, { signal: controller.signal })
+    fetch(`/api/projects/sites/${targetSiteId}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -143,7 +143,7 @@ export default function SiteContextLayout({ spec }) {
       formData.append('site_evidence', selectedFile);
     }
 
-    fetch('http://127.0.0.1:8001/api/projects/sites', {
+    fetch('/api/projects/sites', {
       method: 'POST',
       body: formData
     })
@@ -210,7 +210,7 @@ export default function SiteContextLayout({ spec }) {
       formData.append('site_evidence', selectedFile);
     }
 
-    fetch('http://127.0.0.1:8001/api/projects/sites', {
+    fetch('/api/projects/sites', {
       method: 'POST',
       body: formData
     })

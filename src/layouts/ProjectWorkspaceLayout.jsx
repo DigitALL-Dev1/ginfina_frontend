@@ -30,7 +30,7 @@ export default function ProjectWorkspaceLayout({ spec }) {
     const targetId = projectId || '1';
 
     // Fetch project detail
-    fetch(`http://127.0.0.1:8001/api/projects/${targetId}`, { signal: controller.signal })
+    fetch(`/api/projects/${targetId}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -52,7 +52,7 @@ export default function ProjectWorkspaceLayout({ spec }) {
       });
 
     // Fetch summary
-    fetch(`http://127.0.0.1:8001/api/projects/${targetId}/engineering-summary`, { signal: controller.signal })
+    fetch(`/api/projects/${targetId}/engineering-summary`, { signal: controller.signal })
       .then((res) => {
         if (res.ok) return res.json();
       })

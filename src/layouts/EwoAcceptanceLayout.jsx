@@ -338,7 +338,7 @@ export default function EwoAcceptanceLayout() {
   useEffect(() => {
     setLoading(true);
 
-    fetch(`http://127.0.0.1:8001/api/ewos/${targetEwoId}`)
+    fetch(`/api/ewos/${targetEwoId}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -376,7 +376,7 @@ export default function EwoAcceptanceLayout() {
         decided_by: 'user-4',
       };
 
-      const res = await fetch('http://127.0.0.1:8001/api/ewo-acceptances', {
+      const res = await fetch('/api/ewo-acceptances', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

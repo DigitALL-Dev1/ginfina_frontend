@@ -11,7 +11,7 @@ import {
   IconShield, IconClipboard, IconTool,
 } from '@tabler/icons-react';
 
-const API = 'http://127.0.0.1:8001/api';
+const API = '/api';
 
 // ── shared helpers ───────────────────────────────────────
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };

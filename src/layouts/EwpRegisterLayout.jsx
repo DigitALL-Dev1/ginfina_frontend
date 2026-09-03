@@ -57,7 +57,7 @@ export default function EwpRegisterLayout() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    fetch('http://127.0.0.1:8001/api/ewps', { signal: controller.signal })
+    fetch('/api/ewps', { signal: controller.signal })
       .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
       .then((json) => {
         const list = json?.data?.ewp_list || json?.data || (Array.isArray(json) ? json : null);

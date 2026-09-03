@@ -11,7 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 
-const API = 'http://127.0.0.1:8001/api';
+const API = '/api';
 
 const ASSESSMENT_STAGES = [
   'Initial Review',

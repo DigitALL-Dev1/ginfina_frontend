@@ -76,8 +76,6 @@ export const updateDocRevision = async (id, data) => {
  * @returns {Promise<Object>} Response containing updated document revision
  */
 export const updateControlledDetails = async (id, data) => {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
-  
   // Check if in demo mode
   if (import.meta.env.VITE_DEMO_MODE !== 'false') {
     await new Promise((resolve) => setTimeout(resolve, 120));
@@ -101,10 +99,11 @@ export const updateControlledDetails = async (id, data) => {
   if (data.native_file) formData.append('native_file', data.native_file);
   if (data.pdf_rendition) formData.append('pdf_rendition', data.pdf_rendition);
 
-  const response = await fetch(`${API_BASE}/doc-revisions/${id}/controlled-details`, {
+  const token = localStorage.getItem('access_token');
+  const response = await fetch(`/api/doc-revisions/${id}/controlled-details`, {
     method: 'PATCH',
     body: formData,
-    credentials: 'include',
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
   });
 
   if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`);

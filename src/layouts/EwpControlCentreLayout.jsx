@@ -319,7 +319,7 @@ export default function EwpControlCentreLayout() {
     setLoading(true);
 
     // Fetch single EWP detail using draft id
-    fetch(`http://127.0.0.1:8001/api/ewps/${targetId}`)
+    fetch(`/api/ewps/${targetId}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -344,7 +344,7 @@ export default function EwpControlCentreLayout() {
       });
 
     // Fetch consultants list
-    fetch('http://127.0.0.1:8001/api/consultants')
+    fetch('/api/consultants')
       .then((res) => res.json())
       .then((json) => {
         if (json && Array.isArray(json.data)) {
@@ -361,7 +361,7 @@ export default function EwpControlCentreLayout() {
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8001/api/ewps/${activeEwpDraftId}`, {
+      const res = await fetch(`/api/ewps/${activeEwpDraftId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -401,7 +401,7 @@ export default function EwpControlCentreLayout() {
     setSaving(true);
     try {
       // Call PATCH /api/ewps/{ewp_id}/ready
-      const res = await fetch(`http://127.0.0.1:8001/api/ewps/${activeEwpDraftId}/ready`, {
+      const res = await fetch(`/api/ewps/${activeEwpDraftId}/ready`, {
         method: 'PATCH',
         headers: {
           'Accept': 'application/json',

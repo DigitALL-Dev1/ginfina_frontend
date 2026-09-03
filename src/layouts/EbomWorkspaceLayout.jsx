@@ -34,7 +34,7 @@ export default function EbomWorkspaceLayout() {
     const controller = new AbortController();
     setLoading(true);
 
-    fetch('http://127.0.0.1:8001/api/ebom', { signal: controller.signal })
+    fetch('/api/ebom', { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();

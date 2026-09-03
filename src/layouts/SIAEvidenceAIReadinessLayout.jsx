@@ -12,7 +12,7 @@ import {
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
 
-const API = 'http://127.0.0.1:8001/api';
+const API = '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
 
 const RELIABILITY = ['Confirmed', 'Estimated', 'Unverified', 'Not Assessed'];
