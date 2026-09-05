@@ -4,6 +4,7 @@ import {
   Paper, Select, Stack, Switch, Tabs, Table, Text, Textarea,
   TextInput, Title, NumberInput,
 } from '@mantine/core';
+import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconDeviceMobile, IconDownload, IconClipboard,
@@ -13,6 +14,7 @@ import {
   IconFileCheck, IconPackage, IconHistory,
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
+import { autoCode } from '../utils/autoCode';
 
 const API = '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -85,6 +87,21 @@ function FR({ children }) { return <Group grow align="flex-start" gap="sm">{chil
 function FI({ label, field, fv, setFv, textarea, number, select }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
+  
+  // Auto-detect Type, Role, and Date fields
+  const fieldLower = field.toLowerCase();
+  const isTypeOrRoleField = fieldLower.includes('type') || fieldLower.includes('role');
+  const isDateField = fieldLower.includes('date') || fieldLower.includes('_at');
+  const getTypeRoleOptions = (fn) => {
+    const opts = {
+      device_type: ['Tablet', 'Smartphone', 'Ruggedized Device'],
+      operation_type: ['Data Collection', 'Inspection', 'Verification', 'Quality Check'],
+      role: ['Field Technician', 'Inspector', 'Supervisor', 'Engineer'],
+    };
+    return opts[fn] || [];
+  };
+  const autoOpts = getTypeRoleOptions(field);
+  
   const s = { input: { borderColor: '#d1d5db', borderRadius: 6, height: textarea ? undefined : 36 } };
   if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
     <Select data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
@@ -92,6 +109,19 @@ function FI({ label, field, fv, setFv, textarea, number, select }) {
     <Textarea value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
   if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
     <NumberInput value={val === '' ? undefined : val} onChange={v => upd(v)} styles={s} /></Box>;
+  
+  // Date fields with DD-MMM-YYYY format
+  if (isDateField) {
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+      <DateInput value={val ? (typeof val === 'string' ? new Date(val) : val) : null} onChange={(date) => upd(date ? date.toISOString() : '')} valueFormat="DD-MMM-YYYY" placeholder="DD-MMM-YYYY" clearable styles={s} /></Box>;
+  }
+  
+  // Convert Type and Role fields to dropdowns
+  if (isTypeOrRoleField && autoOpts.length > 0) {
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+      <Select data={autoOpts} value={val || null} onChange={v => upd(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
+  }
+  
   return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
     <TextInput value={val} onChange={e => upd(e.target.value)} styles={s} /></Box>;
 }
@@ -160,7 +190,15 @@ export default function SIAAndroidFieldOpsLayout() {
   const [modal, setModal]   = useState(null);
   const [saving, setSaving] = useState(false);
   const [fv, setFv]         = useState({});
-  const open  = (k, def = {}) => { setFv(def); setModal(k); };
+  const open  = (k, def = {}) => {
+    const codePrefills = {
+      batch:   { batch_code: autoCode('BTCH') },
+      pack:    { pack_code: autoCode('PACK') },
+      receipt: { receipt_code: autoCode('RCP') },
+    };
+    setFv({ ...(codePrefills[k] || {}), ...def });
+    setModal(k);
+  };
   const close = () => { setModal(null); setFv({}); };
   const save  = async (path, body, reload) => {
     setSaving(true);

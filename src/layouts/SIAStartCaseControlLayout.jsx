@@ -10,6 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
+import { autoCode } from '../utils/autoCode';
 
 const API = '/api';
 
@@ -70,7 +71,7 @@ export default function SIAStartCaseControlLayout() {
 
   // ── Step 1: SIA Case form ────────────────────────────────
   const [caseForm, setCaseForm] = useState({
-    case_code: '', assessment_purpose: '', assessment_stage: '', opportunity_id: '',
+    case_code: autoCode('SIA'), assessment_purpose: '', assessment_stage: '', opportunity_id: '',
   });
   const [caseSubmitting, setCaseSubmitting] = useState(false);
   const [createdCase, setCreatedCase] = useState(null);
@@ -120,7 +121,7 @@ export default function SIAStartCaseControlLayout() {
     setCreatedCase(null);
     setSelectedPacks([]);
     setLinkedPacks([]);
-    setCaseForm({ case_code: '', assessment_purpose: '', assessment_stage: '', opportunity_id: '' });
+    setCaseForm({ case_code: autoCode('SIA'), assessment_purpose: '', assessment_stage: '', opportunity_id: '' });
     // Clear stored case context
     localStorage.removeItem('sia_case_id');
     localStorage.removeItem('sia_project_id');

@@ -4,6 +4,7 @@ import {
   Paper, Select, Stack, Tabs, Table, Text, Textarea,
   TextInput, Title,
 } from '@mantine/core';
+import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconFile, IconRobot, IconAlertTriangle,
@@ -11,6 +12,7 @@ import {
   IconX, IconCheck, IconBolt, IconLock,
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
+import { autoCode } from '../utils/autoCode';
 
 const API = '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -84,11 +86,42 @@ function FR({ children }) { return <Group grow align="flex-start" gap="sm">{chil
 function FI({ label, field, fv, setFv, textarea, select }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
+  
+  // Auto-detect Type, Role, and Date fields
+  const fieldLower = field.toLowerCase();
+  const isTypeOrRoleField = fieldLower.includes('type') || fieldLower.includes('role');
+  const isDateField = fieldLower.includes('date') || fieldLower.includes('_at');
+  const getTypeRoleOptions = (fn) => {
+    const opts = {
+      evidence_type: ['Photograph', 'Document', 'Measurement', 'Video', 'Audio Recording', 'Drawing', 'Report'],
+      source_type: ['Site Survey', 'Field Observation', 'Laboratory Test', 'Engineering Analysis', 'Vendor Documentation', 'Client Provided'],
+      task_type: ['Object Detection', 'Classification', 'Measurement', 'Analysis', 'Anomaly Detection'],
+      conflict_type: ['Data Mismatch', 'Specification Conflict', 'Regulatory Conflict', 'Design Conflict', 'Schedule Conflict'],
+      action_type: ['RFI', 'TQ', 'Clarification', 'Site Visit', 'Follow-up Required'],
+      record_type: ['Constraint', 'Gap', 'Risk', 'Assumption'],
+    };
+    return opts[fn] || [];
+  };
+  const autoOpts = getTypeRoleOptions(field);
+  
   const s = { input: { borderColor: '#d1d5db', borderRadius: 6, height: textarea ? undefined : 36 } };
   if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
     <Select data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
   if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
     <Textarea value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
+  
+  // Date fields with DD-MMM-YYYY format
+  if (isDateField) {
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+      <DateInput value={val ? (typeof val === 'string' ? new Date(val) : val) : null} onChange={(date) => upd(date ? date.toISOString() : '')} valueFormat="DD-MMM-YYYY" placeholder="DD-MMM-YYYY" clearable styles={s} /></Box>;
+  }
+  
+  // Convert Type and Role fields to dropdowns
+  if (isTypeOrRoleField && autoOpts.length > 0) {
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+      <Select data={autoOpts} value={val || null} onChange={v => upd(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
+  }
+  
   return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
     <TextInput value={val} onChange={e => upd(e.target.value)} styles={s} /></Box>;
 }
@@ -147,7 +180,17 @@ export default function SIAEvidenceAIReadinessLayout() {
   const [saving, setSaving] = useState(false);
   const [fv, setFv] = useState({});
 
-  const openModal = (key, defaults = {}) => { setFv(defaults); setModal(key); };
+  const openModal = (key, defaults = {}) => {
+    const codePrefills = {
+      evidence:   { evidence_code: autoCode('EVD') },
+      aiobs:      { observation_code: autoCode('OBS') },
+      conflict:   { conflict_code: autoCode('CON') },
+      datagap:    { gap_code: autoCode('DG') },
+      rfi:        { action_code: autoCode('RFI') },
+    };
+    setFv({ ...(codePrefills[key] || {}), ...defaults });
+    setModal(key);
+  };
   const closeModal = () => { setModal(null); setFv({}); };
 
   const save = async (path, body, reload) => {

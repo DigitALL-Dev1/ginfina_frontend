@@ -4,6 +4,7 @@ import {
   Paper, Select, Stack, Tabs, Table, Text, Textarea,
   TextInput, Title, NumberInput, Switch,
 } from '@mantine/core';
+import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconBolt, IconBuildingBridge, IconBuildingSkyscraper,
@@ -11,6 +12,7 @@ import {
   IconBuildingFactory2, IconAlertTriangle, IconAlertCircle, IconUserCheck,
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
+import { autoCode } from '../utils/autoCode';
 
 const API = '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -87,10 +89,36 @@ function FormRow({ children }) { return <Group grow align="flex-start" gap="sm">
 function FI({ label, field, fv, setFv, textarea, number, select, readonly }) {
   const val = fv[field] ?? '';
   const onChange = v => setFv(p => ({ ...p, [field]: v }));
+  
+  // Auto-detect Type, Role, and Date fields
+  const fieldLower = field.toLowerCase();
+  const isTypeOrRoleField = fieldLower.includes('type') || fieldLower.includes('role');
+  const isDateField = fieldLower.includes('date') || fieldLower.includes('_at');
+  const getTypeRoleOptions = (fieldName) => {
+    const opts = {
+      assessment_type: ['Technical', 'Commercial', 'Environmental', 'Safety', 'Quality'],
+      role: ['Lead Engineer', 'Reviewer', 'Approver', 'Consultant', 'Team Member'],
+    };
+    return opts[fieldName] || [];
+  };
+  const autoOpts = getTypeRoleOptions(field);
+  
   const s = { input: { borderColor: readonly ? '#bbf7d0' : '#d1d5db', borderRadius: 6, height: textarea ? undefined : 36, backgroundColor: readonly ? '#f0fdf4' : undefined } };
   if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Select data={select} value={val} onChange={v => onChange(v || '')} clearable styles={s} /></Box>;
   if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Textarea value={val} onChange={e => onChange(e.target.value)} autosize minRows={2} styles={s} /></Box>;
   if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><NumberInput value={val === '' ? undefined : val} onChange={v => onChange(v)} styles={s} /></Box>;
+  
+  // Date fields with DD-MMM-YYYY format
+  if (isDateField) {
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+      <DateInput value={val ? (typeof val === 'string' ? new Date(val) : val) : null} onChange={(date) => onChange(date ? date.toISOString() : '')} valueFormat="DD-MMM-YYYY" placeholder="DD-MMM-YYYY" clearable styles={s} /></Box>;
+  }
+  
+  // Convert Type and Role fields to dropdowns
+  if (isTypeOrRoleField && autoOpts.length > 0) {
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Select data={autoOpts} value={val || null} onChange={v => onChange(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
+  }
+  
   return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><TextInput value={val} onChange={e => onChange(e.target.value)} readOnly={readonly} styles={s} /></Box>;
 }
 function SBadge({ v }) {
@@ -142,7 +170,15 @@ export default function SIAEngineeringAssessmentLayout() {
   const { data: gaps, loading: gapL, reload: rGap } = useApi(eid ? `${API}/sia/engineering-assessments/${eid}/gaps` : null, [eid]);
   const { data: reviews, loading: revL, reload: rRev } = useApi(eid ? `${API}/sia/engineering-assessments/${eid}/reviews` : null, [eid]);
 
-  const openModal = (key, defaults = {}) => { setFv(defaults); setModal(key); };
+  const openModal = (key, defaults = {}) => {
+    const codePrefills = {
+      ea:      { assessment_code: autoCode('EA') },
+      finding: { finding_code: autoCode('FND') },
+      gap:     { gap_code: autoCode('GAP') },
+    };
+    setFv({ ...(codePrefills[key] || {}), ...defaults });
+    setModal(key);
+  };
   const closeModal = () => { setModal(null); setFv({}); };
 
   const save = async (path, body, reload) => {

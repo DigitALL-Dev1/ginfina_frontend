@@ -7,12 +7,21 @@ export default defineConfig({
     port: 4173,
     proxy: {
       '/api': {
-        target: 'http://217.216.76.178:8001',
+        target: 'http://127.0.0.1:8001',
         changeOrigin: true,
         secure: false,
       },
     },
   },
-  preview: { port: 4174 },
+  preview: {
+    port: 4174,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8001',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
   build: { sourcemap: true },
 });
