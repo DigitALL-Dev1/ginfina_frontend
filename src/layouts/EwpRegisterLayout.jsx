@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 
 /* ─── Pilot fallback data (R1.0 controlled) ─────────────────────────────── */
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const PILOT_EWPS = [
   { id: 'EWP-001', ewp_id: 'UNI-BOR-ELE-001', ewp_code: 'UNI-BOR-ELE-001', discipline: 'Electrical / Mini-grid',   status: 'In Review',   owner: 'Senthil'      },
   { id: 'EWP-002', ewp_id: 'UNI-BOR-STR-001', ewp_code: 'UNI-BOR-STR-001', discipline: 'Structural / Mounting',    status: 'In Design',   owner: 'Consultant A' },
@@ -57,7 +58,7 @@ export default function EwpRegisterLayout() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    fetch('/api/ewps', { signal: controller.signal })
+    fetch(`${API}/ewps`, { signal: controller.signal })
       .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
       .then((json) => {
         const list = json?.data?.ewp_list || json?.data || (Array.isArray(json) ? json : null);

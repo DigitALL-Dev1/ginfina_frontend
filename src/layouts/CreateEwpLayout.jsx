@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 
 /* ─── Step definitions ───────────────────────────────────────────── */
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const STEPS = [
   { label: 'Context',  number: 1 },
   { label: 'Details',  number: 2 },
@@ -489,7 +490,7 @@ export default function CreateEwpLayout() {
     setLoadingProjects(true);
 
     // Fetch projects
-    fetch('/api/projects')
+    fetch(`${API}/projects`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -516,7 +517,7 @@ export default function CreateEwpLayout() {
       });
 
     // Fetch review authorities
-    fetch('/api/reference/review-authorities')
+    fetch(`${API}/reference/review-authorities`)
       .then((res) => res.json())
       .then((json) => {
         if (json && Array.isArray(json.data)) {
@@ -529,7 +530,7 @@ export default function CreateEwpLayout() {
       .catch((err) => console.error('Failed to fetch review authorities:', err));
 
     // Fetch consultants
-    fetch('/api/consultants?status=Ready')
+    fetch(`${API}/consultants?status=Ready`)
       .then((res) => res.json())
       .then((json) => {
         if (json && Array.isArray(json.data)) {
@@ -542,7 +543,7 @@ export default function CreateEwpLayout() {
       .catch((err) => console.error('Failed to fetch consultants:', err));
 
     // Fetch input gates
-    fetch('/api/reference/input-gates')
+    fetch(`${API}/reference/input-gates`)
       .then((res) => res.json())
       .then((json) => {
         if (json && Array.isArray(json.data)) {
@@ -561,7 +562,7 @@ export default function CreateEwpLayout() {
   useEffect(() => {
     if (step === 3 && createdEwpId) {
       setLoadingReviewData(true);
-      fetch(`/api/ewps/${createdEwpId}`)
+      fetch(`${API}/ewps/${createdEwpId}`)
         .then((res) => {
           if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
           return res.json();
@@ -595,7 +596,7 @@ export default function CreateEwpLayout() {
         design_basis: Array.isArray(form.designBasis) ? form.designBasis : [],
       };
 
-      const res = await fetch('/api/ewps/draft', {
+      const res = await fetch(`${API}/ewps/draft`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -658,7 +659,7 @@ export default function CreateEwpLayout() {
         ...extraPayload,
       };
 
-      const res = await fetch(`/api/ewps/${targetId}`, {
+      const res = await fetch(`${API}/ewps/${targetId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -710,7 +711,7 @@ export default function CreateEwpLayout() {
       // First ensure latest updates are patched
       await updateEwpDraftApi({}, false);
 
-      const res = await fetch(`/api/ewps/${targetId}/baseline`, {
+      const res = await fetch(`${API}/ewps/${targetId}/baseline`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

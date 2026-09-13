@@ -1,5 +1,7 @@
 import { getJson, postJson, patchJson } from './apiClient';
 
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
+
 /**
  * Document Revision API Service
  * Handles all API calls related to document revisions
@@ -100,7 +102,7 @@ export const updateControlledDetails = async (id, data) => {
   if (data.pdf_rendition) formData.append('pdf_rendition', data.pdf_rendition);
 
   const token = localStorage.getItem('access_token');
-  const response = await fetch(`/api/doc-revisions/${id}/controlled-details`, {
+  const response = await fetch(`${API}/doc-revisions/${id}/controlled-details`, {
     method: 'PATCH',
     body: formData,
     headers: token ? { 'Authorization': `Bearer ${token}` } : {},

@@ -5,6 +5,7 @@ import {
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const STATUS_COLORS = {
   'in progress': { bg: '#e7f5ff', color: '#1971c2' },
   'planning':    { bg: '#fff4e6', color: '#d9480f' },
@@ -32,7 +33,7 @@ export default function ProjectRegisterLayout() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/projects', { signal: controller.signal })
+    fetch(`${API}/projects`, { signal: controller.signal })
       .then((res) => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
       .then((data) => setProjects(Array.isArray(data) ? data : []))
       .catch((err) => { if (err.name !== 'AbortError') setError(err.message); })

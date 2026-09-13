@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import { autoCode } from '../utils/autoCode';
 
-const API = '/api';
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const ASSESSMENT_STAGES = [
   'Initial Review',

@@ -19,6 +19,8 @@ import { useParams } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 
 /* ─── Shared read-only field ─────────────────────────────────────── */
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
+
 function ReadField({ label, value, hint, required }) {
   return (
     <Box>
@@ -319,7 +321,7 @@ export default function EwpControlCentreLayout() {
     setLoading(true);
 
     // Fetch single EWP detail using draft id
-    fetch(`/api/ewps/${targetId}`)
+    fetch(`${API}/ewps/${targetId}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -344,7 +346,7 @@ export default function EwpControlCentreLayout() {
       });
 
     // Fetch consultants list
-    fetch('/api/consultants')
+    fetch(`${API}/consultants`)
       .then((res) => res.json())
       .then((json) => {
         if (json && Array.isArray(json.data)) {
@@ -361,7 +363,7 @@ export default function EwpControlCentreLayout() {
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/ewps/${activeEwpDraftId}`, {
+      const res = await fetch(`${API}/ewps/${activeEwpDraftId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -401,7 +403,7 @@ export default function EwpControlCentreLayout() {
     setSaving(true);
     try {
       // Call PATCH /api/ewps/{ewp_id}/ready
-      const res = await fetch(`/api/ewps/${activeEwpDraftId}/ready`, {
+      const res = await fetch(`${API}/ewps/${activeEwpDraftId}/ready`, {
         method: 'PATCH',
         headers: {
           'Accept': 'application/json',

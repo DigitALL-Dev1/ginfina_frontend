@@ -17,6 +17,8 @@ import {
 import { useParams } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
+
 export default function ProjectWorkspaceLayout({ spec }) {
   const { projectId } = useParams();
   const [project, setProject] = useState(null);
@@ -30,7 +32,7 @@ export default function ProjectWorkspaceLayout({ spec }) {
     const targetId = projectId || '1';
 
     // Fetch project detail
-    fetch(`/api/projects/${targetId}`, { signal: controller.signal })
+    fetch(`${API}/projects/${targetId}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -52,7 +54,7 @@ export default function ProjectWorkspaceLayout({ spec }) {
       });
 
     // Fetch summary
-    fetch(`/api/projects/${targetId}/engineering-summary`, { signal: controller.signal })
+    fetch(`${API}/projects/${targetId}/engineering-summary`, { signal: controller.signal })
       .then((res) => {
         if (res.ok) return res.json();
       })

@@ -14,7 +14,7 @@ import {
 import SIAStepFlow from '../components/common/SIAStepFlow';
 import { autoCode } from '../utils/autoCode';
 
-const API = '/api';
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
 
 const STATUS_OPTS    = ['Draft', 'In Progress', 'Approved', 'Released', 'Superseded', 'Closed'];

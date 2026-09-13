@@ -6,6 +6,7 @@ import {
 import { notifications } from '@mantine/notifications';
 
 /* ─── Pilot BOQ Fallback Data ────────────────────────────────────── */
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const PILOT_BOQ = [
   { boq: '1.1', work_quantity: 'PV array installation',    qty: 36.3,  uom: 'kWp'  },
   { boq: '1.2', work_quantity: 'LV mini-grid cable',       qty: 1480,  uom: 'm'    },
@@ -34,7 +35,7 @@ export default function BoqWorkspaceLayout() {
     const controller = new AbortController();
     setLoading(true);
 
-    fetch('/api/boq', { signal: controller.signal })
+    fetch(`${API}/boq`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();

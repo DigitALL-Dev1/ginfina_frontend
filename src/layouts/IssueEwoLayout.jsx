@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 
 /* ─── Steps ──────────────────────────────────────────────────────── */
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const STEPS = [
   { number: 1, label: 'Context' },
   { number: 2, label: 'Details' },
@@ -384,7 +385,7 @@ export default function IssueEwoLayout() {
     }
 
     try {
-      const res = await fetch(`/api/ewps/${selectedId}`);
+      const res = await fetch(`${API}/ewps/${selectedId}`);
       if (res.ok) {
         const json = await res.json();
         if (json && json.data) {
@@ -401,7 +402,7 @@ export default function IssueEwoLayout() {
     setLoadingEwps(true);
 
     // Fetch EWPs with status=Ready (or all EWPs)
-    fetch('/api/ewps?status=Ready')
+    fetch(`${API}/ewps?status=Ready`)
       .then((res) => res.json())
       .then((json) => {
         const list = json?.data || [];
@@ -410,7 +411,7 @@ export default function IssueEwoLayout() {
           applyEwpData(list[0]);
         } else {
           // Fallback to fetch all EWPs if no Ready status
-          fetch('/api/ewps')
+          fetch(`${API}/ewps`)
             .then((r) => r.json())
             .then((allJson) => {
               if (allJson && Array.isArray(allJson.data) && allJson.data.length > 0) {
@@ -429,7 +430,7 @@ export default function IssueEwoLayout() {
       });
 
     // Fetch consultants
-    fetch('/api/consultants')
+    fetch(`${API}/consultants`)
       .then((res) => res.json())
       .then((json) => {
         if (json && Array.isArray(json.data)) {
@@ -455,7 +456,7 @@ export default function IssueEwoLayout() {
         special_instructions: form.instructions || '',
       };
 
-      const res = await fetch('/api/ewos/draft', {
+      const res = await fetch(`${API}/ewos/draft`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -518,7 +519,7 @@ export default function IssueEwoLayout() {
       }
 
       if (targetEwoId) {
-        const res = await fetch(`/api/ewos/${targetEwoId}/in-review`, {
+        const res = await fetch(`${API}/ewos/${targetEwoId}/in-review`, {
           method: 'POST',
           headers: {
             'Accept': 'application/json',

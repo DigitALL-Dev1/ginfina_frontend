@@ -6,6 +6,7 @@ import {
 import { notifications } from '@mantine/notifications';
 
 /* ─── Pilot EBOM Fallback Data ───────────────────────────────────── */
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const PILOT_EBOM = [
   { item: 'PV-MOD-580', description: 'PV module 580 Wp',        qty: 63,    uom: 'Nos.' },
   { item: 'INV-30K',    description: 'Hybrid inverter 30 kW',   qty: 1,     uom: 'No.'  },
@@ -34,7 +35,7 @@ export default function EbomWorkspaceLayout() {
     const controller = new AbortController();
     setLoading(true);
 
-    fetch('/api/ebom', { signal: controller.signal })
+    fetch(`${API}/ebom`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();

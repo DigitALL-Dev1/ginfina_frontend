@@ -14,7 +14,7 @@ import {
 } from '@tabler/icons-react';
 import { autoCode } from '../utils/autoCode';
 
-const API = '/api';
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // ── shared style ─────────────────────────────────────────
 const thS = {

@@ -9,7 +9,7 @@ import {
   IconRefresh, IconSend, IconShieldCheck,
 } from '@tabler/icons-react';
 
-const API = '/api';
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const WORKFLOW_STEPS = [
   { label: 'Select case & site', icon: IconFileCheck },

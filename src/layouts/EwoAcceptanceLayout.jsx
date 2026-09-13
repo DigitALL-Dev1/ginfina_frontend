@@ -20,6 +20,8 @@ import { useParams } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 
 /* ─── Shared helpers ─────────────────────────────────────────────── */
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
+
 function ReadField({ label, value, hint, required }) {
   return (
     <Box>
@@ -338,7 +340,7 @@ export default function EwoAcceptanceLayout() {
   useEffect(() => {
     setLoading(true);
 
-    fetch(`/api/ewos/${targetEwoId}`)
+    fetch(`${API}/ewos/${targetEwoId}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -376,7 +378,7 @@ export default function EwoAcceptanceLayout() {
         decided_by: 'user-4',
       };
 
-      const res = await fetch('/api/ewo-acceptances', {
+      const res = await fetch(`${API}/ewo-acceptances`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

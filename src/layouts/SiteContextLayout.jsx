@@ -21,6 +21,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { IconMapPin } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
+
 export default function SiteContextLayout({ spec }) {
   const { projectId, siteId } = useParams();
   const navigate = useNavigate();
@@ -32,7 +34,7 @@ export default function SiteContextLayout({ spec }) {
 
   // Fetch projects list
   useEffect(() => {
-    fetch('/api/projects')
+    fetch(`${API}/projects`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -55,7 +57,7 @@ export default function SiteContextLayout({ spec }) {
     setLoading(true);
     const targetSiteId = siteId || '1';
 
-    fetch(`/api/projects/sites/${targetSiteId}`, { signal: controller.signal })
+    fetch(`${API}/projects/sites/${targetSiteId}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -143,7 +145,7 @@ export default function SiteContextLayout({ spec }) {
       formData.append('site_evidence', selectedFile);
     }
 
-    fetch('/api/projects/sites', {
+    fetch(`${API}/projects/sites`, {
       method: 'POST',
       body: formData
     })
@@ -210,7 +212,7 @@ export default function SiteContextLayout({ spec }) {
       formData.append('site_evidence', selectedFile);
     }
 
-    fetch('/api/projects/sites', {
+    fetch(`${API}/projects/sites`, {
       method: 'POST',
       body: formData
     })
