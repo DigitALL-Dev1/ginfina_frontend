@@ -33,9 +33,9 @@
         ]
       },
       {
-        "label": "SEB and EWB Handoff",
+        "label": "SIA Completion / SEB Input",
         "items": [
-          { "label": "SEB and EWB Handoff", "route": "/ginfina/sia/seb-ewb-handoff" }
+          { "label": "SIA Completion / SEB Input", "route": "/ginfina/sia/seb-ewb-handoff" }
         ]
       },
       {
@@ -51,31 +51,33 @@
     "sections": [
       {
         "label": "SEB Preparation",
-        "items": []
+        "items": [
+          { "label": "SEB Preparation", "route": "/ginfina/sep/seb-preparation" }
+        ]
       },
       {
         "label": "Engineering Review",
-        "items": []
+        "items": [
+          { "label": "Engineering Review", "route": "/ginfina/sep/engineering-review" }
+        ]
       },
       {
         "label": "Readiness & Conditions",
-        "items": []
+        "items": [
+          { "label": "Readiness & Conditions", "route": "/ginfina/sep/readiness-conditions" }
+        ]
       },
       {
         "label": "Approval & Release",
-        "items": []
+        "items": [
+          { "label": "Approval & Release", "route": "/ginfina/sep/approval-release" }
+        ]
       },
       {
-        "label": "Revision & Change Control",
-        "items": []
-      },
-      {
-        "label": "Impact Assessment",
-        "items": []
-      },
-      {
-        "label": "EWB / EWP Handoff",
-        "items": []
+        "label": "EWP Handoff",
+        "items": [
+          { "label": "EWP Handoff", "route": "/ginfina/sep/ewb-handoff" }
+        ]
       }
     ]
   },

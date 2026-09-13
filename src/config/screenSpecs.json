@@ -1031,8 +1031,8 @@
   {
     "id": "GIN-UI-SIA-06",
     "module": "SIA (Site Intelligence and Assessment)",
-    "name": "SEB and EWB Handoff",
-    "shortName": "SEB & EWB Handoff",
+    "name": "SIA Completion / SEB Input",
+    "shortName": "SIA Completion / SEB Input",
     "layout": "SIASEBEWBHandoffLayout",
     "brd": "SIA-06",
     "route": "/ginfina/sia/seb-ewb-handoff"
@@ -1045,6 +1045,69 @@
     "layout": "SIAAndroidFieldOpsLayout",
     "brd": "SIA-07",
     "route": "/ginfina/sia/android-field-ops"
+  },
+  {
+    "id": "GIN-UI-SEP-01",
+    "module": "SEP (Site Engineering Preparation)",
+    "name": "SEB Preparation",
+    "shortName": "SEB Preparation",
+    "layout": "SEBPreparationLayout",
+    "brd": "SEP-01",
+    "route": "/ginfina/sep/seb-preparation"
+  },
+  {
+    "id": "GIN-UI-SEP-02",
+    "module": "SEP (Site Engineering Preparation)",
+    "name": "Engineering Review",
+    "shortName": "Engineering Review",
+    "layout": "SEBEngineeringReviewLayout",
+    "brd": "SEP-02",
+    "route": "/ginfina/sep/engineering-review"
+  },
+  {
+    "id": "GIN-UI-SEP-03",
+    "module": "SEP (Site Engineering Preparation)",
+    "name": "Readiness & Conditions",
+    "shortName": "Readiness",
+    "layout": "SEBReadinessConditionsLayout",
+    "brd": "SEP-03",
+    "route": "/ginfina/sep/readiness-conditions"
+  },
+  {
+    "id": "GIN-UI-SEP-04",
+    "module": "SEP (Site Engineering Preparation)",
+    "name": "Revision & Change Control",
+    "shortName": "Revision Control",
+    "layout": "SEBRevisionChangeLayout",
+    "brd": "SEP-04",
+    "route": "/ginfina/sep/revision-change"
+  },
+  {
+    "id": "GIN-UI-SEP-05",
+    "module": "SEP (Site Engineering Preparation)",
+    "name": "Approval & Release",
+    "shortName": "Approval & Release",
+    "layout": "SEBApprovalReleaseLayout",
+    "brd": "SEP-05",
+    "route": "/ginfina/sep/approval-release"
+  },
+  {
+    "id": "GIN-UI-SEP-06",
+    "module": "SEP (Site Engineering Preparation)",
+    "name": "Impact Assessment",
+    "shortName": "Impact Assessment",
+    "layout": "SEBImpactAssessmentLayout",
+    "brd": "SEP-06",
+    "route": "/ginfina/sep/impact-assessment"
+  },
+  {
+    "id": "GIN-UI-SEP-07",
+    "module": "SEP (Site Engineering Preparation)",
+    "name": "EWP Handoff",
+    "shortName": "EWP Handoff",
+    "layout": "SEBEWBHandoffLayout",
+    "brd": "SEP-07",
+    "route": "/ginfina/sep/ewb-handoff"
   },
   {
     "id": "GIN-UI-006",

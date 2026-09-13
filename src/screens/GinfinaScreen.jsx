@@ -57,8 +57,15 @@ import SIASitesSurveyLayout from '../layouts/SIASitesSurveyLayout';
 import SIAEngineeringAssessmentLayout from '../layouts/SIAEngineeringAssessmentLayout';
 import SIADroneGISClimateLayout from '../layouts/SIADroneGISClimateLayout';
 import SIAEvidenceAIReadinessLayout from '../layouts/SIAEvidenceAIReadinessLayout';
-import SIASEBEWBHandoffLayout from '../layouts/SIASEBEWBHandoffLayout';
+import SIACompletionSEBInputLayout from '../layouts/SIACompletionSEBInputLayout';
 import SIAAndroidFieldOpsLayout from '../layouts/SIAAndroidFieldOpsLayout';
+import SEBPreparationLayout from '../layouts/SEBPreparationLayout';
+import SEBEngineeringReviewLayout from '../layouts/SEBEngineeringReviewLayout';
+import SEBReadinessConditionsLayout from '../layouts/SEBReadinessConditionsLayout';
+import SEBRevisionChangeLayout from '../layouts/SEBRevisionChangeLayout';
+import SEBApprovalReleaseLayout from '../layouts/SEBApprovalReleaseLayout';
+import SEBImpactAssessmentLayout from '../layouts/SEBImpactAssessmentLayout';
+import SEBEWBHandoffLayout from '../layouts/SEBEWBHandoffLayout';
 import { useNavigate } from 'react-router-dom';
 
 
@@ -122,8 +129,15 @@ export default function GinfinaScreen({ spec }) {
   if(spec.id==='GIN-UI-SIA-03') return <div className="gx1-page"><StateBoundary><SIAEngineeringAssessmentLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
   if(spec.id==='GIN-UI-SIA-04') return <div className="gx1-page"><StateBoundary><SIADroneGISClimateLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
   if(spec.id==='GIN-UI-SIA-05') return <div className="gx1-page"><StateBoundary><SIAEvidenceAIReadinessLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
-  if(spec.id==='GIN-UI-SIA-06') return <div className="gx1-page"><StateBoundary><SIASEBEWBHandoffLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
+ if(spec.id==='GIN-UI-SIA-06') return <div className="gx1-page"><StateBoundary><SIACompletionSEBInputLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
   if(spec.id==='GIN-UI-SIA-07') return <div className="gx1-page"><StateBoundary><SIAAndroidFieldOpsLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
+  if(spec.id==='GIN-UI-SEP-01') return <div className="gx1-page"><StateBoundary><SEBPreparationLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
+  if(spec.id==='GIN-UI-SEP-02') return <div className="gx1-page"><StateBoundary><SEBEngineeringReviewLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
+  if(spec.id==='GIN-UI-SEP-03') return <div className="gx1-page"><StateBoundary><SEBReadinessConditionsLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
+  if(spec.id==='GIN-UI-SEP-04') return <div className="gx1-page"><StateBoundary><SEBRevisionChangeLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
+  if(spec.id==='GIN-UI-SEP-05') return <div className="gx1-page"><StateBoundary><SEBApprovalReleaseLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
+  if(spec.id==='GIN-UI-SEP-06') return <div className="gx1-page"><StateBoundary><SEBImpactAssessmentLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
+  if(spec.id==='GIN-UI-SEP-07') return <div className="gx1-page"><StateBoundary><SEBEWBHandoffLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
  if(spec.id==='GIN-UI-006') return <div className="gx1-page"><StateBoundary><ProjectWorkspaceLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
  if(spec.id==='GIN-UI-007') return <div className="gx1-page"><StateBoundary><SiteContextLayout spec={spec}/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;
  if(spec.id==='GIN-UI-008') return <div className="gx1-page"><StateBoundary><EwpRegisterLayout/></StateBoundary><ScreenMetaDrawer spec={spec} opened={meta} onClose={close}/></div>;

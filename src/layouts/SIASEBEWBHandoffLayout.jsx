@@ -218,7 +218,7 @@ export default function SIASEBEWBHandoffLayout() {
           <Badge color="green" variant="light" size="lg" radius="sm">SIA</Badge>
           <Text size="xs" c="dimmed" fw={500}>Module 1 · Section 6</Text>
         </Group>
-        <Title order={2} fw={700} c="#111827">SEB and EWB Handoff</Title>
+        <Title order={2} fw={700} c="#111827">SIA Completion / SEB Input</Title>
         <Text size="sm" c="#6b7280" mt={4}>
           Manage Site Engineering Baselines, revisions, reviews, approvals, releases and EWB handoffs.
         </Text>
