@@ -4,7 +4,7 @@ import {
   Paper, Select, Stack, Tabs, Table, Text, Textarea,
   TextInput, Title,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import DatePickerInput from '../components/common/DatePickerInput';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconFile, IconRobot, IconAlertTriangle,
@@ -110,11 +110,7 @@ function FI({ label, field, fv, setFv, textarea, select }) {
   if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
     <Textarea value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
   
-  // Date fields with DD-MMM-YYYY format
-  if (isDateField) {
-    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-      <DateInput value={val ? (typeof val === 'string' ? new Date(val) : val) : null} onChange={(date) => upd(date ? date.toISOString() : '')} valueFormat="DD-MMM-YYYY" placeholder="DD-MMM-YYYY" clearable styles={s} /></Box>;
-  }
+  if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
   
   // Convert Type and Role fields to dropdowns
   if (isTypeOrRoleField && autoOpts.length > 0) {
@@ -563,8 +559,9 @@ export default function SIAEvidenceAIReadinessLayout() {
         <FR><FI label="Source Type" field="source_type" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={RELIABILITY} /></FR>
         <FR><FI label="File Name" field="file_name" fv={fv} setFv={setFv} /><FI label="Captured At" field="captured_at" fv={fv} setFv={setFv} /></FR>
         <FI label="File Path" field="file_path" fv={fv} setFv={setFv} />
-        <FR><FI label="Site ID (optional)" field="site_id" fv={fv} setFv={setFv} /><FI label="POI ID (optional)" field="poi_id" fv={fv} setFv={setFv} /></FR>
-        <FR><FI label="Engineering Assessment ID (optional)" field="engineering_assessment_id" fv={fv} setFv={setFv} /><FI label="Evidence Status" field="evidence_status" fv={fv} setFv={setFv} select={STATUS_OPTS} /></FR>
+        {/* <FR><FI label="Site ID (optional)" field="site_id" fv={fv} setFv={setFv} /><FI label="POI ID (optional)" field="poi_id" fv={fv} setFv={setFv} /></FR> */}
+        {/* <FI label="Engineering Assessment ID (optional)" field="engineering_assessment_id" fv={fv} setFv={setFv} /> */}
+        <FI label="Evidence Status" field="evidence_status" fv={fv} setFv={setFv} select={STATUS_OPTS} />
       </FormModal>
 
       {/* Evidence Verification */}

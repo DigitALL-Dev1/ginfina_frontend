@@ -1,3 +1,4 @@
+import DatePickerInput from '../components/common/DatePickerInput';
 import { useState, useEffect } from 'react';
 import {
   Box,
@@ -255,10 +256,9 @@ function StepDetails({ form, onChange, consultantsList = [] }) {
         <Grid.Col span={6}>
           <Box>
             <Label required>Due date</Label>
-            <TextInput
-              type="date"
+            <DatePickerInput aria-label="Due date"
               value={form.dueDate}
-              onChange={(e) => onChange('dueDate', e.target.value)}
+              onChange={value => onChange('dueDate', value)}
               styles={inputSt}
             />
             <Hint>DatePickerInput · Must not precede issue date</Hint>

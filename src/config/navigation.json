@@ -85,28 +85,52 @@
     "screens": [],
     "sections": [
       {
-        "label": "Integrated Start",
-        "items": []
+        "label": "Engineering Work",
+        "items": [
+          { "label": "Engineering Work", "route": "/ginfina/ewp/engineering-work" }
+        ]
       },
       {
-        "label": "Identity and Portfolio",
-        "items": []
+        "label": "Inputs & Deliverables",
+        "items": [
+          { "label": "Inputs & Deliverables", "route": "/ginfina/ewp/inputs-deliverables" }
+        ]
       },
       {
-        "label": "EWP, EWO and Inputs",
-        "items": []
+        "label": "Documents & Reviews",
+        "items": [
+          { "label": "Documents & Reviews", "route": "/ginfina/ewp/documents-reviews" }
+        ]
       },
       {
-        "label": "Deliverables and Review",
-        "items": []
+        "label": "Approval & Release",
+        "items": [
+          { "label": "Approval & Release", "route": "/ginfina/ewp/approval-release" }
+        ]
       },
       {
-        "label": "Release and Procurement",
-        "items": []
+        "label": "Quantities & Procurement",
+        "items": [
+          { "label": "Quantities & Procurement", "route": "/ginfina/ewp/quantities-procurement" }
+        ]
       },
       {
-        "label": "Standards, QC and Governance",
-        "items": []
+        "label": "Completion & Governance",
+        "items": [
+          { "label": "Completion & Governance", "route": "/ginfina/ewp/completion-governance" }
+        ]
+      },
+      {
+        "label": "Management & Administration",
+        "items": [
+          { "label": "Management & Administration", "route": "/ginfina/ewp/management-administration" }
+        ]
+      },
+      {
+        "label": "AI Assist",
+        "items": [
+          { "label": "AI Assist", "route": "/ginfina/ewp/ai-assist" }
+        ]
       }
     ]
   }

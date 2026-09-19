@@ -1,3 +1,4 @@
+import DatePickerInput from '../components/common/DatePickerInput';
 import { useState, useEffect } from 'react';
 import {
   Box,
@@ -282,7 +283,7 @@ function StepDetails({ form, onChange, reviewAuthorities = [], consultantsList =
         <Grid.Col span={6}>
           <Box>
             <Text size="xs" fw={600} c="#374151" mb={4}>Due date <Text span c="red">*</Text></Text>
-            <TextInput type="date" value={form.dueDate} onChange={(e) => onChange('dueDate', e.target.value)} styles={inputStyles} />
+            <DatePickerInput aria-label="Due date" value={form.dueDate} onChange={value => onChange('dueDate', value)} styles={inputStyles} />
             <Text size="11px" c="#9ca3af" mt={4}>DateInput · Controlled milestone</Text>
           </Box>
         </Grid.Col>

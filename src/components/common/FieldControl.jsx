@@ -28,14 +28,15 @@ export default function FieldControl({ row, value, onChange, fieldName }) {
   if (t.includes('checkbox') || t.includes('checklist')) return <Checkbox label={label} description={validation} checked={Boolean(value)} onChange={(e)=>onChange?.(e.currentTarget.checked)}/>;
   if (t.includes('file') || t.includes('dropzone')) return <FileInput label={label} description={validation} placeholder={String(example || 'Choose controlled file')}/>;
   
-  // Use DatePickerInput for date fields with DD-MMM-YYYY format
+  // Use DatePickerInput for date fields with YYYY-MM-DD format
   if (t.includes('date')) {
     return <DatePickerInput 
       label={label} 
       value={value || null} 
       onChange={onChange} 
       required={required === 'Yes'}
-      placeholder="DD-MMM-YYYY"
+      description={validation}
+      readOnly={t.includes('read-only')}
     />;
   }
   

@@ -1,3 +1,4 @@
+import DatePickerInput from '../components/common/DatePickerInput';
 import { useState, useEffect } from 'react';
 import {
   Box, Button, Grid, Group, Paper, Textarea,
@@ -197,9 +198,9 @@ function OverviewTab({ readinessData, onUpdate, isLoading }) {
                 <Text size="xs" fw={600} c="#374151" mb={4}>
                   Override expiry <Text span c="red">*</Text>
                 </Text>
-                <TextInput
+                <DatePickerInput aria-label="Override expiry"
                   value={overrideExpiry}
-                  onChange={(e) => setOverrideExpiry(e.target.value)}
+                  onChange={value => setOverrideExpiry(value)}
                   placeholder="YYYY-MM-DD"
                   styles={{ input: { backgroundColor: '#ffffff', borderColor: '#d1d5db', borderRadius: 6, height: 38 } }}
                 />

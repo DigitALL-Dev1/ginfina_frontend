@@ -1,3 +1,4 @@
+import DatePickerInput from '../components/common/DatePickerInput';
 import { useState, useEffect } from 'react';
 import {
   Box, Button, Grid, Group, Paper, Select, MultiSelect,
@@ -169,9 +170,9 @@ function StepDetails({ form, onChange }) {
         <Grid.Col span={6}>
           <Box>
             <L required>Review due</L>
-            <TextInput
+            <DatePickerInput aria-label="Review due date"
               value={form.reviewDue}
-              onChange={(e) => onChange('reviewDue', e.target.value)}
+              onChange={value => onChange('reviewDue', value)}
               styles={inputSt}
             />
             <H>DatePickerInput · SLA rule</H>

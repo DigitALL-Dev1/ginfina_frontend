@@ -1,3 +1,4 @@
+import DatePickerInput from '../components/common/DatePickerInput';
 import { useState } from 'react';
 import {
   Box, Button, Grid, Group, Paper, Select, Textarea,
@@ -207,9 +208,9 @@ function OverviewTab() {
             <Grid.Col span={6}>
               <Box>
                 <Text size="xs" fw={600} c="#374151" mb={4}>Required by <Text span c="red">*</Text></Text>
-                <TextInput
+                <DatePickerInput aria-label="Required by"
                   value={requiredBy}
-                  onChange={(e) => setRequiredBy(e.target.value)}
+                  onChange={value => setRequiredBy(value)}
                   placeholder="YYYY-MM-DD"
                   styles={inputSt}
                 />

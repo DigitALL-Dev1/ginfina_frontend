@@ -1,3 +1,4 @@
+import DatePickerInput from '../components/common/DatePickerInput';
 import { useEffect, useState } from 'react';
 import {
   Accordion, Alert, Badge, Box, Button, Checkbox, Group, Loader, Paper, Progress, Select, SimpleGrid,
@@ -438,7 +439,7 @@ export default function SEBPreparationLayout() {
         <SimpleGrid cols={{ base: 1, md: 2 }}>
           <TextInput label="Revision No" value={revisionForm.revision_no} onChange={event => setRevisionForm(current => ({ ...current, revision_no: event.currentTarget.value }))} />
           <Select label="Revision Status" data={['DRAFT']} value="DRAFT" disabled description="Initial revisions are always created as drafts." />
-          <TextInput label="Issue Date" type="date" value={revisionForm.issue_date} onChange={event => setRevisionForm(current => ({ ...current, issue_date: event.currentTarget.value }))} />
+          <DatePickerInput label="Issue Date" value={revisionForm.issue_date} onChange={value => setRevisionForm(current => ({ ...current, issue_date: value }))} />
           <TextInput label="Previous Revision ID" placeholder="Optional" value={revisionForm.previous_revision_id} onChange={event => setRevisionForm(current => ({ ...current, previous_revision_id: event.currentTarget.value }))} />
         </SimpleGrid>
         <TextInput mt="md" label="Revision Reason" placeholder="Optional" value={revisionForm.revision_reason} onChange={event => setRevisionForm(current => ({ ...current, revision_reason: event.currentTarget.value }))} />

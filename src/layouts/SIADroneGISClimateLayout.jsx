@@ -4,7 +4,7 @@ import {
   Paper, Select, Stack, Tabs, Table, Text, Textarea,
   TextInput, Title, NumberInput, Switch,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import DatePickerInput from '../components/common/DatePickerInput';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconDrone, IconUsers, IconDeviceGamepad2,
@@ -90,7 +90,7 @@ function FI({ label, field, fv, setFv, textarea, number, select, readonly }) {
   // Auto-detect Type, Role, and Date fields
   const fieldLower = field.toLowerCase();
   const isTypeOrRoleField = fieldLower.includes('type') || fieldLower.includes('role');
-  const isDateField = fieldLower.includes('date') || fieldLower.includes('_at');
+  const isDateField = fieldLower.includes('date') || fieldLower.includes('_at') || ['period_from', 'period_to'].includes(fieldLower);
   const getTypeRoleOptions = (fn) => {
     const opts = {
       flight_type: ['Survey', 'Inspection', 'Mapping', 'Monitoring'],
@@ -109,11 +109,7 @@ function FI({ label, field, fv, setFv, textarea, number, select, readonly }) {
   if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
     <NumberInput value={val === '' ? undefined : val} onChange={v => upd(v)} styles={s} /></Box>;
   
-  // Date fields with DD-MMM-YYYY format
-  if (isDateField) {
-    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-      <DateInput value={val ? (typeof val === 'string' ? new Date(val) : val) : null} onChange={(date) => upd(date ? date.toISOString() : '')} valueFormat="DD-MMM-YYYY" placeholder="DD-MMM-YYYY" clearable styles={s} /></Box>;
-  }
+  if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
   
   // Convert Type and Role fields to dropdowns
   if (isTypeOrRoleField && autoOpts.length > 0) {

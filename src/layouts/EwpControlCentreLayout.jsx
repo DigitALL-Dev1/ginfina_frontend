@@ -1,3 +1,4 @@
+import DatePickerInput from '../components/common/DatePickerInput';
 import { useState, useEffect } from 'react';
 import {
   Box,
@@ -48,6 +49,7 @@ function ReadField({ label, value, hint, required }) {
 
 /* ─── Editable field ─────────────────────────────────────────────── */
 function EditField({ label, value, onChange, hint, required, type = 'text' }) {
+  if (type === 'date') return <Box><DatePickerInput label={label} value={value} onChange={onChange} required={required} />{hint && <Text size="11px" c="#9ca3af" mt={4}>{hint}</Text>}</Box>;
   return (
     <Box>
       <Text size="xs" fw={600} c="#374151" mb={4}>

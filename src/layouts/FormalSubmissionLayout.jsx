@@ -1,3 +1,4 @@
+import DatePickerInput from '../components/common/DatePickerInput';
 import { useState, useEffect } from 'react';
 import {
   Box, Button, Grid, Group, Paper, Select, MultiSelect, Textarea,
@@ -143,9 +144,9 @@ function StepContext({ form, onChange, ewpOptions, ewpMap, isLoadingEwp }) {
         </Grid.Col>
         <Grid.Col span={6}>
           <Box><L required>Target Review Due Date</L>
-            <TextInput
+            <DatePickerInput aria-label="Target review due date"
               value={form.targetDate}
-              onChange={(e) => onChange('targetDate', e.target.value)}
+              onChange={value => onChange('targetDate', value)}
               placeholder="YYYY-MM-DD"
               styles={inputSt}
             />

@@ -4,7 +4,7 @@ import {
   Paper, Stack, Tabs, Table, Text, Textarea,
   TextInput, Title, NumberInput, Switch, Modal, Select,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import DatePickerInput from '../components/common/DatePickerInput';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconMapPin, IconBuilding, IconDoor,
@@ -201,22 +201,7 @@ function FI({ label, field, form, textarea, number, select }) {
     </Box>
   );
   
-  // Date fields with DD-MMM-YYYY format
-  if (isDateField) {
-    return (
-      <Box>
-        <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-        <DateInput 
-          value={val ? (typeof val === 'string' ? new Date(val) : val) : null}
-          onChange={(date) => onChange(date ? date.toISOString() : '')}
-          valueFormat="DD-MMM-YYYY"
-          placeholder="DD-MMM-YYYY"
-          clearable
-          styles={inputStyle}
-        />
-      </Box>
-    );
-  }
+  if (isDateField) return <DatePickerInput label={label} value={val} onChange={onChange} styles={inputStyle} />;
   
   // Convert Type and Role fields to dropdowns automatically
   if (isTypeOrRoleField && autoDetectedOptions.length > 0) {

@@ -1,3 +1,4 @@
+import DatePickerInput from '../components/common/DatePickerInput';
 import React, { useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader, Modal,
@@ -122,34 +123,7 @@ function FI({ label, field, fv, setFv, textarea, number, select, readonly, dateF
   if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Select data={select} value={val} onChange={v => onChange(v || '')} clearable searchable styles={s} /></Box>;
   if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Textarea value={val} onChange={e => onChange(e.target.value)} autosize minRows={2} styles={s} /></Box>;
   if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><NumberInput value={val === '' ? undefined : val} onChange={v => onChange(v)} styles={s} /></Box>;
-  if (dateField) {
-    return (
-      <Box>
-        <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-        <input
-          type="date"
-          value={val || ''}
-          onChange={(e) => onChange(e.target.value)}
-          style={{
-            width: '100%',
-            height: '36px',
-            padding: '0 12px',
-            fontSize: '14px',
-            fontFamily: 'inherit',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            backgroundColor: readonly ? '#f0fdf4' : '#fff',
-            color: '#374151',
-            cursor: readonly ? 'not-allowed' : 'pointer',
-            outline: 'none',
-          }}
-          onFocus={(e) => { if (!readonly) e.target.style.borderColor = '#007336'; }}
-          onBlur={(e) => { e.target.style.borderColor = '#d1d5db'; }}
-          readOnly={readonly}
-        />
-      </Box>
-    );
-  }
+  if (dateField) return <DatePickerInput label={label} value={val} onChange={onChange} readOnly={readonly} styles={s} />;
 
   return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><TextInput value={val} onChange={e => onChange(e.target.value)} readOnly={readonly} styles={s} /></Box>;
 }

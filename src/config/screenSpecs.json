@@ -1500,6 +1500,78 @@
     ]
   },
   {
+    "id": "GIN-UI-EWP-01",
+    "module": "EWP (Engineering Workbench)",
+    "name": "Engineering Work",
+    "shortName": "Engineering Work",
+    "layout": "EngineeringWorkLayout",
+    "brd": "EWP-01",
+    "route": "/ginfina/ewp/engineering-work"
+  },
+  {
+    "id": "GIN-UI-EWP-02",
+    "module": "EWP (Engineering Workbench)",
+    "name": "Inputs & Deliverables",
+    "shortName": "Inputs & Deliverables",
+    "layout": "InputsDeliverablesLayout",
+    "brd": "EWP-02",
+    "route": "/ginfina/ewp/inputs-deliverables"
+  },
+  {
+    "id": "GIN-UI-EWP-03",
+    "module": "EWP (Engineering Workbench)",
+    "name": "Documents & Reviews",
+    "shortName": "Documents & Reviews",
+    "layout": "DocumentsReviewsLayout",
+    "brd": "EWP-03",
+    "route": "/ginfina/ewp/documents-reviews"
+  },
+  {
+    "id": "GIN-UI-EWP-04",
+    "module": "EWP (Engineering Workbench)",
+    "name": "Approval & Release",
+    "shortName": "Approval & Release",
+    "layout": "EWPApprovalReleaseLayout",
+    "brd": "EWP-04",
+    "route": "/ginfina/ewp/approval-release"
+  },
+  {
+    "id": "GIN-UI-EWP-05",
+    "module": "EWP (Engineering Workbench)",
+    "name": "Quantities & Procurement",
+    "shortName": "Quantities & Procurement",
+    "layout": "QuantitiesProcurementLayout",
+    "brd": "EWP-05",
+    "route": "/ginfina/ewp/quantities-procurement"
+  },
+  {
+    "id": "GIN-UI-EWP-06",
+    "module": "EWP (Engineering Workbench)",
+    "name": "Completion & Governance",
+    "shortName": "Completion & Governance",
+    "layout": "CompletionGovernanceLayout",
+    "brd": "EWP-06",
+    "route": "/ginfina/ewp/completion-governance"
+  },
+  {
+    "id": "GIN-UI-EWP-07",
+    "module": "EWP (Engineering Workbench)",
+    "name": "Management & Administration",
+    "shortName": "Management & Administration",
+    "layout": "EWPManagementAdministrationLayout",
+    "brd": "EWP-07",
+    "route": "/ginfina/ewp/management-administration"
+  },
+  {
+    "id": "GIN-UI-EWP-08",
+    "module": "EWP (Engineering Workbench)",
+    "name": "AI Assist",
+    "shortName": "AI Assist",
+    "layout": "EWPAssistLayout",
+    "brd": "EWP-08",
+    "route": "/ginfina/ewp/ai-assist"
+  },
+  {
     "id": "GIN-UI-008",
     "module": "Engineering Work",
     "name": "Engineering Work Package Register",
