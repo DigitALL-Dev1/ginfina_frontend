@@ -175,6 +175,13 @@ export default function QuantitiesProcurementLayout() {
         <Text fw={750}>Procurement linkage</Text><Text size="sm" c="dimmed">Record the reference created in your procurement system and update its reported status.</Text>
         {!handoff ? <Group><Button color="green" onClick={() => openAction('handoff')}>Record procurement reference</Button></Group> : <>
           <SimpleGrid cols={{ base: 1, sm: 3 }}><Field label="Procurement system" value={handoff.system} /><Field label="Reference" value={handoff.reference} /><Box><Text size="xs" c="dimmed">Reported status</Text><Status value={handoff.status} /></Box></SimpleGrid>
+          <Alert color={handoff.status === 'COMPLETED' ? 'green' : handoff.status === 'CANCELLED' ? 'orange' : 'blue'} title="EWP completion requirement">
+            {handoff.status === 'COMPLETED'
+              ? 'Procurement tracking is complete. Refresh Completion & Governance to recheck this handoff.'
+              : handoff.status === 'CANCELLED'
+                ? 'This handoff was cancelled and does not satisfy the procurement completion check.'
+                : `Recording a reference does not complete the handoff. Use Update procurement status to record actual progress with an evidence note. Next: ${(TRACKING[handoff.status]?.[0] || 'status review').replaceAll('_', ' ')}. Completion & Governance requires COMPLETED.`}
+          </Alert>
           <Text size="xs" c="dimmed">Recorded by {handoff.recorded_by} · {new Date(handoff.created_at).toLocaleString()}</Text>
           {handoff.tracking_note && <Text size="sm">{handoff.tracking_note}</Text>}
           <Group>{handoff.url && <Button component="a" href={handoff.url} target="_blank" rel="noreferrer" variant="light">Open procurement reference</Button>}{TRACKING[handoff.status] && <Button color="green" onClick={() => openAction('tracking')}>Update procurement status</Button>}</Group>

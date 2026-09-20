@@ -1,159 +1,119 @@
+import { useEffect, useState } from 'react';
+import { Alert, Badge, Box, Button, Checkbox, Divider, Group, Loader, Modal, MultiSelect, Paper, Progress, ScrollArea, Select, SimpleGrid, Stack, Table, Tabs, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { IconPlus, IconRefresh, IconSettings } from '@tabler/icons-react';
 import DatePickerInput from '../components/common/DatePickerInput';
-import { useMemo, useState } from 'react';
-import {
-  Accordion, Alert, Badge, Box, Button, Divider, Grid, Group, Modal, Paper,
-  Progress, Select, SimpleGrid, Stack, Table, Tabs, Text, Textarea, TextInput,
-  ThemeIcon, Title,
-} from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import {
-  IconActivity, IconAlertTriangle, IconCalendar, IconChartBar, IconClock,
-  IconEdit, IconHistory, IconLock, IconSettings, IconShieldCheck, IconUsers,
-} from '@tabler/icons-react';
 
-const PROJECTS = [
-  { value: 'PRJ-001', label: 'Hospital Solar Project' },
-  { value: 'PRJ-002', label: 'Regional Water Upgrade' },
-];
-
-const EWPS = {
-  'PRJ-001': [{ id: 'EWP-ELEC-001', name: 'Electrical System Design', discipline: 'Electrical', status: 'IN_PROGRESS', seb: 'SEB-001 / R01' }],
-  'PRJ-002': [{ id: 'EWP-CIV-001', name: 'Civil & Pumping Design', discipline: 'Civil', status: 'ACTIVE', seb: 'SEB-014 / R02' }],
-};
-
-const INITIAL_TEAM = {
-  'EWP-ELEC-001': [
-    { id: 'T-01', role: 'Lead Engineer', name: 'User A', organization: 'GINFINA', access: 'ADMIN' },
-    { id: 'T-02', role: 'Electrical Engineer', name: 'User B', organization: 'GINFINA', access: 'EDIT' },
-    { id: 'T-03', role: 'Reviewer', name: 'User C', organization: 'Consultant', access: 'REVIEW' },
-    { id: 'T-04', role: 'Approver', name: 'User D', organization: 'Client', access: 'APPROVE' },
-  ],
-  'EWP-CIV-001': [{ id: 'T-11', role: 'Lead Engineer', name: 'User E', organization: 'GINFINA', access: 'ADMIN' }],
-};
-
-const INITIAL_MILESTONES = {
-  'EWP-ELEC-001': [
-    { id: 'M-01', name: 'Design Start', date: '2026-08-01', status: 'COMPLETE' },
-    { id: 'M-02', name: '30% Design', date: '2026-08-28', status: 'COMPLETE' },
-    { id: 'M-03', name: '60% Design', date: '2026-09-25', status: 'IN_PROGRESS' },
-    { id: 'M-04', name: 'IFC Release', date: '2026-10-30', status: 'UPCOMING' },
-  ],
-  'EWP-CIV-001': [{ id: 'M-11', name: 'Design Start', date: '2026-09-01', status: 'IN_PROGRESS' }],
-};
-
-const CONTROL_ITEMS = {
-  'EWP-ELEC-001': [
-    { id: 'ACT-014', type: 'ACTION', title: 'Confirm generator fault contribution', owner: 'User B', due: '2026-09-18', status: 'OPEN' },
-    { id: 'RSK-006', type: 'RISK', title: 'Utility approval may delay IFC issue', owner: 'User A', due: '2026-09-22', status: 'HIGH' },
-    { id: 'WRK-003', type: 'OVERDUE WORK', title: 'Protection design calculation', owner: 'User B', due: '2026-09-10', status: 'OVERDUE' },
-    { id: 'REV-012', type: 'PENDING REVIEW', title: 'Cable Schedule D02', owner: 'User C', due: '2026-09-17', status: 'PENDING' },
-    { id: 'APR-004', type: 'PENDING APPROVAL', title: 'Load Calculation D03', owner: 'User D', due: '2026-09-20', status: 'PENDING' },
-    { id: 'DEL-007', type: 'UPCOMING DELIVERABLE', title: 'Equipment Specification D01', owner: 'User B', due: '2026-09-27', status: 'UPCOMING' },
-  ],
-  'EWP-CIV-001': [],
-};
-
-const AUDIT = [
-  { time: '14 Sep 2026 · 15:42', user: 'User A', action: 'Updated EWP progress to 72%' },
-  { time: '14 Sep 2026 · 11:16', user: 'User C', action: 'Completed review of Load Calculation D03' },
-  { time: '13 Sep 2026 · 17:08', user: 'User B', action: 'Issued Cable Schedule D02 for review' },
-  { time: '12 Sep 2026 · 09:30', user: 'System', action: 'Linked released SEB-001 / R01 design basis' },
-];
-
-const INITIAL_PROGRESS = { 'EWP-ELEC-001': { overall: 72, work: 80, deliverables: 65, reviews: 55, released: 40 }, 'EWP-CIV-001': { overall: 28, work: 35, deliverables: 20, reviews: 15, released: 0 } };
-const surface = { borderColor: '#dfe7e2', boxShadow: '0 8px 26px rgba(21, 55, 39, 0.045)' };
-
-function StatusBadge({ value }) {
-  const color = { COMPLETE: 'green', IN_PROGRESS: 'blue', UPCOMING: 'gray', OPEN: 'orange', HIGH: 'red', OVERDUE: 'red', PENDING: 'orange', ACTIVE: 'blue', ON_HOLD: 'orange', CLOSED: 'green', ADMIN: 'green', EDIT: 'blue', REVIEW: 'violet', APPROVE: 'teal', VIEW: 'gray' }[value] || 'gray';
-  return <Badge color={color} variant="light" radius="sm">{value.replaceAll('_', ' ')}</Badge>;
+const ROOT = `${(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')}/ewp/management-administration`;
+const labels = { overview: 'Overview', team: 'Team & assignments', milestones: 'Milestones', controls: 'Issues, risks & actions', access: 'Access', history: 'Activity history' };
+const roles = ['Lead Engineer', 'Design Engineer', 'Engineer', 'Reviewer', 'Approver', 'Consultant'];
+const statuses = ['DRAFT', 'NOT_STARTED', 'IN_PROGRESS', 'ON_HOLD', 'READY_FOR_OUTPUT', 'COMPLETED'];
+const readable = value => String(value || '').replaceAll('_', ' ');
+async function request(path, options = {}) {
+  const response = await fetch(`${ROOT}${path}`, { ...options, headers: options.body ? { 'Content-Type': 'application/json' } : {} });
+  const data = await response.json();
+  if (!response.ok) throw new Error(Array.isArray(data.detail) ? data.detail.map(e => e.msg).join('; ') : typeof data.detail === 'string' ? data.detail : 'Request failed. Refresh before retrying.');
+  return data;
 }
-
-function Metric({ label, value, color = 'green' }) {
-  return <Paper withBorder p="md" radius="md"><Group justify="space-between"><Text size="xs" c="dimmed">{label}</Text><Text fw={850}>{value}%</Text></Group><Progress value={value} color={color} mt="sm" size="sm" radius="xl" /></Paper>;
-}
+function Status({ value }) { return <Badge variant="light" color={['CLOSED', 'COMPLETE', 'COMPLETED', 'READY_FOR_OUTPUT'].includes(value) ? 'green' : value === 'CRITICAL' ? 'red' : 'blue'}>{readable(value)}</Badge>; }
+function Empty({ children }) { return <Text c="dimmed" size="sm" py="lg">{children}</Text>; }
 
 export default function EWPManagementAdministrationLayout() {
-  const [projectId, setProjectId] = useState('PRJ-001');
-  const [ewpId, setEwpId] = useState('EWP-ELEC-001');
-  const [team, setTeam] = useState(INITIAL_TEAM);
-  const [milestones, setMilestones] = useState(INITIAL_MILESTONES);
-  const [statuses, setStatuses] = useState({ 'EWP-ELEC-001': 'IN_PROGRESS', 'EWP-CIV-001': 'ACTIVE' });
-  const [memberModal, setMemberModal] = useState(false);
-  const [milestoneModal, setMilestoneModal] = useState(false);
-  const [statusModal, setStatusModal] = useState(false);
-  const [memberForm, setMemberForm] = useState({ name: '', role: 'Engineer', organization: 'GINFINA', access: 'EDIT' });
-  const [milestoneForm, setMilestoneForm] = useState({ name: '', date: '', status: 'UPCOMING' });
-  const [statusNote, setStatusNote] = useState('');
-  const [nextStatus, setNextStatus] = useState('IN_PROGRESS');
-
-  const availableEwps = EWPS[projectId] || [];
-  const ewp = availableEwps.find(item => item.id === ewpId) || availableEwps[0];
-  const currentTeam = team[ewpId] || [];
-  const currentMilestones = milestones[ewpId] || [];
-  const controls = CONTROL_ITEMS[ewpId] || [];
-  const progress = INITIAL_PROGRESS[ewpId] || { overall: 0, work: 0, deliverables: 0, reviews: 0, released: 0 };
-  const counts = useMemo(() => Object.fromEntries(['ACTION', 'RISK', 'OVERDUE WORK', 'PENDING REVIEW', 'PENDING APPROVAL', 'UPCOMING DELIVERABLE'].map(type => [type, controls.filter(item => item.type === type).length])), [controls]);
-
-  const changeProject = value => {
-    const nextProject = value || 'PRJ-001';
-    setProjectId(nextProject);
-    setEwpId(EWPS[nextProject]?.[0]?.id || '');
+  const [projects, setProjects] = useState([]), [users, setUsers] = useState([]), [ewps, setEwps] = useState([]);
+  const [projectId, setProjectId] = useState(null), [ewpId, setEwpId] = useState(null), [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false), [listLoading, setListLoading] = useState(true), [saving, setSaving] = useState(false);
+  const [error, setError] = useState(''), [refresh, setRefresh] = useState(0), [tab, setTab] = useState('overview'), [kind, setKind] = useState('actions');
+  const [modal, setModal] = useState(null), [form, setForm] = useState({}), [actor, setActor] = useState(''), [comment, setComment] = useState('');
+  useEffect(() => {
+    const controller = new AbortController(); setListLoading(true);
+    Promise.all([request('/projects', { signal: controller.signal }), request('/users', { signal: controller.signal })])
+      .then(([p, u]) => { setProjects(p); setUsers(u); }).catch(e => { if (e.name !== 'AbortError') setError(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setListLoading(false); });
+    return () => controller.abort();
+  }, [refresh]);
+  useEffect(() => {
+    const controller = new AbortController(); setEwps([]);
+    if (projectId) request(`/ewps?project_id=${encodeURIComponent(projectId)}`, { signal: controller.signal }).then(setEwps).catch(e => { if (e.name !== 'AbortError') setError(e.message); });
+    return () => controller.abort();
+  }, [projectId, refresh]);
+  useEffect(() => {
+    const controller = new AbortController(); setData(null); setError(''); setLoading(Boolean(ewpId));
+    if (ewpId) request(`/ewps/${encodeURIComponent(ewpId)}/overview`, { signal: controller.signal }).then(setData)
+      .catch(e => { if (e.name !== 'AbortError') setError(e.message); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [ewpId, refresh]);
+  const open = (type, record = null) => {
+    const defaults = type === 'team' ? { user_id: '', role: 'Engineer', discipline: data.ewp.discipline || '', organization: '', assignment: '', active: true }
+      : type === 'milestones' ? { name: '', target_date: '', owner: '', status: 'UPCOMING', note: '' }
+      : type === 'access' ? { user_id: '', permissions: ['VIEW'], active: true }
+      : type === 'settings' ? { discipline: data.ewp.discipline || '', planned_start: data.ewp.planned_start || '', planned_finish: data.ewp.planned_finish || '', status: data.ewp.status || 'DRAFT' }
+      : { title: '', description: '', owner: '', due_date: '', priority: 'MEDIUM', status: 'OPEN', blocking: true, resolution: '' };
+    setForm(record ? Object.fromEntries(Object.keys(defaults).map(key => [key, record[key] ?? defaults[key]])) : defaults);
+    setComment(''); setError(''); setModal({ type, id: record?.id });
   };
-
-  const saveMember = () => {
-    if (!memberForm.name.trim()) return;
-    setTeam(current => ({ ...current, [ewpId]: [...(current[ewpId] || []), { ...memberForm, id: `T-${Date.now()}` }] }));
-    setMemberModal(false);
-    setMemberForm({ name: '', role: 'Engineer', organization: 'GINFINA', access: 'EDIT' });
-    notifications.show({ color: 'green', title: 'Team member assigned', message: memberForm.name });
+  const change = (key, value) => setForm(previous => ({ ...previous, [key]: value }));
+  const textField = (key, label, required = true, multiline = false) => {
+    const Component = multiline ? Textarea : TextInput;
+    return <Component label={label} required={required} value={form[key] || ''} onChange={e => change(key, e.currentTarget.value)} />;
   };
+  const selectField = (key, label, options) => <Select label={label} required data={options} value={form[key] || null} onChange={value => change(key, value || '')} searchable />;
+  const close = () => { if (!saving) { setModal(null); setError(''); } };
+  async function save(event) {
+    event.preventDefault(); setSaving(true); setError('');
+    const settings = modal.type === 'settings';
+    const payload = { ...form };
+    if (settings) { payload.planned_start ||= null; payload.planned_finish ||= null; if (data.ewp.status === 'COMPLETION_REVIEW') delete payload.status; }
+    try {
+      const result = await request(`/ewps/${encodeURIComponent(ewpId)}/${settings ? 'settings' : `records/${modal.type}${modal.id ? `/${modal.id}` : ''}`}`, {
+        method: settings || modal.id ? 'PATCH' : 'POST', body: JSON.stringify({ version: data.version, actor, comment, ...(settings ? payload : { data: payload }) }),
+      });
+      setData(result); setModal(null);
+    } catch (e) { setError(e.message); } finally { setSaving(false); }
+  }
+  const edit = (type, record) => <Button size="compact-xs" variant="light" disabled={data.read_only || saving} onClick={() => open(type, record)}>Edit</Button>;
+  const table = (headers, rows) => <ScrollArea><Table miw={650} verticalSpacing="md" highlightOnHover><Table.Thead><Table.Tr>{headers.map(h => <Table.Th key={h}>{h}</Table.Th>)}</Table.Tr></Table.Thead><Table.Tbody>{rows}</Table.Tbody></Table></ScrollArea>;
+  const userOptions = users.map(u => ({ value: u.id, label: u.name }));
+  if (form.user_id && !userOptions.some(u => u.value === form.user_id)) userOptions.push({ value: form.user_id, label: 'Inactive / previous user' });
 
-  const saveMilestone = () => {
-    if (!milestoneForm.name.trim() || !milestoneForm.date) return;
-    setMilestones(current => ({ ...current, [ewpId]: [...(current[ewpId] || []), { ...milestoneForm, id: `M-${Date.now()}` }] }));
-    setMilestoneModal(false);
-    notifications.show({ color: 'green', title: 'Milestone added', message: milestoneForm.name });
-  };
-
-  const saveStatus = () => {
-    setStatuses(current => ({ ...current, [ewpId]: nextStatus }));
-    setStatusModal(false);
-    notifications.show({ color: 'green', title: 'EWP status updated', message: `${nextStatus.replaceAll('_', ' ')} · ${statusNote || 'No note'}` });
-  };
-
-  return <Box p={{ base: 'md', md: 'xl' }} maw={1420} mx="auto">
-    <Group justify="space-between" align="flex-start" mb="xl"><Box><Badge color="green" variant="light" mb="xs">Engineering Workbench</Badge><Title order={2}>Management & Administration</Title><Text size="sm" c="dimmed" mt={4}>Control the EWP team, dates, access, assignments, risks and progress from one workspace.</Text></Box><ThemeIcon color="green" variant="light" size={46} radius="lg"><IconSettings size={24} /></ThemeIcon></Group>
-
+  return <Box maw={1440} mx="auto" p={{ base: 'md', md: 'xl' }}>
+    <Group justify="space-between" mb="xl"><Box><Badge variant="light" color="green" mb="xs">Engineering Workbench</Badge><Title order={2}>Management & Administration</Title><Text c="dimmed" size="sm" mt={6}>Coordinate people, dates and obligations across the engineering work package.</Text></Box><Button variant="light" leftSection={<IconRefresh size={16} />} disabled={saving || loading} onClick={() => setRefresh(v => v + 1)}>Refresh</Button></Group>
     <Stack gap="lg">
-      <Paper withBorder radius="lg" p="lg" style={surface}><Grid align="flex-end"><Grid.Col span={{ base: 12, md: 5 }}><Select label="Project" data={PROJECTS} value={projectId} onChange={changeProject} searchable /></Grid.Col><Grid.Col span={{ base: 12, md: 5 }}><Select label="Engineering Work Package" data={availableEwps.map(item => ({ value: item.id, label: `${item.id} · ${item.name}` }))} value={ewpId} onChange={value => setEwpId(value || '')} searchable /></Grid.Col><Grid.Col span={{ base: 12, md: 2 }}><Button fullWidth variant="light" color="green" leftSection={<IconEdit size={15} />} onClick={() => { setNextStatus(statuses[ewpId]); setStatusModal(true); }}>Manage Status</Button></Grid.Col></Grid></Paper>
-
-      <Paper withBorder radius="lg" p="lg" style={{ ...surface, background: 'linear-gradient(135deg, #f3fbf6 0%, #ffffff 72%)' }}><Group justify="space-between" align="flex-start"><Box><Group gap="xs"><Title order={3}>{ewp.id}</Title><StatusBadge value={statuses[ewpId]} /></Group><Text fw={700} mt={4}>{ewp.name}</Text><Group gap="xs" mt="sm"><Badge variant="outline">{ewp.discipline}</Badge><Badge variant="outline">{ewp.seb}</Badge></Group></Box><Box ta="right"><Text size="xs" c="dimmed">Overall progress</Text><Text fz={36} fw={900} c="#176c3a">{progress.overall}%</Text></Box></Group><Progress value={progress.overall} color="green" size="md" radius="xl" mt="lg" /></Paper>
-
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}><Metric label="Engineering Work" value={progress.work} /><Metric label="Deliverables" value={progress.deliverables} color="blue" /><Metric label="Reviews" value={progress.reviews} color="violet" /><Metric label="Released" value={progress.released} color="teal" /></SimpleGrid>
-
-      <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }}>{[
-        ['Open Actions', counts.ACTION, 'orange'], ['Open Risks', counts.RISK, 'red'], ['Overdue Work', counts['OVERDUE WORK'], 'red'], ['Pending Reviews', counts['PENDING REVIEW'], 'violet'], ['Pending Approvals', counts['PENDING APPROVAL'], 'teal'], ['Upcoming Deliverables', counts['UPCOMING DELIVERABLE'], 'blue'],
-      ].map(([label, value, color]) => <Paper key={label} withBorder p="md" radius="md"><Text size="xs" c="dimmed">{label}</Text><Text fz={26} fw={850} c={`${color}.8`}>{value}</Text></Paper>)}</SimpleGrid>
-
-      <Tabs defaultValue="overview" color="green">
-        <Tabs.List><Tabs.Tab value="overview" leftSection={<IconChartBar size={16} />}>Overview</Tabs.Tab><Tabs.Tab value="team" leftSection={<IconUsers size={16} />}>Team & Access</Tabs.Tab><Tabs.Tab value="milestones" leftSection={<IconCalendar size={16} />}>Dates & Milestones</Tabs.Tab><Tabs.Tab value="controls" leftSection={<IconAlertTriangle size={16} />}>Issues, Risks & Actions</Tabs.Tab><Tabs.Tab value="audit" leftSection={<IconHistory size={16} />}>Activity & Audit</Tabs.Tab></Tabs.List>
-
-        <Tabs.Panel value="overview" pt="lg"><Grid><Grid.Col span={{ base: 12, lg: 6 }}><Paper withBorder radius="lg" p="lg" style={{ ...surface, height: '100%' }}><Group gap="xs" mb="md"><IconUsers size={19} color="#176c3a" /><Text fw={800}>Team</Text></Group><Stack gap="sm">{currentTeam.map(member => <Group key={member.id} justify="space-between"><Box><Text size="sm" fw={700}>{member.role}</Text><Text size="xs" c="dimmed">{member.name} · {member.organization}</Text></Box><StatusBadge value={member.access} /></Group>)}</Stack></Paper></Grid.Col><Grid.Col span={{ base: 12, lg: 6 }}><Paper withBorder radius="lg" p="lg" style={{ ...surface, height: '100%' }}><Group gap="xs" mb="md"><IconCalendar size={19} color="#176c3a" /><Text fw={800}>Milestones</Text></Group><Stack gap="sm">{currentMilestones.map(item => <Group key={item.id} justify="space-between"><Box><Text size="sm" fw={700}>{item.name}</Text><Text size="xs" c="dimmed">{item.date}</Text></Box><StatusBadge value={item.status} /></Group>)}</Stack></Paper></Grid.Col></Grid></Tabs.Panel>
-
-        <Tabs.Panel value="team" pt="lg"><Paper withBorder radius="lg" style={surface}><Group justify="space-between" p="lg"><Box><Text fw={800}>Team, Assignments & Permissions</Text><Text size="xs" c="dimmed">Manage disciplines, accountabilities and EWP access.</Text></Box><Button color="green" onClick={() => setMemberModal(true)}>Add Team Member</Button></Group><Divider /><Table verticalSpacing="sm"><Table.Thead bg="#f7faf8"><Table.Tr><Table.Th>Name</Table.Th><Table.Th>Role / assignment</Table.Th><Table.Th>Organization</Table.Th><Table.Th>Access</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{currentTeam.map(member => <Table.Tr key={member.id}><Table.Td fw={700}>{member.name}</Table.Td><Table.Td>{member.role}</Table.Td><Table.Td>{member.organization}</Table.Td><Table.Td><StatusBadge value={member.access} /></Table.Td></Table.Tr>)}</Table.Tbody></Table></Paper></Tabs.Panel>
-
-        <Tabs.Panel value="milestones" pt="lg"><Paper withBorder radius="lg" style={surface}><Group justify="space-between" p="lg"><Box><Text fw={800}>Dates & Milestones</Text><Text size="xs" c="dimmed">Control planned dates and key engineering gates.</Text></Box><Button color="green" onClick={() => setMilestoneModal(true)}>Add Milestone</Button></Group><Divider /><Table verticalSpacing="sm"><Table.Thead bg="#f7faf8"><Table.Tr><Table.Th>Milestone</Table.Th><Table.Th>Target date</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{currentMilestones.map(item => <Table.Tr key={item.id}><Table.Td fw={700}>{item.name}</Table.Td><Table.Td>{item.date}</Table.Td><Table.Td><StatusBadge value={item.status} /></Table.Td></Table.Tr>)}</Table.Tbody></Table></Paper></Tabs.Panel>
-
-        <Tabs.Panel value="controls" pt="lg"><Paper withBorder radius="lg" style={surface}><Group justify="space-between" p="lg"><Box><Text fw={800}>Issues, Risks & Actions</Text><Text size="xs" c="dimmed">Consolidated exceptions requiring management attention.</Text></Box><Badge color="red" variant="light">{controls.filter(item => ['HIGH', 'OVERDUE'].includes(item.status)).length} ATTENTION</Badge></Group><Divider /><Table verticalSpacing="sm"><Table.Thead bg="#f7faf8"><Table.Tr><Table.Th>ID</Table.Th><Table.Th>Type</Table.Th><Table.Th>Item</Table.Th><Table.Th>Owner</Table.Th><Table.Th>Due</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{controls.map(item => <Table.Tr key={item.id}><Table.Td ff="monospace">{item.id}</Table.Td><Table.Td><Badge variant="outline">{item.type}</Badge></Table.Td><Table.Td fw={650}>{item.title}</Table.Td><Table.Td>{item.owner}</Table.Td><Table.Td>{item.due}</Table.Td><Table.Td><StatusBadge value={item.status} /></Table.Td></Table.Tr>)}</Table.Tbody></Table></Paper></Tabs.Panel>
-
-        <Tabs.Panel value="audit" pt="lg"><Paper withBorder radius="lg" p="lg" style={surface}><Group gap="xs" mb="lg"><IconActivity size={19} color="#176c3a" /><Text fw={800}>Activity & Audit History</Text></Group><Accordion variant="separated">{AUDIT.map((item, index) => <Accordion.Item key={index} value={`${index}`}><Accordion.Control icon={<IconClock size={16} />}>{item.action}</Accordion.Control><Accordion.Panel><Group justify="space-between"><Text size="sm">Actor: {item.user}</Text><Text size="sm" c="dimmed">{item.time}</Text></Group></Accordion.Panel></Accordion.Item>)}</Accordion></Paper></Tabs.Panel>
-      </Tabs>
+      <Paper withBorder radius="lg" p="lg"><SimpleGrid cols={{ base: 1, sm: 2 }}>
+        <Select label="Project" placeholder={listLoading ? 'Loading projects…' : 'Select project'} searchable clearable disabled={saving || listLoading} data={projects.map(p => ({ value: p.id, label: `${p.code || ''} ${p.name || p.id}`.trim() }))} value={projectId} onChange={value => { setProjectId(value); setEwpId(null); setData(null); }} />
+        <Select label="Engineering Work Package" placeholder="Select EWP" searchable clearable disabled={!projectId || saving} data={ewps.map(e => ({ value: e.id, label: `${e.code || e.id} / ${e.name || ''}` }))} value={ewpId} onChange={value => { setData(null); setEwpId(value); }} />
+      </SimpleGrid>{projectId && !ewps.length && <Text size="xs" c="dimmed" mt="sm">No work packages loaded for this project.</Text>}</Paper>
+      {error && !modal && <Alert color="red" title="Unable to complete request">{error}</Alert>}
+      {loading && <Group><Loader size="sm" /><Text size="sm">Loading management records…</Text></Group>}
+      {!ewpId && <Paper withBorder p="xl" radius="lg"><Empty>Select a project and EWP to open its management workspace.</Empty></Paper>}
+      {data && <>
+        <Paper withBorder radius="lg" p="lg"><Group justify="space-between"><Box><Title order={3}>{data.ewp.ewp_code}</Title><Text c="dimmed">{data.ewp.ewp_name}</Text><Text size="sm" mt="sm">Lead engineer: {data.ewp.lead_engineer || 'Unassigned'} · {data.ewp.discipline || 'Discipline unassigned'}</Text></Box><Group><Status value={data.ewp.status} /><Button variant="default" leftSection={<IconSettings size={16} />} disabled={data.read_only || saving} onClick={() => open('settings')}>EWP settings</Button></Group></Group>
+          <Group justify="space-between" mt="lg" mb="xs"><Text size="sm">Engineering progress</Text><Text fw={700}>{data.overall_progress}%</Text></Group><Progress value={data.overall_progress} color="green" size="sm" /><Text c="dimmed" size="xs" mt="xs">Average across modules with saved records. Closure readiness is verified in Completion & Governance.</Text>
+        </Paper>
+        {data.read_only && <Alert color="green">This EWP is closed. Management records are read-only.</Alert>}
+        <Tabs value={tab} onChange={setTab} color="green"><Tabs.List mb="lg">{Object.entries(labels).map(([value, label]) => <Tabs.Tab key={value} value={value}>{label}</Tabs.Tab>)}</Tabs.List>
+          <Tabs.Panel value="overview"><Stack>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }}>{data.metrics.map(m => <Paper withBorder p="md" radius="md" key={m.label}><Text size="sm" c="dimmed">{m.label}</Text><Text size="xl" fw={750} my="xs">{m.total ? `${m.percent}%` : '—'}</Text><Progress color="green" value={m.percent} /><Text size="xs" c="dimmed" mt="sm">{m.complete} / {m.total} records</Text></Paper>)}</SimpleGrid>
+            <SimpleGrid cols={{ base: 2, sm: 4 }}>{['open_issues', 'open_risks', 'open_actions', 'overdue_actions'].map(key => <Paper withBorder p="md" radius="md" key={key}><Text size="xs" c="dimmed" tt="uppercase">{readable(key)}</Text><Text size="xl" fw={750}>{data.counts[key]}</Text></Paper>)}</SimpleGrid>
+            <Paper withBorder p="lg" radius="lg"><Title order={4} mb="md">Needs attention</Title>{!data.attention.length ? <Empty>No overdue work, pending document decisions or upcoming deliverables found.</Empty> : table(['Category', 'Record', 'Owner / date', 'Status'], data.attention.map((a, i) => <Table.Tr key={i}><Table.Td>{readable(a.kind)}</Table.Td><Table.Td>{a.title}</Table.Td><Table.Td>{a.owner || '—'}<Text size="xs" c="dimmed">{a.date || ''}</Text></Table.Td><Table.Td><Status value={a.status} /></Table.Td></Table.Tr>))}</Paper>
+          </Stack></Tabs.Panel>
+          <Tabs.Panel value="team"><Paper withBorder p="lg" radius="lg"><Group justify="space-between" mb="md"><Title order={4}>Team & discipline assignments</Title><Button leftSection={<IconPlus size={16} />} disabled={data.read_only} onClick={() => open('team')}>Add team member</Button></Group>{!data.team.length ? <Empty>No team members assigned yet.</Empty> : table(['Name', 'Role / discipline', 'Assignment', 'Active', 'Actions'], data.team.map(r => <Table.Tr key={r.id}><Table.Td>{r.name}<Text size="xs" c="dimmed">{r.organization}</Text></Table.Td><Table.Td>{r.role}<Text size="xs" c="dimmed">{r.discipline}</Text></Table.Td><Table.Td>{r.assignment || '—'}</Table.Td><Table.Td>{r.active ? 'Yes' : 'No'}</Table.Td><Table.Td>{edit('team', r)}</Table.Td></Table.Tr>))}</Paper></Tabs.Panel>
+          <Tabs.Panel value="milestones"><Paper withBorder p="lg" radius="lg"><Group justify="space-between" mb="md"><Title order={4}>Dates & milestones</Title><Button disabled={data.read_only} onClick={() => open('milestones')}>Add milestone</Button></Group>{!data.milestones.length ? <Empty>No milestones defined yet.</Empty> : table(['Milestone', 'Owner', 'Target date', 'Status', 'Actions'], data.milestones.map(r => <Table.Tr key={r.id}><Table.Td>{r.name}<Text size="xs" c="dimmed">{r.note}</Text></Table.Td><Table.Td>{r.owner}</Table.Td><Table.Td>{r.target_date}</Table.Td><Table.Td><Status value={r.status} /></Table.Td><Table.Td>{edit('milestones', r)}</Table.Td></Table.Tr>))}</Paper></Tabs.Panel>
+          <Tabs.Panel value="controls"><Paper withBorder p="lg" radius="lg"><Group justify="space-between" mb="md"><Select aria-label="Control register" data={['actions', 'issues', 'risks'].map(value => ({ value, label: readable(value) }))} value={kind} onChange={v => setKind(v || 'actions')} /><Button disabled={data.read_only} onClick={() => open(kind)}>Add {kind.slice(0, -1)}</Button></Group><Text size="sm" c="dimmed" mb="md">Open actions and blocking issues or risks must be resolved before EWP closure.</Text>{!data[kind].length ? <Empty>No {kind} recorded.</Empty> : table(['Record', 'Owner / due', 'Priority', 'Status', 'Actions'], data[kind].map(r => <Table.Tr key={r.id}><Table.Td><Text fw={600} size="sm">{r.title}</Text><Text size="xs" c="dimmed">{r.description}</Text>{r.blocking && <Text size="xs" c="orange">Closure obligation</Text>}{r.resolution && <Text size="xs">Resolution: {r.resolution}</Text>}</Table.Td><Table.Td>{r.owner}<Text size="xs" c="dimmed">{r.due_date}</Text></Table.Td><Table.Td><Status value={r.priority} /></Table.Td><Table.Td><Status value={r.status} /></Table.Td><Table.Td>{edit(kind, r)}</Table.Td></Table.Tr>))}</Paper></Tabs.Panel>
+          <Tabs.Panel value="access"><Paper withBorder p="lg" radius="lg"><Group justify="space-between" mb="md"><Title order={4}>Access assignments</Title><Button disabled={data.read_only} onClick={() => open('access')}>Assign access</Button></Group><Alert color="blue" mb="md">Pilot mode: these assignments are saved for administration. They do not enforce authentication or restrict API access.</Alert>{!data.access.length ? <Empty>No access assignments recorded.</Empty> : table(['User', 'Permissions', 'Active', 'Actions'], data.access.map(r => <Table.Tr key={r.id}><Table.Td>{r.name}</Table.Td><Table.Td>{r.permissions.join(', ')}</Table.Td><Table.Td>{r.active ? 'Yes' : 'No'}</Table.Td><Table.Td>{edit('access', r)}</Table.Td></Table.Tr>))}</Paper></Tabs.Panel>
+          <Tabs.Panel value="history"><Paper withBorder p="lg" radius="lg"><Title order={4} mb="md">Recorded activity</Title><Text size="sm" c="dimmed" mb="lg">Management changes, document approvals/releases, procurement and governance events. Pilot actor names are self-declared.</Text>{!data.history.length ? <Empty>No recorded activity yet.</Empty> : <Stack>{data.history.map((h, i) => <Box key={h.id || i}><Group justify="space-between"><Text size="sm" fw={650}>{readable(h.action)}</Text><Badge variant="light">{h.module}</Badge></Group><Text size="sm">{h.comment}</Text><Text size="xs" c="dimmed">{h.actor || 'Actor not recorded'} · {h.at ? new Date(h.at).toLocaleString() : 'Date not recorded'}</Text>{h.after && <details><summary style={{ cursor: 'pointer', fontSize: 12 }}>View changes</summary>{Object.entries(h.after).filter(([key]) => !['id', 'created_at', 'updated_at'].includes(key)).map(([key, value]) => <Text key={key} size="xs">{readable(key)}: {h.before && `${String(h.before[key] ?? '—')} → `}{Array.isArray(value) ? value.join(', ') : String(value ?? '—')}</Text>)}</details>}<Divider mt="sm" /></Box>)}</Stack>}</Paper></Tabs.Panel>
+        </Tabs>
+      </>}
     </Stack>
-
-    <Modal opened={memberModal} onClose={() => setMemberModal(false)} title={<Text fw={800}>Add Team Member</Text>} centered><Stack><TextInput label="User / consultant" required value={memberForm.name} onChange={event => { const value = event.currentTarget.value; setMemberForm(form => ({ ...form, name: value })); }} /><Select label="Role" data={['Lead Engineer', 'Engineer', 'Reviewer', 'Approver', 'Consultant']} value={memberForm.role} onChange={value => setMemberForm(form => ({ ...form, role: value || 'Engineer' }))} /><Select label="Organization" data={['GINFINA', 'Client', 'Consultant', 'Contractor']} value={memberForm.organization} onChange={value => setMemberForm(form => ({ ...form, organization: value || 'GINFINA' }))} /><Select label="Access permission" data={['ADMIN', 'EDIT', 'REVIEW', 'APPROVE', 'VIEW']} value={memberForm.access} onChange={value => setMemberForm(form => ({ ...form, access: value || 'VIEW' }))} leftSection={<IconLock size={15} />} /><Group justify="flex-end"><Button variant="default" onClick={() => setMemberModal(false)}>Cancel</Button><Button color="green" onClick={saveMember}>Assign Member</Button></Group></Stack></Modal>
-
-    <Modal opened={milestoneModal} onClose={() => setMilestoneModal(false)} title={<Text fw={800}>Add Milestone</Text>} centered><Stack><TextInput label="Milestone" required value={milestoneForm.name} onChange={event => { const value = event.currentTarget.value; setMilestoneForm(form => ({ ...form, name: value })); }} /><DatePickerInput label="Target date" required value={milestoneForm.date} onChange={value => { setMilestoneForm(form => ({ ...form, date: value })); }} /><Select label="Status" data={['UPCOMING', 'IN_PROGRESS', 'COMPLETE']} value={milestoneForm.status} onChange={value => setMilestoneForm(form => ({ ...form, status: value || 'UPCOMING' }))} /><Group justify="flex-end"><Button variant="default" onClick={() => setMilestoneModal(false)}>Cancel</Button><Button color="green" onClick={saveMilestone}>Save Milestone</Button></Group></Stack></Modal>
-
-    <Modal opened={statusModal} onClose={() => setStatusModal(false)} title={<Group gap="xs"><IconShieldCheck size={19} /><Text fw={800}>Manage EWP Status</Text></Group>} centered><Stack><Alert color="blue">Status changes are management controls and should retain an accountable note.</Alert><Select label="EWP status" data={['DRAFT', 'ACTIVE', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETION_REVIEW', 'CLOSED']} value={nextStatus} onChange={value => setNextStatus(value || statuses[ewpId])} /><Textarea label="Change note" value={statusNote} onChange={event => setStatusNote(event.currentTarget.value)} minRows={3} /><Group justify="flex-end"><Button variant="default" onClick={() => setStatusModal(false)}>Cancel</Button><Button color="green" onClick={saveStatus}>Update Status</Button></Group></Stack></Modal>
+    <Modal opened={Boolean(modal)} onClose={close} title={modal ? `${modal.id ? 'Edit' : modal.type === 'settings' ? 'Update' : 'Add'} ${readable(modal.type)}` : ''} centered size="lg" closeOnClickOutside={!saving} closeOnEscape={!saving} withCloseButton={!saving}>
+      <form onSubmit={save}><Stack>{error && <Alert color="red">{error}</Alert>}
+        {['team', 'access'].includes(modal?.type) && <>{selectField('user_id', 'User', userOptions)}<Checkbox label="Active assignment" checked={Boolean(form.active)} onChange={e => change('active', e.currentTarget.checked)} /></>}
+        {modal?.type === 'team' && <>{selectField('role', 'Role', roles)}{textField('discipline', 'Discipline')}{textField('organization', 'Organization', false)}{textField('assignment', 'Assignment', false, true)}</>}
+        {modal?.type === 'access' && <MultiSelect label="Permissions" required data={['VIEW', 'EDIT', 'REVIEW', 'APPROVE', 'ADMIN']} value={form.permissions || []} onChange={v => change('permissions', v)} />}
+        {modal?.type === 'milestones' && <>{textField('name', 'Milestone name')}{textField('owner', 'Owner')}<DatePickerInput label="Target date" required value={form.target_date} onChange={v => change('target_date', v)} />{selectField('status', 'Status', ['UPCOMING', 'IN_PROGRESS', 'COMPLETE'])}{textField('note', 'Note', false, true)}</>}
+        {['issues', 'risks', 'actions'].includes(modal?.type) && <>{textField('title', 'Title')}{textField('description', 'Description', false, true)}{textField('owner', 'Owner')}<DatePickerInput label="Due date" required value={form.due_date} onChange={v => change('due_date', v)} />{selectField('priority', 'Priority', ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])}{selectField('status', 'Status', ['OPEN', 'IN_PROGRESS', 'CLOSED'])}{modal.type !== 'actions' && <Checkbox label="Blocks EWP closure" checked={Boolean(form.blocking)} onChange={e => change('blocking', e.currentTarget.checked)} />}{textField('resolution', 'Resolution / evidence reference', form.status === 'CLOSED', true)}</>}
+        {modal?.type === 'settings' && <>{textField('discipline', 'Discipline')}<SimpleGrid cols={2}><DatePickerInput label="Planned start" value={form.planned_start} onChange={v => change('planned_start', v)} /><DatePickerInput label="Planned finish" value={form.planned_finish} onChange={v => change('planned_finish', v)} /></SimpleGrid>{data?.ewp.status === 'COMPLETION_REVIEW' ? <Alert>Status is controlled by Completion & Governance.</Alert> : selectField('status', 'Status', statuses)}</>}
+        <Divider /><TextInput label="Recorded by" required value={actor} onChange={e => setActor(e.currentTarget.value)} /><Textarea label="Change note" required value={comment} onChange={e => setComment(e.currentTarget.value)} />
+        <Group justify="flex-end"><Button variant="default" disabled={saving} onClick={close}>Cancel</Button><Button type="submit" loading={saving} disabled={!actor.trim() || !comment.trim()}>Save changes</Button></Group>
+      </Stack></form>
+    </Modal>
   </Box>;
 }
