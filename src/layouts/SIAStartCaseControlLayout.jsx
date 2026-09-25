@@ -205,7 +205,6 @@ export default function SIAStartCaseControlLayout() {
       <Box mb="lg">
         <Group align="center" gap="sm" mb={4}>
           <Badge color="green" variant="light" size="lg" radius="sm">SIA</Badge>
-          <Text size="xs" c="dimmed" fw={500}>Module 1</Text>
         </Group>
         <Title order={2} fw={700} c="#111827">Start and Case Control</Title>
         <Text size="sm" c="#6b7280" mt={4}>

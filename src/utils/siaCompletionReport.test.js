@@ -10,6 +10,19 @@ const makePackage = () => ({
 const context = { caseId: 'case', siteId: 'site' };
 
 describe('SIA completion report', () => {
+  it('hides internal references in the presentation without changing source records', () => {
+    const data = makePackage();
+    data.modules.sia_evidence[0].metadata.siteId = 'site';
+    data.modules.sia_evidence[0].metadata.owner = 'c6dcca13-ec3c-4c41-936a-eb6d68a8147f';
+    const original = JSON.stringify(data);
+    const report = buildCompletionReport(data, { ...context, hideInternalIds: true });
+    const fields = report.sections.flatMap(s => s.fields);
+    expect(fields.some(f => /\bID\b|\bids\b/i.test(f.label))).toBe(false);
+    expect(fields.some(f => f.value === data.modules.sia_evidence[0].metadata.owner)).toBe(false);
+    expect(fields).toContainEqual({ label: 'Metadata / Measurements / 1 / Value', value: '0' });
+    expect(fields).toContainEqual({ label: 'Metadata / Measurements / 1 / Verified', value: 'No' });
+    expect(JSON.stringify(data)).toBe(original);
+  });
   it('includes package details, all module fields and local notes with readable nested values', () => {
     const data = makePackage();
     const original = JSON.stringify(data);

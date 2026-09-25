@@ -522,7 +522,6 @@ export default function SIAEngineeringAssessmentLayout() {
           <FI label="Discipline *" field="discipline" fv={fv} setFv={setFv} select={DISCIPLINES} />
         </FormRow>
         <FormRow>
-          <FI label="Site ID (auto-filled from active site)" field="site_id" fv={fv} setFv={setFv} readonly={!!localStorage.getItem('sia_site_id')} />
           <FI label="Assessment Date" field="assessment_date" fv={fv} setFv={setFv} />
         </FormRow>
         <FormRow>

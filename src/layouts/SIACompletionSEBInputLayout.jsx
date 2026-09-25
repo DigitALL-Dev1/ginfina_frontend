@@ -9,7 +9,8 @@ import {
   IconRefresh, IconSend, IconShieldCheck, IconFileText,
 } from '@tabler/icons-react';
 import SIACompletionReport from '../components/common/SIACompletionReport';
-import { validateCompletionPackage } from '../utils/siaCompletionReport';
+import { recordFields, validateCompletionPackage } from '../utils/siaCompletionReport';
+import { completionRecordName, displayRecord } from '../utils/siaRecordDisplay';
 import styles from './SIACompletionSEBInputLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -63,23 +64,25 @@ function formatLabel(value) {
 
 function formatValue(value) {
   if (value === null || value === undefined || value === '') return '—';
-  if (typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'object') return recordFields({ details: displayRecord(value) })
+    .map(field => `${field.label.replace(/^Details\s*\/\s*/, '')}: ${field.value}`).join('\n');
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   return String(value);
 }
 
 function ModuleTable({ name, records }) {
-  const recordColumns = [...new Set(records.flatMap(record => Object.keys(record)))].filter(key => key !== 'id');
-  const columns = recordColumns.length ? recordColumns : ['id'];
+  const displayRecords = records.map(displayRecord);
+  const columns = [...new Set(displayRecords.flatMap(record => Object.keys(record)))];
   return (
     <Paper p={{ base: 'sm', sm: 'md' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8, minWidth: 0 }}>
       <Group justify="space-between" mb="sm">
         <Text fw={700} tt="capitalize">{formatLabel(name)}</Text>
         <Badge variant="light" color="green">{records.length} {records.length === 1 ? 'record' : 'records'}</Badge>
       </Group>
-      {records.length === 0 ? <Text size="sm" c="dimmed">No records returned for this module.</Text> : <Box className={styles.tableViewport} role="region" aria-label={`${formatLabel(name)} records`} tabIndex={0}>
+      {records.length === 0 ? <Text size="sm" c="dimmed">No records returned for this module.</Text> : !columns.length ? <Text size="sm" c="dimmed">Records are linked. No additional details are available.</Text> : <Box className={styles.tableViewport} role="region" aria-label={`${formatLabel(name)} records`} tabIndex={0}>
         <Table className={styles.recordTable} style={{ '--module-table-width': `${Math.max(700, columns.length * 140)}px` }} withTableBorder withColumnBorders={false} verticalSpacing="xs" horizontalSpacing="sm">
           <Table.Thead><Table.Tr>{columns.map(column => <Table.Th key={column}><Text size="xs" tt="capitalize">{formatLabel(column)}</Text></Table.Th>)}</Table.Tr></Table.Thead>
-          <Table.Tbody>{records.map(record => <Table.Tr key={record.id || JSON.stringify(record)}>{columns.map(column => <Table.Td key={column} data-label={formatLabel(column)}><Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>{formatValue(record[column])}</Text></Table.Td>)}</Table.Tr>)}</Table.Tbody>
+          <Table.Tbody>{displayRecords.map((record, index) => <Table.Tr key={records[index].id || index}>{columns.map(column => <Table.Td key={column} data-label={formatLabel(column)}><Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>{formatValue(record[column])}</Text></Table.Td>)}</Table.Tr>)}</Table.Tbody>
         </Table>
       </Box>}
     </Paper>
@@ -189,8 +192,8 @@ export default function SIACompletionSEBInputLayout() {
           <Button size="xs" variant="subtle" color="green" leftSection={<IconRefresh size={14} />} onClick={() => loadPackage()} loading={loading} disabled={verifying}>Reload package</Button>
         </Group>
         <Grid>
-          <Grid.Col span={{ base: 12, sm: 6 }}><Text size="xs" c="dimmed">SIA case ID</Text><Text size="sm" fw={700} style={{ fontFamily: 'monospace' }}>{caseId || 'Not set'}</Text></Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 6 }}><Text size="xs" c="dimmed">Site ID</Text><Text size="sm" fw={700} style={{ fontFamily: 'monospace' }}>{siteId || 'Not set'}</Text></Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 6 }}><Text size="xs" c="dimmed">SIA case</Text><Text size="sm" fw={700}>{packageData ? completionRecordName(caseRecord, 'case') : loading ? 'Loading case details…' : 'Case details unavailable'}</Text></Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 6 }}><Text size="xs" c="dimmed">Site</Text><Text size="sm" fw={700}>{packageData ? completionRecordName(siteRecord, 'site') : loading ? 'Loading site details…' : 'Site details unavailable'}</Text></Grid.Col>
         </Grid>
         {loading && <Group justify="center" mt="lg"><Loader color="green" size="sm" /><Text size="sm" c="dimmed">Loading all SIA module data...</Text></Group>}
         {error && <Alert mt="md" color="red" icon={<IconAlertCircle size={16} />}>{error}</Alert>}
@@ -199,13 +202,13 @@ export default function SIACompletionSEBInputLayout() {
       {packageData && <Stack gap="lg">
         <Paper p={{ base: 'sm', sm: 'lg' }} style={{ border: '1px solid #d1d5db', borderRadius: 8 }}>
           <Text size="xs" fw={700} c="#007336" tt="uppercase">2. Review SIA information</Text>
-          <Title order={3} mt={3}>{caseRecord.case_code || caseId}</Title>
-          <Text size="sm" c="dimmed" mt={3}>{siteRecord.site_name || siteRecord.site_code || siteId} {siteRecord.address ? `· ${siteRecord.address}` : ''}</Text>
+          <Title order={3} mt={3}>{completionRecordName(caseRecord, 'case')}</Title>
+          <Text size="sm" c="dimmed" mt={3}>{completionRecordName(siteRecord, 'site')} {siteRecord.address ? `· ${siteRecord.address}` : ''}</Text>
           <Divider my="md" />
           <Grid>
             {[["Case", caseRecord], ["Site", siteRecord]].map(([label, record]) => <Grid.Col key={label} span={{ base: 12, md: 6 }}>
               <Text size="sm" fw={700} mb="xs">{label} record</Text>
-              <Stack gap={4}>{Object.entries(record).filter(([key]) => key !== 'id').map(([key, value]) => <Box key={key} className={styles.recordField}><Text size="xs" c="dimmed" tt="capitalize">{formatLabel(key)}</Text><Text className={styles.recordValue} size="xs" fw={600}>{formatValue(value)}</Text></Box>)}</Stack>
+              <Stack gap={4}>{Object.entries(displayRecord(record)).map(([key, value]) => <Box key={key} className={styles.recordField}><Text size="xs" c="dimmed" tt="capitalize">{formatLabel(key)}</Text><Text className={styles.recordValue} size="xs" fw={600}>{formatValue(value)}</Text></Box>)}</Stack>
             </Grid.Col>)}
           </Grid>
           <Textarea mt="md" label="Review notes" placeholder="Add local review notes" value={notes} onChange={event => setNotes(event.currentTarget.value)} autosize minRows={2} />

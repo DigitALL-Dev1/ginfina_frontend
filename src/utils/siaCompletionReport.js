@@ -1,3 +1,5 @@
+import { completionRecordName, displayRecord } from './siaRecordDisplay';
+
 const isRecord = value => value && typeof value === 'object' && !Array.isArray(value);
 const labels = { id: 'Record ID', sia_case_id: 'SIA case ID', site_id: 'Site ID', project_id: 'Project ID', poi_id: 'POI ID' };
 export const completionReportLabel = key => labels[key] || key.replace(/^sia_/, '').split('_')
@@ -30,8 +32,12 @@ export function recordFields(record) {
   return result;
 }
 
-export function buildCompletionReport(packageData, { caseId, siteId, notes = '', completeConfirmed = false, readinessConfirmed = false }) {
+export function buildCompletionReport(packageData, { caseId, siteId, notes = '', completeConfirmed = false, readinessConfirmed = false, hideInternalIds = false }) {
   validateCompletionPackage(packageData, caseId, siteId);
+  const fieldsFor = record => {
+    const fields = recordFields(hideInternalIds ? displayRecord(record) : record);
+    return fields.length ? fields : [{ label: 'Details', value: 'Record linked. No additional details are available.' }];
+  };
   const verified = String(packageData.case.status).toLowerCase() === 'verified' && String(packageData.site.status).toLowerCase() === 'verified';
   const entries = Object.entries(packageData.modules);
   const sections = [
@@ -42,8 +48,8 @@ export function buildCompletionReport(packageData, { caseId, siteId, notes = '',
       { label: 'Module groups returned', value: String(entries.length) },
       { label: 'Related records returned', value: String(entries.reduce((sum, [, rows]) => sum + rows.length, 0)) },
     ] },
-    { title: 'Case details', fields: recordFields(packageData.case) },
-    { title: 'Site details', fields: recordFields(packageData.site) },
+    { title: 'Case details', fields: fieldsFor(packageData.case) },
+    { title: 'Site details', fields: fieldsFor(packageData.site) },
     { title: 'Local review', fields: [
       { label: 'Completeness confirmation (this session)', value: completeConfirmed ? 'Confirmed' : 'Not confirmed' },
       { label: 'SEB readiness confirmation (this session)', value: readinessConfirmed ? 'Confirmed' : 'Not confirmed' },
@@ -58,9 +64,9 @@ export function buildCompletionReport(packageData, { caseId, siteId, notes = '',
       // Verification returns updated case/site records. Keep their repeated entries consistent.
       const current = name === 'sia_case' && row.id === caseId ? { ...row, ...packageData.case }
         : name === 'sia_site' && row.id === siteId ? { ...row, ...packageData.site } : row;
-      sections.push({ title: `${title} — ${index + 1} of ${rows.length}`, fields: recordFields(current) });
+      sections.push({ title: `${title} — ${index + 1} of ${rows.length}`, fields: fieldsFor(current) });
     });
   }
-  return { code: `${packageData.case.case_code || caseId}-${packageData.site.site_code || siteId}`, sections,
+  return { code: hideInternalIds ? `${completionRecordName(packageData.case, 'case')}-${completionRecordName(packageData.site, 'site')}` : `${packageData.case.case_code || caseId}-${packageData.site.site_code || siteId}`, sections,
     counts: entries.map(([key, rows]) => ({ key, label: completionReportLabel(key), value: rows.length })) };
 }

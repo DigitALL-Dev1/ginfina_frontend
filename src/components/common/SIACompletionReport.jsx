@@ -8,7 +8,7 @@ export default function SIACompletionReport({ packageData, caseId, siteId, notes
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const { report, error } = useMemo(() => {
-    try { return { report: buildCompletionReport(packageData, { caseId, siteId, notes, completeConfirmed, readinessConfirmed }) }; }
+    try { return { report: buildCompletionReport(packageData, { caseId, siteId, notes, completeConfirmed, readinessConfirmed, hideInternalIds: true }) }; }
     catch (e) { return { error: e.message }; }
   }, [packageData, caseId, siteId, notes, completeConfirmed, readinessConfirmed]);
 

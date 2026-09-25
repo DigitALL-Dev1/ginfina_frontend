@@ -552,11 +552,11 @@ export default function SIADroneGISClimateLayout() {
       <FormModal opened={modal === 'mission'} onClose={closeModal} title="New Drone Mission" saving={saving}
         onSubmit={() => save('/sia/drone-missions', { site_id: loadedSiteId, ...fv }, rMiss)}>
         {!fv.survey_visit_id && (
-          <Text size="xs" c="orange" mb="xs">⚠ No survey visit found. Create one in Sites and Survey first, or type the ID manually.</Text>
+          <Text size="xs" c="orange" mb="xs">⚠ No survey visit found. Create one in Sites and Survey first.</Text>
         )}
         <FR><FI label="Mission Code *" field="mission_code" fv={fv} setFv={setFv} /><FI label="Mission Status" field="mission_status" fv={fv} setFv={setFv} select={MISSION_STATUS} /></FR>
         <FI label="Mission Purpose" field="mission_purpose" fv={fv} setFv={setFv} />
-        <FR><FI label="Target Discipline" field="target_discipline" fv={fv} setFv={setFv} /><FI label="Survey Visit ID (auto-filled)" field="survey_visit_id" fv={fv} setFv={setFv} readonly={!!fv.survey_visit_id} /></FR>
+        <FI label="Target Discipline" field="target_discipline" fv={fv} setFv={setFv} />
         <FR><FI label="Planned Date (YYYY-MM-DD)" field="planned_date" fv={fv} setFv={setFv} /><FI label="Actual Date (YYYY-MM-DD)" field="actual_date" fv={fv} setFv={setFv} /></FR>
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
       </FormModal>
