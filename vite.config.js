@@ -7,9 +7,9 @@ export default defineConfig({
     port: 4173,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8001',
+        target: 'https://ginfinabackend-production.up.railway.app',
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
     },
   },
@@ -17,9 +17,9 @@ export default defineConfig({
     port: 4174,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8001',
+        target: 'https://ginfinabackend-production.up.railway.app',
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
     },
   },
