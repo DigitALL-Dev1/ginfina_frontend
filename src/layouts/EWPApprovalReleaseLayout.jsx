@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Accordion, Alert, Badge, Box, Button, Checkbox, Divider, Grid, Group,
-  Loader, Modal, Paper, ScrollArea, Select, SimpleGrid, Stack, Table,
+  Loader, Modal, Paper, Select, SimpleGrid, Stack, Table,
   Tabs, Text, Textarea, ThemeIcon, Title,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
+import styles from './EWPApprovalReleaseLayout.module.css';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconCheck, IconFileDescription, IconLock, IconRefresh, IconShieldCheck } from '@tabler/icons-react';
+import EWPApprovalReleaseReport from '../components/common/EWPApprovalReleaseReport';
 
 const API = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 const ROOT = '/ewp/approval-release';
@@ -49,6 +52,7 @@ function ReadinessDetails({ item }) {
 }
 
 export default function EWPApprovalReleaseLayout() {
+  const isMobile = useMediaQuery('(max-width: 47.99em)');
   const [ewps, setEwps] = useState([]);
   const [people, setPeople] = useState({ users: [] });
   const [documents, setDocuments] = useState([]);
@@ -134,9 +138,9 @@ export default function EWPApprovalReleaseLayout() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  return <Box p={{ base: 'md', md: 'xl' }} maw={1380} mx="auto"><Stack gap="lg">
+  return <Box className={styles.page} p={{ base: 'sm', sm: 'md', md: 'xl' }} maw={1380} mx="auto"><Stack gap="lg">
     <Group justify="space-between" align="flex-start">
-      <Box><Badge color="green" variant="light" mb="xs">Engineering Workbench</Badge><Title order={2}>Approval & Release</Title><Text c="dimmed" size="sm" mt={5}>Approve a reviewed document revision and release it as a controlled engineering output.</Text></Box>
+      <Box className={styles.headingText}><Badge color="green" variant="light" mb="xs">Engineering Workbench</Badge><Title order={2}>Approval & Release</Title><Text c="dimmed" size="sm" mt={5}>Approve a reviewed document revision and release it as a controlled engineering output.</Text></Box>
       <ThemeIcon color="green" variant="light" size={48} radius="lg"><IconShieldCheck size={26} /></ThemeIcon>
     </Group>
 
@@ -145,38 +149,38 @@ export default function EWPApprovalReleaseLayout() {
     </SimpleGrid>
 
     {error && <Alert color="red" title="Unable to complete request" icon={<IconAlertTriangle size={18} />}>{error}</Alert>}
-    <Paper withBorder radius="lg" p="lg" style={surface}>
+    <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}>
       <Group justify="space-between" mb="md"><Box><Text fw={750}>Select reviewed output</Text><Text size="xs" c="dimmed">Review-completed revisions, approval decisions, and existing releases.</Text></Box><Button variant="subtle" color="green" leftSection={<IconRefresh size={15} />} disabled={busy} onClick={() => setRefresh(value => value + 1)}>Refresh</Button></Group>
-      <SimpleGrid cols={{ base: 1, md: 3 }}>
-        <Select label="EWP" placeholder="Select EWP" searchable clearable disabled={busy} data={ewps.map(row => ({ value: row.id, label: `${row.code} · ${row.name}` }))} value={ewpId} onChange={value => { setEwpId(value); setDocumentId(null); setRevisionId(null); setDocuments([]); setContext(null); setError(''); }} />
-        <Select label="Document" placeholder="Select reviewed document" searchable clearable disabled={!ewpId || busy} data={documents.map(row => ({ value: row.id, label: `${row.code} · ${row.title}` }))} value={documentId} onChange={value => { setDocumentId(value); setRevisionId(null); setContext(null); setError(''); }} />
-        <Select label="Reviewed revision" placeholder="Select exact revision" disabled={!documentId || busy} data={(selectedDocument?.revisions || []).map(row => ({ value: row.id, label: `${row.revision_no} · ${row.status.replaceAll('_', ' ')}` }))} value={revisionId} onChange={setRevisionId} />
+      <SimpleGrid cols={{ base: 1, sm: 3 }}>
+        <Select classNames={{ dropdown: styles.dropdown }} label="EWP" placeholder="Select EWP" searchable clearable disabled={busy} data={ewps.map(row => ({ value: row.id, label: `${row.code} · ${row.name}` }))} value={ewpId} onChange={value => { setEwpId(value); setDocumentId(null); setRevisionId(null); setDocuments([]); setContext(null); setError(''); }} />
+        <Select classNames={{ dropdown: styles.dropdown }} label="Document" placeholder="Select reviewed document" searchable clearable disabled={!ewpId || busy} data={documents.map(row => ({ value: row.id, label: `${row.code} · ${row.title}` }))} value={documentId} onChange={value => { setDocumentId(value); setRevisionId(null); setContext(null); setError(''); }} />
+        <Select classNames={{ dropdown: styles.dropdown }} label="Reviewed revision" placeholder="Select exact revision" disabled={!documentId || busy} data={(selectedDocument?.revisions || []).map(row => ({ value: row.id, label: `${row.revision_no} · ${row.status.replaceAll('_', ' ')}` }))} value={revisionId} onChange={setRevisionId} />
       </SimpleGrid>
       {(loading || loadingDocuments || loadingPackage) && <Group mt="md"><Loader size="xs" color="green" /><Text size="sm" c="dimmed">Loading saved engineering records…</Text></Group>}
       {ewpId && !loadingDocuments && !documents.length && <Alert color="blue" mt="md">No reviewed document revisions are available for this EWP. Complete technical review in Documents & Reviews first.</Alert>}
     </Paper>
 
     {pkg && <>
-      <Paper withBorder p="lg" radius="lg" style={surface}>
+      <Paper withBorder p={{ base: 'sm', sm: 'lg' }} radius="lg" style={surface}>
         <Group justify="space-between" align="flex-start"><Box><Text size="xs" c="dimmed" tt="uppercase">Approval package</Text><Title order={3} mt={4}>{pkg.document.code} / {pkg.revision.revision_no}</Title><Text c="dimmed" size="sm">{pkg.document.title}</Text></Box><Status value={context.status} /></Group>
         <Divider my="lg" />
-        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="lg">
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
           <Field label="EWP" value={`${pkg.ewp.code} · ${pkg.ewp.name}`} /><Field label="Deliverable" value={`${pkg.deliverable.code} · ${pkg.deliverable.name}`} />
           <Field label="Prepared by" value={pkg.prepared_by} /><Field label="SEB design basis" value={`${pkg.seb_basis.seb?.code || pkg.seb_basis.seb_id || 'Not recorded'} / ${pkg.seb_basis.released_revision?.revision_no || pkg.seb_basis.revision_id || 'Not recorded'}`} />
           <Field label="Technical review" value="COMPLETED" /><Field label="Open comments" value={String(pkg.open_comments)} />
           <Field label="Reviewed by" value={pkg.reviewers.map(row => row.reviewer_name).join(', ')} /><Field label="File" value={pkg.file.name} />
         </SimpleGrid>
-        <Group mt="lg"><Button component="a" variant="light" color="green" leftSection={<IconFileDescription size={16} />} href={`${API}/ewp/documents-reviews/documents/${encodeURIComponent(pkg.document.id)}/revisions/${encodeURIComponent(pkg.revision.id)}/file`} target="_blank" rel="noreferrer" disabled={!pkg.file.name}>Open {pkg.revision.revision_no} document</Button>
+        <Group className={styles.actions} mt="lg"><Button component="a" variant="light" color="green" leftSection={<IconFileDescription size={16} />} href={`${API}/ewp/documents-reviews/documents/${encodeURIComponent(pkg.document.id)}/revisions/${encodeURIComponent(pkg.revision.id)}/file`} target="_blank" rel="noreferrer" disabled={!pkg.file.name}>Open {pkg.revision.revision_no} document</Button>
           {release && <Button variant="default" onClick={downloadRecord}>Download release record</Button>}
         </Group>
         {!context.is_current && <Alert mt="md" color="blue">This is a historical revision. Its saved approval and release remain available here.</Alert>}
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg" style={surface}>
+      <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}>
         <Tabs defaultValue="reviews" color="green">
           <Tabs.List><Tabs.Tab value="reviews">Reviewers & comments</Tabs.Tab><Tabs.Tab value="inputs">Design inputs & conditions</Tabs.Tab><Tabs.Tab value="traceability">Traceability</Tabs.Tab></Tabs.List>
           <Tabs.Panel value="reviews" pt="md"><Stack>
-            <ScrollArea><Table miw={560} verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Reviewer</Table.Th><Table.Th>Role</Table.Th><Table.Th>Decision</Table.Th><Table.Th>Comment</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{pkg.reviewers.map(row => <Table.Tr key={row.id}><Table.Td>{row.reviewer_name}</Table.Td><Table.Td>{row.reviewer_role}</Table.Td><Table.Td><Status value={row.decision} /></Table.Td><Table.Td>{row.decision_comment || '—'}</Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea>
+            <Table className={styles.reviewTable} verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Reviewer</Table.Th><Table.Th>Role</Table.Th><Table.Th>Decision</Table.Th><Table.Th>Comment</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{pkg.reviewers.map(row => <Table.Tr key={row.id}><Table.Td data-label="Reviewer">{row.reviewer_name}</Table.Td><Table.Td data-label="Role">{row.reviewer_role}</Table.Td><Table.Td data-label="Decision"><Status value={row.decision} /></Table.Td><Table.Td data-label="Comment">{row.decision_comment || '—'}</Table.Td></Table.Tr>)}</Table.Tbody></Table>
             <Text fw={700} size="sm">Comment closure</Text>
             {pkg.comments.map(row => <Paper key={row.id} withBorder p="md" radius="md"><Group justify="space-between"><Text size="sm" fw={600}>{row.text}</Text><Status value={row.status} /></Group><Text size="xs" c="dimmed" mt={5}>Raised by {row.raised_by}{row.markup_reference ? ` · ${row.markup_reference}` : ''}</Text><Text size="sm" mt="xs">Response: {row.response || 'Not recorded'}</Text>{row.responded_by && <Text size="xs" c="dimmed">{row.responded_by}</Text>}</Paper>)}
             {!pkg.comments.length && <Text size="sm" c="dimmed">No review comments were recorded.</Text>}
@@ -196,18 +200,18 @@ export default function EWPApprovalReleaseLayout() {
         </Tabs>
       </Paper>
 
-      {mayApprove && <Paper withBorder radius="lg" p="lg" style={surface}><Stack>
+      {mayApprove && <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}><Stack>
         <Box><Text fw={750}>Formal engineering approval</Text><Text c="dimmed" size="sm">Select an engineering approver and record the decision.</Text></Box>
-        <Group align="flex-end"><Select style={{ flex: 1 }} label="Engineering approver" searchable required placeholder="Select user" disabled={saving} value={approverId} data={people.users.map(row => ({ value: row.id, label: row.name }))} onChange={setApproverId} /><Button variant="light" color="green" loading={saving} disabled={!approverId || approverId === approval?.approver_id} onClick={() => act('approver', 'PUT', { approver_id: approverId }, 'Approver assigned')}>Assign approver</Button></Group>
+        <Group className={styles.actions} align="flex-end"><Select classNames={{ dropdown: styles.dropdown }} style={{ flex: 1 }} label="Engineering approver" searchable required placeholder="Select user" disabled={saving} value={approverId} data={people.users.map(row => ({ value: row.id, label: row.name }))} onChange={setApproverId} /><Button variant="light" color="green" loading={saving} disabled={!approverId || approverId === approval?.approver_id} onClick={() => act('approver', 'PUT', { approver_id: approverId }, 'Approver assigned')}>Assign approver</Button></Group>
         {approval?.approver && <Text size="sm">Assigned to: <strong>{approval.approver}</strong></Text>}
         {!reviewValid && <Alert color="orange">Approval requires the reviewed file, accepted reviewer decisions, and no open comments.</Alert>}
-        <Grid><Grid.Col span={{ base: 12, md: 4 }}><Select label="Decision" required data={DECISIONS.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={decision} disabled={saving || !hasAssignedApprover} onChange={value => setDecision(value || 'APPROVE')} /></Grid.Col><Grid.Col span={{ base: 12, md: 8 }}><Textarea label="Comment" required={decision !== 'APPROVE'} minRows={3} value={comment} disabled={saving || !hasAssignedApprover} onChange={event => setComment(event.currentTarget.value)} /></Grid.Col></Grid>
+        <Grid><Grid.Col span={{ base: 12, md: 4 }}><Select classNames={{ dropdown: styles.dropdown }} label="Decision" required data={DECISIONS.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={decision} disabled={saving || !hasAssignedApprover} onChange={value => setDecision(value || 'APPROVE')} /></Grid.Col><Grid.Col span={{ base: 12, md: 8 }}><Textarea label="Comment" required={decision !== 'APPROVE'} minRows={3} value={comment} disabled={saving || !hasAssignedApprover} onChange={event => setComment(event.currentTarget.value)} /></Grid.Col></Grid>
         {decision === 'APPROVE_WITH_CONDITION' && <Textarea label="Approval condition" required minRows={3} value={condition} disabled={saving || !hasAssignedApprover} onChange={event => setCondition(event.currentTarget.value)} />}
         <Checkbox label={`I have reviewed ${pkg.document.code} / ${pkg.revision.revision_no}, its inputs, reviewer decisions, and comment closure.`} checked={reviewed} disabled={saving || !hasAssignedApprover} onChange={event => setReviewed(event.currentTarget.checked)} />
-        <Group justify="flex-end"><Button color="green" leftSection={<IconShieldCheck size={16} />} loading={saving} disabled={!hasAssignedApprover || approverId !== approval?.approver_id || !reviewed || !reviewValid || (decision !== 'APPROVE' && !comment.trim()) || (decision === 'APPROVE_WITH_CONDITION' && !condition.trim())} onClick={() => act('approval', 'POST', { decision, comment, condition, package_reviewed: reviewed, package_hash: context.package_hash }, 'Approval decision saved')}>Submit approval</Button></Group>
+        <Group className={styles.actions} justify="flex-end"><Button color="green" leftSection={<IconShieldCheck size={16} />} loading={saving} disabled={!hasAssignedApprover || approverId !== approval?.approver_id || !reviewed || !reviewValid || (decision !== 'APPROVE' && !comment.trim()) || (decision === 'APPROVE_WITH_CONDITION' && !condition.trim())} onClick={() => act('approval', 'POST', { decision, comment, condition, package_reviewed: reviewed, package_hash: context.package_hash }, 'Approval decision saved')}>Submit approval</Button></Group>
       </Stack></Paper>}
 
-      {approval?.decision && <Paper withBorder radius="lg" p="lg" style={surface}><Stack>
+      {approval?.decision && <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}><Stack>
         <Group justify="space-between"><Text fw={750}>Recorded approval</Text><Status value={approval.decision} /></Group>
         <SimpleGrid cols={{ base: 1, sm: 2 }}><Field label="Approver" value={approval.approver} /><Field label="Decision recorded at" value={approval.decided_at} /></SimpleGrid>
         <Text size="sm">{approval.comment || 'No approval comment.'}</Text>
@@ -218,12 +222,14 @@ export default function EWPApprovalReleaseLayout() {
         <Group><Button component={Link} to="/ginfina/ewp/documents-reviews" variant="subtle" color="green">Open Documents & Reviews</Button></Group>
       </Stack></Paper>}
     </>}
+    {revisionId && <EWPApprovalReleaseReport key={revisionId} context={context} ewpId={ewpId} documentId={documentId} revisionId={revisionId}
+      busy={busy} loadError={error} onReload={() => setRefresh(value => value + 1)} />}
   </Stack>
-    <Modal opened={releaseModal} onClose={() => { if (!saving) setReleaseModal(false); }} title={`Release ${pkg?.document.code || ''} / ${pkg?.revision.revision_no || ''}`} centered size="lg">
+    <Modal fullScreen={isMobile} classNames={{ content: styles.modal }} opened={releaseModal} onClose={() => { if (!saving) setReleaseModal(false); }} title={`Release ${pkg?.document.code || ''} / ${pkg?.revision.revision_no || ''}`} centered size="lg">
       <Stack><Alert color="orange" icon={<IconLock size={18} />}>This exact revision, file hash, review results, SEB inputs, conditions, and approval will be frozen. Subsequent changes require another revision.</Alert>
         <Field label="Release user" value="Prototype pilot" />
         <Textarea label="Release comment" minRows={3} value={releaseComment} disabled={saving} onChange={event => setReleaseComment(event.currentTarget.value)} />
-        <Group justify="flex-end"><Button variant="default" disabled={saving} onClick={() => setReleaseModal(false)}>Cancel</Button><Button color="green" loading={saving} disabled={!canRelease} onClick={() => act('release', 'POST', { comment: releaseComment }, 'Document revision released')}>Confirm release</Button></Group>
+        <Group className={styles.actions} justify="flex-end"><Button variant="default" disabled={saving} onClick={() => setReleaseModal(false)}>Cancel</Button><Button color="green" loading={saving} disabled={!canRelease} onClick={() => act('release', 'POST', { comment: releaseComment }, 'Document revision released')}>Confirm release</Button></Group>
       </Stack>
     </Modal>
   </Box>;

@@ -1,0 +1,9 @@
+.page, .modal { min-width:0; overflow-wrap:anywhere; }
+.formRow > * { min-width:0; }
+@media (max-width:47.99em) {
+  .formRow { flex-direction:column; align-items:stretch; }
+  .formRow > * { width:100%; max-width:none!important; }
+  .page :global(.mantine-Button-root), .modal :global(.mantine-Button-root) { min-height:44px; height:auto; max-width:100%; }
+  .page :global(.mantine-Button-label), .modal :global(.mantine-Button-label) { white-space:normal; padding-block:8px; }
+  .modal :global(.mantine-Input-input) { min-height:44px; font-size:16px; }
+}

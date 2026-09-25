@@ -1,0 +1,13 @@
+.page, .modal { min-width:0; overflow-wrap:anywhere; }
+.findingText { flex:1 1 210px; min-width:0; }
+.findingText > div:last-child { min-width:0; flex:1; }
+.dropdown { max-width:calc(100vw - 24px); }
+.dropdown :global(.mantine-Select-option) { white-space:normal; overflow-wrap:anywhere; min-height:44px; }
+@media (max-width:47.99em) {
+  .page :global(.mantine-Paper-root) { padding:12px; }
+  .page :global(.mantine-Button-root), .modal :global(.mantine-Button-root) { min-height:44px; max-width:100%; height:auto; }
+  .page :global(.mantine-Button-label), .modal :global(.mantine-Button-label) { white-space:normal; padding-block:8px; }
+  .page :global(.mantine-Input-input), .modal :global(.mantine-Input-input) { min-height:44px; font-size:16px; }
+  .finding > :last-child { width:100%; align-items:flex-start; }
+  .modal :global(.mantine-Group-root) { flex-wrap:wrap; }
+}

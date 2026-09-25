@@ -9,7 +9,7 @@ export default function WelcomePage() {
           <Title
             order={1}
             style={{
-              fontSize: '56px',
+              fontSize: 'clamp(28px, 4vw, 56px)',
               fontWeight: 700,
               color: '#007336',
               letterSpacing: '-0.02em',

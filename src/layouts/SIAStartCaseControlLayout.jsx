@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Checkbox, Group, Loader,
   Paper, Select, Stack, Table, Text, Textarea,
-  TextInput, Title, Stepper,
+  TextInput, Title, Stepper, SimpleGrid, Progress,
 } from '@mantine/core';
 import {
   IconCheck, IconArrowRight, IconArrowLeft,
@@ -11,6 +11,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import { autoCode } from '../utils/autoCode';
+import SIACaseReport from '../components/common/SIACaseReport';
+import styles from './SIAStartCaseControlLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -198,7 +200,7 @@ export default function SIAStartCaseControlLayout() {
 
   // ────────────────────────────────────────────────────────
   return (
-    <Box p="lg">
+    <Box className={styles.root} p={{ base: 0, sm: 'xs', lg: 'lg' }}>
       {/* Header */}
       <Box mb="lg">
         <Group align="center" gap="sm" mb={4}>
@@ -212,19 +214,24 @@ export default function SIAStartCaseControlLayout() {
       </Box>
 
       {/* Stepper */}
-      <Stepper active={active} color="green" mb="xl">
+      <Paper className={styles.compactStepper} withBorder radius="md" p="md" mb="lg" aria-label="Case setup progress">
+        <Group justify="space-between" mb="sm"><Text size="sm" fw={700}>{['Select Project', 'Create Case', 'Assessment Packs', 'Report'][active]}</Text><Text size="xs" c="dimmed">Step {active + 1} of 4</Text></Group>
+        <Progress value={(active + 1) * 25} color="green" size="sm" aria-label={`Step ${active + 1} of 4`} />
+      </Paper>
+      <Stepper className={styles.desktopStepper} active={active} color="green" mb="xl">
         <Stepper.Step label="Select Project" description="Choose a project" />
         <Stepper.Step label="Create Case" description="SIA case details" />
         <Stepper.Step label="Assessment Packs" description="Select applicable packs" />
-        <Stepper.Step label="Done" description="Case ready" completedIcon={<IconCheck size={16} />} />
+        <Stepper.Step label="Report" description="Review & download" completedIcon={<IconCheck size={16} />} />
       </Stepper>
 
       {/* ══ STEP 0 — Select Project ══════════════════════════ */}
       {active === 0 && (
-        <Paper p="lg" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
+        <Paper p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
           <Title order={4} fw={600} c="#111827" mb="md">Select Project</Title>
 
           <TextInput
+            aria-label="Search projects"
             placeholder="Search by name or code…"
             value={projectSearch}
             onChange={(e) => setProjectSearch(e.target.value)}
@@ -234,8 +241,17 @@ export default function SIAStartCaseControlLayout() {
 
           <Paper style={{ border: '1px solid #e5e7eb', borderRadius: 6, position: 'relative', minHeight: 200 }}>
             <LoadingRow visible={projectsLoading} />
+            {!projectsLoading && <Stack className={styles.mobileCards} gap="sm" p="sm">
+              {filteredProjects.map(project => <button type="button" key={project.id} className={styles.choiceCard}
+                aria-pressed={selectedProject?.id === project.id} onClick={() => setSelectedProject(selectedProject?.id === project.id ? null : project)}>
+                <Group justify="space-between" gap="xs" mb="xs"><Text size="xs" fw={700} c="green">{project.project_code}</Text>{statusBadge(project.project_status)}</Group>
+                <Text size="sm" fw={600}>{project.project_name}</Text><Text size="xs" c="dimmed" mt="xs">Gsolve ID: {project.gsolve_project_id || 'Not provided'}</Text>
+                {selectedProject?.id === project.id && <Text size="xs" c="green" fw={700} mt="xs">Selected</Text>}
+              </button>)}
+              {!filteredProjects.length && <Text size="sm" c="dimmed" p="md">No projects found.</Text>}
+            </Stack>}
             {!projectsLoading && (
-              <Table verticalSpacing="sm" horizontalSpacing="md">
+              <Box className={`${styles.desktopTable} ${styles.tableViewport}`}><Table miw={560} verticalSpacing="sm" horizontalSpacing="md">
                 <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
                   <Table.Tr>
                     <Table.Th style={thStyle}>Code</Table.Th>
@@ -269,11 +285,11 @@ export default function SIAStartCaseControlLayout() {
                     </Table.Td></Table.Tr>
                   )}
                 </Table.Tbody>
-              </Table>
+              </Table></Box>
             )}
           </Paper>
 
-          <Group justify="space-between" align="center" mt="md">
+          <Group className={styles.actions} justify="space-between" align="center" mt="md">
             <Text size="xs" c="dimmed">
               {selectedProject
                 ? <><Text span fw={600} c="#007336">{selectedProject.project_name}</Text> selected</>
@@ -290,7 +306,7 @@ export default function SIAStartCaseControlLayout() {
 
       {/* ══ STEP 1 — Create SIA Case ════════════════════════ */}
       {active === 1 && (
-        <Paper p="lg" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
+        <Paper p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
 
           {/* Selected project strip */}
           <Paper p="sm" mb="lg" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6 }}>
@@ -310,24 +326,25 @@ export default function SIAStartCaseControlLayout() {
           <Title order={4} fw={600} c="#111827" mb="md">SIA Case Details</Title>
 
           <Stack gap="md">
-            <Group grow>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <Box>
                 <Text size="xs" fw={600} c="#374151" mb={4}>Case Code <Text span c="red">*</Text></Text>
-                <TextInput placeholder="e.g. SIA-2026-001"
+                <TextInput aria-label="Case Code" placeholder="e.g. SIA-2026-001"
                   value={caseForm.case_code} onChange={(e) => updateCase('case_code', e.target.value)}
                   styles={{ input: { borderColor: '#d1d5db', borderRadius: 6, height: 38 } }} />
               </Box>
               <Box>
                 <Text size="xs" fw={600} c="#374151" mb={4}>Assessment Stage</Text>
-                <Select placeholder="Select stage" data={ASSESSMENT_STAGES}
+                <Select aria-label="Assessment Stage" placeholder="Select stage" data={ASSESSMENT_STAGES}
                   value={caseForm.assessment_stage} onChange={(val) => updateCase('assessment_stage', val || '')}
                   clearable styles={{ input: { borderColor: '#d1d5db', borderRadius: 6, height: 38 } }} />
               </Box>
-            </Group>
+            </SimpleGrid>
 
             <Box>
               <Text size="xs" fw={600} c="#374151" mb={4}>CRM Opportunity</Text>
               <Select
+                aria-label="CRM Opportunity"
                 placeholder={crmLoading ? 'Loading…' : 'Select CRM opportunity'}
                 disabled={crmLoading}
                 data={crmRecords.map((c) => ({
@@ -343,13 +360,13 @@ export default function SIAStartCaseControlLayout() {
 
             <Box>
               <Text size="xs" fw={600} c="#374151" mb={4}>Assessment Purpose</Text>
-              <Textarea placeholder="Describe the purpose of this assessment…"
+              <Textarea aria-label="Assessment Purpose" placeholder="Describe the purpose of this assessment…"
                 value={caseForm.assessment_purpose} onChange={(e) => updateCase('assessment_purpose', e.target.value)}
                 autosize minRows={3} styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }} />
             </Box>
           </Stack>
 
-          <Group justify="space-between" mt="lg">
+          <Group className={styles.actions} justify="space-between" mt="lg">
             <Button variant="default" leftSection={<IconArrowLeft size={15} />} onClick={() => setActive(0)}>Back</Button>
             <Button color="green"
               rightSection={caseSubmitting ? <Loader size={14} color="white" /> : <IconArrowRight size={15} />}
@@ -363,7 +380,7 @@ export default function SIAStartCaseControlLayout() {
 
       {/* ══ STEP 2 — Assessment Packs ═══════════════════════ */}
       {active === 2 && createdCase && (
-        <Paper p="lg" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
+        <Paper p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
 
           {/* Case summary */}
           <Paper p="sm" mb="lg" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6 }}>
@@ -381,7 +398,17 @@ export default function SIAStartCaseControlLayout() {
           {packsLoading ? (
             <Group justify="center" py="xl"><Loader color="green" /></Group>
           ) : (
-            <Table verticalSpacing="sm" horizontalSpacing="md"
+            <>
+            <Stack className={styles.mobileCards} gap="sm">
+              {packs.map(pack => <Paper withBorder radius="md" p="md" key={pack.id} style={{ background: selectedPacks.includes(pack.id) ? '#f0fdf4' : 'white', borderColor: selectedPacks.includes(pack.id) ? '#007336' : undefined }}>
+                <Checkbox color="green" size="md" checked={selectedPacks.includes(pack.id)} onChange={() => togglePack(pack.id)}
+                  classNames={{ label: styles.packLabel }} label={<Box><Text size="xs" fw={700} c="green">{pack.pack_code}</Text><Text size="sm" fw={600}>{pack.pack_name}</Text>
+                    <Text size="xs" c="dimmed" mt={6}>{pack.pack_type || 'Type not provided'} ? {pack.is_active ? 'Active' : 'Inactive'}</Text></Box>} />
+              </Paper>)}
+              {!packs.length && <Text size="sm" c="dimmed">No assessment packs found.</Text>}
+            </Stack>
+            <Box className={`${styles.desktopTable} ${styles.tableViewport}`}>
+            <Table miw={560} verticalSpacing="sm" horizontalSpacing="md"
               style={{ border: '1px solid #e5e7eb', borderRadius: 6 }}>
               <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
                 <Table.Tr>
@@ -401,7 +428,7 @@ export default function SIAStartCaseControlLayout() {
                       onMouseEnter={(e) => { if (!checked) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                       onMouseLeave={(e) => { if (!checked) e.currentTarget.style.backgroundColor = 'transparent'; }}>
                       <Table.Td>
-                        <Checkbox checked={checked} onChange={() => togglePack(pack.id)}
+                        <Checkbox aria-label={`Select ${pack.pack_name}`} checked={checked} onChange={() => togglePack(pack.id)}
                           color="green" onClick={(e) => e.stopPropagation()} />
                       </Table.Td>
                       <Table.Td><Text size="sm" fw={600} c="#007336">{pack.pack_code}</Text></Table.Td>
@@ -425,10 +452,10 @@ export default function SIAStartCaseControlLayout() {
                   </Table.Td></Table.Tr>
                 )}
               </Table.Tbody>
-            </Table>
+            </Table></Box></>
           )}
 
-          <Group justify="space-between" mt="lg">
+          <Group className={styles.actions} justify="space-between" mt="lg">
             <Button variant="default" leftSection={<IconArrowLeft size={15} />} onClick={() => setActive(1)}>Back</Button>
             <Group gap="sm">
               <Text size="xs" c="dimmed">{selectedPacks.length} pack{selectedPacks.length !== 1 ? 's' : ''} selected</Text>
@@ -444,8 +471,8 @@ export default function SIAStartCaseControlLayout() {
       )}
 
       {/* ══ STEP 3 — Done ═══════════════════════════════════ */}
-      {active === 3 && (
-        <Paper p="xl" style={{ border: '1px solid #bbf7d0', borderRadius: 8, backgroundColor: '#f0fdf4', textAlign: 'center' }}>
+      {active === 3 && createdCase && selectedProject && (
+        <Paper p={{ base: 'sm', sm: 'lg', lg: 'xl' }} style={{ border: '1px solid #bbf7d0', borderRadius: 8, backgroundColor: '#f0fdf4', textAlign: 'center' }}>
           <Stack align="center" gap="md">
             <Box style={{
               width: 56, height: 56, borderRadius: '50%', backgroundColor: '#007336',
@@ -459,19 +486,9 @@ export default function SIAStartCaseControlLayout() {
               <Text span fw={700} c="#007336">{linkedPacks.length}</Text> pack{linkedPacks.length !== 1 ? 's' : ''} linked.
             </Text>
 
-            <Paper p="md" style={{ border: '1px solid #d1d5db', borderRadius: 6, width: '100%', maxWidth: 520, textAlign: 'left' }}>
-              <Text size="xs" fw={700} c="#374151" mb="xs" tt="uppercase" style={{ letterSpacing: '0.05em' }}>Summary</Text>
-              <Stack gap={4}>
-                <Group justify="space-between"><Text size="xs" c="#6b7280">Case ID</Text><Text size="xs" fw={600} style={{ fontFamily: 'monospace' }}>{createdCase?.id}</Text></Group>
-                <Group justify="space-between"><Text size="xs" c="#6b7280">Case Code</Text><Text size="xs" fw={600}>{createdCase?.case_code}</Text></Group>
-                <Group justify="space-between"><Text size="xs" c="#6b7280">Project</Text><Text size="xs" fw={600}>{selectedProject?.project_name}</Text></Group>
-                <Group justify="space-between"><Text size="xs" c="#6b7280">Stage</Text><Text size="xs" fw={600}>{createdCase?.assessment_stage || '—'}</Text></Group>
-                <Group justify="space-between"><Text size="xs" c="#6b7280">CRM Opportunity</Text><Text size="xs" fw={600}>{createdCase?.opportunity_id || '—'}</Text></Group>
-                <Group justify="space-between"><Text size="xs" c="#6b7280">Packs linked</Text><Text size="xs" fw={600}>{linkedPacks.length}</Text></Group>
-              </Stack>
-            </Paper>
+            <SIACaseReport project={selectedProject} siaCase={createdCase} links={linkedPacks} packs={packs} />
 
-            <Group gap="sm" mt="sm">
+            <Group className={styles.actions} gap="sm" mt="sm">
               <Button variant="default" onClick={resetAll}>Create Another Case</Button>
               <Button color="green" style={{ backgroundColor: '#007336' }}
                 onClick={() => navigate('/ginfina')}>Back to Home</Button>

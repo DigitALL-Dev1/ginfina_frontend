@@ -1,11 +1,14 @@
 import DatePickerInput from '../components/common/DatePickerInput';
-import { useEffect, useMemo, useState } from 'react';
+import InputsDeliverablesReport from '../components/common/InputsDeliverablesReport';
+import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert, Badge, Box, Button, Checkbox, Divider, Grid, Group, Modal, Paper,
-  Progress, ScrollArea, Select, SimpleGrid, Stack, Switch, Table, Text,
+  Progress, Select, SimpleGrid, Stack, Switch, Table, Text,
   TextInput, ThemeIcon, Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import { useMediaQuery } from '@mantine/hooks';
+import styles from './InputsDeliverablesLayout.module.css';
 import {
   IconAlertTriangle, IconArrowRight, IconCheck, IconCircleCheck,
   IconFileDescription, IconInputCheck, IconLink, IconPlus, IconRefresh,
@@ -55,7 +58,8 @@ function FlowBar({ completed }) {
     <Paper withBorder radius="lg" p="md" style={surface}>
       <Group justify="space-between" mb="sm"><Text fw={750} size="sm">Inputs and deliverables flow</Text><Text size="xs" c="dimmed">{count} of {FLOW.length} stages ready</Text></Group>
       <Progress value={(count / FLOW.length) * 100} color="green" size="sm" radius="xl" mb="md" />
-      <SimpleGrid cols={{ base: 2, sm: 3, lg: 9 }} spacing="xs">
+      <Box className={styles.activeStage} aria-live="polite"><Text size="sm" fw={700}>{count === FLOW.length ? 'Ready for Documents & Reviews' : `Next: ${FLOW[completed.findIndex(value => !value)]}`}</Text></Box>
+      <SimpleGrid className={styles.stepRail} cols={9} spacing="xs">
         {FLOW.map((label, index) => <Stack key={label} gap={5} align="center" ta="center" p={7} style={{ borderRadius: 8, background: completed[index] ? '#eef9f2' : '#f7f8f7' }}><ThemeIcon size={25} radius="xl" color={completed[index] ? 'green' : 'gray'} variant={completed[index] ? 'filled' : 'light'}>{completed[index] ? <IconCheck size={13} /> : <Text size="10px" fw={800}>{index + 1}</Text>}</ThemeIcon><Text size="10px" lh={1.2} fw={completed[index] ? 700 : 550} c={completed[index] ? '#174b2d' : 'dimmed'}>{label}</Text></Stack>)}
       </SimpleGrid>
     </Paper>
@@ -76,7 +80,23 @@ function deliverablePayload(item) {
   };
 }
 
+function ResponsiveTable({ children, label, ...props }) {
+  const parts = Children.toArray(children);
+  const head = parts.find(part => part.type === Table.Thead);
+  const headings = Children.toArray(Children.toArray(head?.props.children)[0]?.props.children).map(cell => cell.props.children);
+  return <Box className={styles.tableViewport} role="region" aria-label={label} tabIndex={0}><Table {...props} className={styles.recordTable}>{parts.map(part => {
+    if (part.type !== Table.Tbody) return part;
+    return cloneElement(part, {}, Children.map(part.props.children, row => {
+      if (!isValidElement(row) || row.type !== Table.Tr) return row;
+      return cloneElement(row, {}, Children.map(row.props.children, (cell, index) => isValidElement(cell) && cell.type === Table.Td
+        ? cloneElement(cell, { 'data-label': headings[index] }, <Box>{cell.props.children}</Box>) : cell));
+    }));
+  })}</Table></Box>;
+}
+
 export default function InputsDeliverablesLayout() {
+  const isMobile = useMediaQuery('(max-width: 47.99em)');
+  const contextRequest = useRef(0);
   const [readyWork, setReadyWork] = useState([]);
   const [workItemId, setWorkItemId] = useState('');
   const [context, setContext] = useState(null);
@@ -125,15 +145,19 @@ export default function InputsDeliverablesLayout() {
   };
 
   const loadContext = async selectedId => {
-    if (!selectedId) { setContext(null); setSelectedInputIds([]); return; }
+    const requestId = ++contextRequest.current;
+    setContext(null); setSelectedInputIds([]);
+    if (!selectedId) { setLoading(false); setError(''); return; }
     setLoading(true); setError('');
     try {
       const data = await request(`/ewp/inputs-deliverables/work-items/${encodeURIComponent(selectedId)}`);
+      if (requestId !== contextRequest.current) return;
       setContext(data);
       setSelectedInputIds(data.confirmation?.input_ids || []);
     } catch (loadError) {
+      if (requestId !== contextRequest.current) return;
       setContext(null); setSelectedInputIds([]); setError(loadError.message);
-    } finally { setLoading(false); }
+    } finally { if (requestId === contextRequest.current) setLoading(false); }
   };
 
   useEffect(() => { loadReadyWork(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -221,51 +245,52 @@ export default function InputsDeliverablesLayout() {
   };
 
   return (
-    <Box p={{ base: 'md', md: 'xl' }} maw={1360} mx="auto">
-      <Group justify="space-between" align="flex-start" mb="xl" wrap="wrap"><Box><Badge color="green" variant="light" mb="xs">Engineering Workbench</Badge><Title order={2}>Inputs & Deliverables</Title><Text c="dimmed" size="sm" mt={4}>Turn ready engineering work into controlled, review-ready deliverables.</Text></Box><ThemeIcon color="green" variant="light" radius="lg" size={46}><IconInputCheck size={23} /></ThemeIcon></Group>
-      <Stack gap="lg">
+    <Box className={styles.root} p={{ base: 'sm', sm: 'md', md: 'xl' }} maw={1360} mx="auto">
+      <Group justify="space-between" align="flex-start" mb="xl" wrap="wrap"><Box className={styles.headingText}><Badge color="green" variant="light" mb="xs">Engineering Workbench</Badge><Title order={2}>Inputs & Deliverables</Title><Text c="dimmed" size="sm" mt={4}>Turn ready engineering work into controlled, review-ready deliverables.</Text></Box><ThemeIcon visibleFrom="sm" color="green" variant="light" radius="lg" size={46}><IconInputCheck size={23} /></ThemeIcon></Group>
+      <Stack gap={{ base: 'sm', sm: 'lg' }}>
         <FlowBar completed={stages} />
         {error && <Alert color="red" icon={<IconAlertTriangle size={18} />} withCloseButton onClose={() => setError('')}>{error}</Alert>}
 
-        <Paper withBorder radius="lg" p="lg" style={surface}>
+        <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}>
           <Group justify="space-between" align="flex-start" mb="md" wrap="wrap"><Box><Text fw={800}>Engineering Work</Text><Text size="xs" c="dimmed">Only activities with status READY FOR OUTPUT are available.</Text></Box><Button variant="subtle" color="green" leftSection={<IconRefresh size={15} />} loading={loading} onClick={loadReadyWork}>Refresh</Button></Group>
-          <Select label="Ready engineering activity" placeholder={loading ? 'Loading engineering work…' : 'Select a READY FOR OUTPUT activity'} data={readyWork.map(item => ({ value: item.id, label: `${item.ewp.code} · ${item.work_code} · ${item.title}` }))} value={workItemId || null} onChange={selectWork} searchable clearable />
+          <Select classNames={{ dropdown: styles.dropdown }} label="Ready engineering activity" placeholder={loading ? 'Loading engineering work…' : 'Select a READY FOR OUTPUT activity'} data={readyWork.map(item => ({ value: item.id, label: `${item.ewp.code} · ${item.work_code} · ${item.title}` }))} value={workItemId || null} onChange={selectWork} searchable clearable />
           {!loading && !readyWork.length && <Alert color="yellow" mt="md" icon={<IconAlertTriangle size={18} />}>No engineering work activity is READY FOR OUTPUT.</Alert>}
-          {selectedWork && <Paper withBorder p="md" radius="md" mt="md" bg="#f3fbf6"><SimpleGrid cols={{ base: 1, sm: 4 }}><Box><Text size="xs" c="dimmed">EWP</Text><Text fw={700} size="sm">{selectedWork.ewp.code}</Text></Box><Box><Text size="xs" c="dimmed">Activity</Text><Text fw={700} size="sm">{selectedWork.work_code} · {selectedWork.title}</Text></Box><Box><Text size="xs" c="dimmed">Discipline</Text><Text fw={700} size="sm">{selectedWork.ewp.discipline}</Text></Box><Box><Text size="xs" c="dimmed">Status</Text><StatusBadge value={selectedWork.status} /></Box></SimpleGrid></Paper>}
+          {selectedWork && <Paper withBorder p="md" radius="md" mt="md" bg="#f3fbf6"><SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}><Box><Text size="xs" c="dimmed">EWP</Text><Text fw={700} size="sm">{selectedWork.ewp.code}</Text></Box><Box><Text size="xs" c="dimmed">Activity</Text><Text fw={700} size="sm">{selectedWork.work_code} · {selectedWork.title}</Text></Box><Box><Text size="xs" c="dimmed">Discipline</Text><Text fw={700} size="sm">{selectedWork.ewp.discipline}</Text></Box><Box><Text size="xs" c="dimmed">Status</Text><StatusBadge value={selectedWork.status} /></Box></SimpleGrid></Paper>}
         </Paper>
 
         {context && <>
           <Paper withBorder radius="lg" style={surface}>
-            <Group justify="space-between" p="lg" wrap="wrap"><Box><Text fw={800}>Confirm required engineering inputs</Text><Text size="xs" c="dimmed">These inputs remain tied to the exact frozen SEB revision used to create the EWP.</Text></Box><Group><Badge color="green" variant="light">{selectedInputIds.length}/{inputs.length} selected</Badge>{confirmed && <Badge color="green" leftSection={<IconCircleCheck size={12} />}>CONFIRMED</Badge>}</Group></Group>
+            <Group justify="space-between" p={{ base: 'sm', sm: 'lg' }} wrap="wrap"><Box><Text fw={800}>Confirm required engineering inputs</Text><Text size="xs" c="dimmed">These inputs remain tied to the exact frozen SEB revision used to create the EWP.</Text></Box><Group><Badge color="green" variant="light">{selectedInputIds.length}/{inputs.length} selected</Badge>{confirmed && <Badge color="green" leftSection={<IconCircleCheck size={12} />}>CONFIRMED</Badge>}</Group></Group>
             <Divider />
-            <ScrollArea type="auto"><Table verticalSpacing="sm" miw={820}><Table.Thead bg="#f7faf8"><Table.Tr><Table.Th w={48}><Checkbox aria-label="Select all required inputs" checked={allInputsSelected} disabled={confirmed} onChange={event => setSelectedInputIds(event.currentTarget.checked ? inputs.map(item => item.id) : [])} /></Table.Th><Table.Th>Input</Table.Th><Table.Th>Source revision</Table.Th><Table.Th>Reference</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{inputs.map(item => <Table.Tr key={item.id} bg={selectedInputSet.has(item.id) ? '#f3fbf6' : undefined}><Table.Td><Checkbox checked={selectedInputSet.has(item.id)} disabled={confirmed} onChange={event => toggleInput(item.id, event.currentTarget.checked)} /></Table.Td><Table.Td><Text fw={700} size="sm">{item.name}</Text></Table.Td><Table.Td><Text size="sm">{item.source}</Text></Table.Td><Table.Td><Text size="xs" ff="monospace">{item.reference}</Text></Table.Td><Table.Td><StatusBadge value={item.status} /></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea>
+            <Box px={{ base: 'sm', sm: 'lg' }} py="xs"><Checkbox label="Select all required inputs" checked={allInputsSelected} disabled={confirmed} onChange={event => setSelectedInputIds(event.currentTarget.checked ? inputs.map(item => item.id) : [])} /></Box><ResponsiveTable label="Required engineering inputs" verticalSpacing="sm"><Table.Thead bg="#f7faf8"><Table.Tr><Table.Th w={80}>Select</Table.Th><Table.Th>Input</Table.Th><Table.Th>Source revision</Table.Th><Table.Th>Reference</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{inputs.map(item => <Table.Tr key={item.id} bg={selectedInputSet.has(item.id) ? '#f3fbf6' : undefined}><Table.Td><Checkbox aria-label={`Select ${item.name}`} checked={selectedInputSet.has(item.id)} disabled={confirmed} onChange={event => toggleInput(item.id, event.currentTarget.checked)} /></Table.Td><Table.Td><Text fw={700} size="sm">{item.name}</Text></Table.Td><Table.Td><Text size="sm">{item.source}</Text></Table.Td><Table.Td><Text size="xs" ff="monospace">{item.reference}</Text></Table.Td><Table.Td><StatusBadge value={item.status} /></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable>
             {!inputs.length && <Alert m="lg" color="yellow">No linked EWP inputs were found.</Alert>}
             <Divider />
-            <Group justify="flex-end" p="lg">{confirmed ? <Alert color="green" icon={<IconCircleCheck size={18} />}>Required inputs are confirmed for this activity.</Alert> : <Button color="green" leftSection={<IconCheck size={16} />} loading={savingConfirmation} disabled={!allInputsSelected} onClick={confirmInputs}>Confirm Required Inputs</Button>}</Group>
+            <Group className={styles.actions} justify="flex-end" p={{ base: 'sm', sm: 'lg' }}>{confirmed ? <Alert color="green" icon={<IconCircleCheck size={18} />}>Required inputs are confirmed for this activity.</Alert> : <Button color="green" leftSection={<IconCheck size={16} />} loading={savingConfirmation} disabled={!allInputsSelected} onClick={confirmInputs}>Confirm Required Inputs</Button>}</Group>
           </Paper>
 
-          <SimpleGrid cols={{ base: 2, sm: 4 }}><Metric label="Deliverables" value={deliverables.length} /><Metric label="In preparation" value={inPreparation} color="#1971c2" /><Metric label="Ready for review" value={readyForReview} color="#087f5b" /><Metric label="Linked activity" value={selectedWork?.work_code || '—'} /></SimpleGrid>
+          <SimpleGrid cols={{ base: 2, lg: 4 }}><Metric label="Deliverables" value={deliverables.length} /><Metric label="In preparation" value={inPreparation} color="#1971c2" /><Metric label="Ready for review" value={readyForReview} color="#087f5b" /><Metric label="Linked activity" value={selectedWork?.work_code || '—'} /></SimpleGrid>
 
           <Paper withBorder radius="lg" style={surface}>
-            <Group justify="space-between" p="lg" wrap="wrap"><Box><Text fw={800}>Deliverable Register</Text><Text size="xs" c="dimmed">Every deliverable is permanently linked to the selected engineering activity.</Text></Box><Button color="green" leftSection={<IconPlus size={15} />} disabled={!confirmed} onClick={openNewDeliverable}>Create Deliverable</Button></Group>
+            <Group justify="space-between" p={{ base: 'sm', sm: 'lg' }} wrap="wrap"><Box><Text fw={800}>Deliverable Register</Text><Text size="xs" c="dimmed">Every deliverable is permanently linked to the selected engineering activity.</Text></Box><Button color="green" leftSection={<IconPlus size={15} />} disabled={!confirmed} onClick={openNewDeliverable}>Create Deliverable</Button></Group>
             <Divider />
-            <ScrollArea type="auto"><Table verticalSpacing="sm" miw={1020}><Table.Thead bg="#f7faf8"><Table.Tr><Table.Th>Code</Table.Th><Table.Th>Deliverable</Table.Th><Table.Th>Type</Table.Th><Table.Th>Responsible engineer</Table.Th><Table.Th>Issue date</Table.Th><Table.Th>Activity link</Table.Th><Table.Th>Status</Table.Th><Table.Th></Table.Th></Table.Tr></Table.Thead><Table.Tbody>{deliverables.map(item => <Table.Tr key={item.id}><Table.Td><Text fw={750} size="sm">{item.code}</Text></Table.Td><Table.Td><Text fw={650} size="sm">{item.name}</Text><Group gap={4} mt={3}>{item.review_required && <Badge size="xs" variant="outline">REVIEW</Badge>}{item.approval_required && <Badge size="xs" color="green" variant="outline">APPROVAL</Badge>}</Group></Table.Td><Table.Td>{item.deliverable_type}</Table.Td><Table.Td>{item.responsible_engineer}</Table.Td><Table.Td>{item.planned_issue_date || '—'}</Table.Td><Table.Td><Badge color="blue" variant="light" leftSection={<IconRoute size={11} />}>{selectedWork?.work_code}</Badge></Table.Td><Table.Td><Select size="xs" w={180} data={DELIVERABLE_STATUSES.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={item.status} disabled={updatingDeliverableId === item.id} onChange={value => value && changeDeliverableStatus(item, value)} /></Table.Td><Table.Td><Button size="xs" variant="subtle" color="green" onClick={() => openDeliverable(item)}>Manage</Button></Table.Td></Table.Tr>)}</Table.Tbody></Table></ScrollArea>
+            <ResponsiveTable label="Deliverable register" verticalSpacing="sm"><Table.Thead bg="#f7faf8"><Table.Tr><Table.Th>Code</Table.Th><Table.Th>Deliverable</Table.Th><Table.Th>Type</Table.Th><Table.Th>Responsible engineer</Table.Th><Table.Th>Issue date</Table.Th><Table.Th>Activity link</Table.Th><Table.Th w={210}>Status</Table.Th><Table.Th>Actions</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{deliverables.map(item => <Table.Tr key={item.id}><Table.Td><Text fw={750} size="sm">{item.code}</Text></Table.Td><Table.Td><Text fw={650} size="sm">{item.name}</Text><Group gap={4} mt={3}>{item.review_required && <Badge size="xs" variant="outline">REVIEW</Badge>}{item.approval_required && <Badge size="xs" color="green" variant="outline">APPROVAL</Badge>}</Group></Table.Td><Table.Td>{item.deliverable_type}</Table.Td><Table.Td>{item.responsible_engineer}</Table.Td><Table.Td>{item.planned_issue_date || '—'}</Table.Td><Table.Td><Badge color="blue" variant="light" leftSection={<IconRoute size={11} />}>{selectedWork?.work_code}</Badge></Table.Td><Table.Td><Select classNames={{ dropdown: styles.dropdown }} aria-label={`Status for ${item.code}`} size="xs" w="100%" data={DELIVERABLE_STATUSES.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={item.status} disabled={updatingDeliverableId === item.id} onChange={value => value && changeDeliverableStatus(item, value)} /></Table.Td><Table.Td><Button size="xs" variant="subtle" color="green" onClick={() => openDeliverable(item)}>Manage</Button></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable>
             {!deliverables.length && <Box ta="center" p="xl"><ThemeIcon color="gray" variant="light" radius="xl" size={44} mx="auto"><IconFileDescription size={21} /></ThemeIcon><Text fw={700} mt="sm">No deliverables created</Text><Text size="sm" c="dimmed" mt={3}>Confirm the required inputs, then create the first deliverable.</Text></Box>}
           </Paper>
 
           {readyForReview > 0 && <Alert color="green" icon={<IconArrowRight size={18} />} title="Ready for Module 3 — Documents & Reviews">{readyForReview} deliverable(s) can now enter document creation and technical review.</Alert>}
         </>}
+        {workItemId && <InputsDeliverablesReport key={workItemId} context={context} workItemId={workItemId} busy={loading || savingConfirmation || savingDeliverable || Boolean(updatingDeliverableId)} loadError={error} onReload={() => loadContext(workItemId)} />}
       </Stack>
 
-      <Modal opened={deliverableModal} onClose={() => setDeliverableModal(false)} title={<Text fw={800}>{editingDeliverable ? 'Manage Deliverable' : 'Create Deliverable'}</Text>} size="lg" centered radius="lg">
+      <Modal opened={deliverableModal} onClose={() => setDeliverableModal(false)} title={<Text fw={800}>{editingDeliverable ? 'Manage Deliverable' : 'Create Deliverable'}</Text>} size="lg" centered radius="lg" fullScreen={isMobile} classNames={{ content: styles.modal }}>
         <Stack>
           <Alert color="blue" icon={<IconLink size={18} />}>Linked activity: <b>{selectedWork?.work_code} · {selectedWork?.title}</b></Alert>
           <Grid><Grid.Col span={{ base: 12, sm: 4 }}><TextInput label="Code" required value={deliverableForm.code} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, code: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 8 }}><TextInput label="Deliverable name" required value={deliverableForm.name} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, name: value })); }} /></Grid.Col></Grid>
-          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><Select label="Type" data={TYPES} value={deliverableForm.deliverable_type} onChange={value => setDeliverableForm(form => ({ ...form, deliverable_type: value || 'OTHER' }))} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="Discipline" required value={deliverableForm.discipline} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, discipline: value })); }} /></Grid.Col></Grid>
+          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><Select classNames={{ dropdown: styles.dropdown }} label="Type" data={TYPES} value={deliverableForm.deliverable_type} onChange={value => setDeliverableForm(form => ({ ...form, deliverable_type: value || 'OTHER' }))} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="Discipline" required value={deliverableForm.discipline} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, discipline: value })); }} /></Grid.Col></Grid>
           <Grid><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="Responsible engineer" required value={deliverableForm.responsible_engineer} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, responsible_engineer: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput label="Planned issue date" value={deliverableForm.planned_issue_date || ''} onChange={value => { setDeliverableForm(form => ({ ...form, planned_issue_date: value })); }} /></Grid.Col></Grid>
-          <Grid><Grid.Col span={6}><Switch color="green" label="Review required" checked={deliverableForm.review_required} onChange={event => { const checked = event.currentTarget.checked; setDeliverableForm(form => ({ ...form, review_required: checked })); }} /></Grid.Col><Grid.Col span={6}><Switch color="green" label="Approval required" checked={deliverableForm.approval_required} onChange={event => { const checked = event.currentTarget.checked; setDeliverableForm(form => ({ ...form, approval_required: checked })); }} /></Grid.Col></Grid>
-          <Select label="Preparation status" data={DELIVERABLE_STATUSES.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={deliverableForm.status} onChange={value => setDeliverableForm(form => ({ ...form, status: value || 'NOT_STARTED' }))} />
-          <Group justify="flex-end" mt="md"><Button variant="default" disabled={savingDeliverable} onClick={() => setDeliverableModal(false)}>Cancel</Button><Button color="green" loading={savingDeliverable} disabled={!deliverableForm.code.trim() || !deliverableForm.name.trim() || !deliverableForm.responsible_engineer.trim()} onClick={saveDeliverable}>Save Deliverable</Button></Group>
+          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><Switch color="green" label="Review required" checked={deliverableForm.review_required} onChange={event => { const checked = event.currentTarget.checked; setDeliverableForm(form => ({ ...form, review_required: checked })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><Switch color="green" label="Approval required" checked={deliverableForm.approval_required} onChange={event => { const checked = event.currentTarget.checked; setDeliverableForm(form => ({ ...form, approval_required: checked })); }} /></Grid.Col></Grid>
+          <Select classNames={{ dropdown: styles.dropdown }} label="Preparation status" data={DELIVERABLE_STATUSES.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={deliverableForm.status} onChange={value => setDeliverableForm(form => ({ ...form, status: value || 'NOT_STARTED' }))} />
+          <Group className={styles.actions} justify="flex-end" mt="md"><Button variant="default" disabled={savingDeliverable} onClick={() => setDeliverableModal(false)}>Cancel</Button><Button color="green" loading={savingDeliverable} disabled={!deliverableForm.code.trim() || !deliverableForm.name.trim() || !deliverableForm.responsible_engineer.trim()} onClick={saveDeliverable}>Save Deliverable</Button></Group>
         </Stack>
       </Modal>
     </Box>

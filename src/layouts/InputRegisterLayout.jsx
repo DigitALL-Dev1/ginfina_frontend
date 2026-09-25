@@ -84,7 +84,7 @@ export default function InputRegisterLayout() {
       {/* ── Top filter bar ── */}
       <Box mb="lg">
         <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
-          <Group align="flex-end" gap="md" style={{ flex: 1, minWidth: 300 }}>
+          <Group align="flex-end" gap="md" className="gx1-register-filters" style={{ flex: 1, minWidth: 0 }}>
             <Box style={{ flex: 1, minWidth: 160 }}>
               <Text size="xs" fw={600} c="#374151" mb={4}>Search</Text>
               <TextInput placeholder="Search records..." value={topSearch}

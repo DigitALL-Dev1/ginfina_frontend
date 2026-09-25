@@ -56,7 +56,7 @@ export default function SiteIntelligenceLayout() {
         <Title
           order={1}
           style={{
-            fontSize: '48px',
+            fontSize: 'clamp(26px, 4vw, 48px)',
             fontWeight: 700,
             color: '#007336',
             letterSpacing: '-0.02em',

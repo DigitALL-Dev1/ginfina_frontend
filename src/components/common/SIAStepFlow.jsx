@@ -25,10 +25,15 @@ export default function SIAStepFlow({ steps, activeTab, onStep }) {
             <Group key={step.value} gap={0} wrap="nowrap" align="center">
               {/* Step pill */}
               <Box
+                component="button"
+                type="button"
+                disabled={!step.enabled}
+                aria-current={isActive ? 'step' : undefined}
                 onClick={() => step.enabled && onStep(step.value)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '7px 14px', borderRadius: 24,
+                  minHeight: 44,
                   backgroundColor: bgColor, border: `1.5px solid ${border}`,
                   cursor: step.enabled ? 'pointer' : 'not-allowed',
                   opacity: step.enabled ? 1 : 0.4,

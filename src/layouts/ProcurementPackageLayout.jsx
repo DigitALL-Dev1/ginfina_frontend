@@ -161,7 +161,7 @@ export default function ProcurementPackageLayout() {
           <Paper p="md" style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 8, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <Box>
               <Title order={4} fw={700} fz={15} c="#111827" mb="sm">Engineering baseline</Title>
-              <Table verticalSpacing="sm" horizontalSpacing="sm" style={{ minWidth: 320 }}>
+              <Table.ScrollContainer minWidth={560} type="native"><Table verticalSpacing="sm" horizontalSpacing="sm" style={{ minWidth: 320 }}>
                 <Table.Thead>
                   <Table.Tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                     <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>Item</Table.Th>
@@ -199,7 +199,7 @@ export default function ProcurementPackageLayout() {
                     );
                   })}
                 </Table.Tbody>
-              </Table>
+              </Table></Table.ScrollContainer>
             </Box>
 
             {/* Green Notice Box */}

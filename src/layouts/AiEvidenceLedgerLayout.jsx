@@ -141,7 +141,7 @@ export default function AiEvidenceLedgerLayout() {
               {/* Evidence Cited Table */}
               <Box mt="md">
                 <Title order={5} fw={700} fz={13} c="#111827" mb="xs">Evidence cited</Title>
-                <Table verticalSpacing="xs" horizontalSpacing="xs" style={{ minWidth: 320 }}>
+                <Table.ScrollContainer minWidth={560} type="native"><Table verticalSpacing="xs" horizontalSpacing="xs" style={{ minWidth: 320 }}>
                   <Table.Thead>
                     <Table.Tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                       <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>Document</Table.Th>
@@ -179,7 +179,7 @@ export default function AiEvidenceLedgerLayout() {
                       );
                     })}
                   </Table.Tbody>
-                </Table>
+                </Table></Table.ScrollContainer>
               </Box>
             </Box>
           </Paper>

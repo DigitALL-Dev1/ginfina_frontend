@@ -1,0 +1,42 @@
+.root, .tableViewport { min-width: 0; max-width: 100%; }
+.root { overflow-wrap: anywhere; }
+.root :global(.mantine-Group-root) > *, .root :global(.mantine-Grid-col) { min-width: 0; }
+.root :global(.mantine-Button-root) { min-height: 44px; height: auto; padding-top: 10px; padding-bottom: 10px; }
+.root :global(.mantine-Button-label) { white-space: normal; }
+.root :global(.mantine-Input-input) { min-height: 44px; }
+.root :global(.mantine-Badge-root) { max-width: 100%; height: auto; min-height: 22px; }
+.root :global(.mantine-Badge-label) { white-space: normal; overflow-wrap: anywhere; }
+.stepRail { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.compactProgress { display: none; }
+.recordField { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr); gap: 12px; padding: 6px 0; }
+.recordField > * { min-width: 0; }
+.recordValue { text-align: right; white-space: pre-wrap; }
+.tableViewport { overflow-x: auto; }
+.recordTable { min-width: var(--module-table-width, 700px); table-layout: fixed; }
+.recordTable th, .recordTable td { overflow-wrap: anywhere; }
+.confirmation :global(.mantine-Checkbox-body) { min-height: 44px; align-items: flex-start; }
+.confirmation :global(.mantine-Checkbox-label) { padding-bottom: 10px; cursor: pointer; }
+
+@media (max-width: 74.99em) {
+  .stepRail { display: none; }
+  .compactProgress { display: block; }
+}
+@media (max-width: 61.99em) {
+  .recordTable { display: block; min-width: 0; }
+  .recordTable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .recordTable tbody { display: block; padding: 8px; }
+  .recordTable tbody tr { display: block; border: 1px solid #d9e0dc; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .recordTable tbody tr:last-child { margin-bottom: 0; }
+  .recordTable td { display: grid; grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr); gap: 12px; padding: 8px 0; border: 0; }
+  .recordTable td::before { content: attr(data-label); text-transform: capitalize; font-size: 12px; font-weight: 600; color: #64748b; }
+  .recordTable td > * { min-width: 0; }
+}
+@media (max-width: 47.99em) {
+  .root h2 { font-size: 24px; }
+  .root h3 { font-size: 20px; }
+  .root :global(.mantine-Input-input) { font-size: 16px; }
+  .actions { flex-direction: column; align-items: stretch; width: 100%; gap: 10px; }
+  .actions :global(.mantine-Button-root) { width: 100%; max-width: 100%; flex: none; }
+  .recordField, .recordTable td { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .recordValue { text-align: left; }
+}

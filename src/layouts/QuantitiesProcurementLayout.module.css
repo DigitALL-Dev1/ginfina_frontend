@@ -1,0 +1,42 @@
+.page, .modal { min-width: 0; overflow-wrap: anywhere; }
+.page :global(.mantine-Group-root) > *, .modal :global(.mantine-Group-root) > *,
+.page :global(.mantine-SimpleGrid-root) > *, .modal :global(.mantine-SimpleGrid-root) > *,
+.page :global(.mantine-Grid-col) { min-width: 0; }
+.headingText { flex: 1; min-width: 0; }
+.page :global(.mantine-Button-root), .modal :global(.mantine-Button-root) { min-height: 44px; height: auto; max-width: 100%; padding-block: 10px; }
+.page :global(.mantine-Button-label), .modal :global(.mantine-Button-label) { white-space: normal; }
+.page :global(.mantine-Input-input), .modal :global(.mantine-Input-input) { min-height: 44px; }
+.page :global(.mantine-Badge-root), .modal :global(.mantine-Badge-root) { max-width: 100%; height: auto; min-height: 22px; }
+.page :global(.mantine-Badge-label), .modal :global(.mantine-Badge-label) { white-space: normal; overflow-wrap: anywhere; }
+.page :global(.mantine-ThemeIcon-root) { flex-shrink: 0; }
+.modal :global(.mantine-Modal-title) { min-width: 0; }
+.modal :global(.mantine-Modal-close) { min-width: 44px; min-height: 44px; flex-shrink: 0; }
+.dropdown { overflow-wrap: anywhere; }
+.tableWrap { min-width: 0; container-type: inline-size; }
+.recordTable { width: 100%; table-layout: fixed; }
+.recordTable th, .recordTable td { overflow-wrap: anywhere; }
+.recordTable td > * { min-width: 0; }
+.rowActions { flex-wrap: wrap; }
+/* Use the available panel width, including narrower snapshot dialogs. */
+@container (max-width: 850px) {
+  .recordTable { display: block; }
+  .recordTable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .recordTable tbody { display: block; }
+  .recordTable tbody tr { display: block; border: 1px solid #dfe7e2; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .recordTable tbody tr:last-child { margin-bottom: 0; }
+  .recordTable td { display: grid; grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); gap: 12px; padding: 8px 0; border: 0; }
+  .recordTable td::before { content: attr(data-label); font-size: 12px; font-weight: 600; color: #64748b; }
+}
+@container (max-width: 450px) {
+  .recordTable td { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+@media (max-width: 47.99em) {
+  .page h2 { font-size: 26px; }
+  .page h3 { font-size: 20px; }
+  .page :global(.mantine-Input-input), .modal :global(.mantine-Input-input) { font-size: 16px; }
+  .page :global(.mantine-Button-root), .modal :global(.mantine-Button-root) { width: 100%; }
+  .actions { flex-direction: column; align-items: stretch; gap: 10px; width: 100%; }
+  .actions > * { width: 100%; }
+  .rowActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .modal :global(.mantine-Modal-header), .modal :global(.mantine-Modal-body) { padding: 12px; }
+}

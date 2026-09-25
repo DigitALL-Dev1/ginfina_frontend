@@ -1,0 +1,44 @@
+.root, .tableViewport { min-width: 0; max-width: 100%; }
+.root { overflow-wrap: anywhere; }
+.root :global(.mantine-Group-root) > * { min-width: 0; }
+.root :global(.mantine-Button-root), .modal :global(.mantine-Button-root) { min-height: 44px; }
+.root :global(.mantine-Input-input), .modal :global(.mantine-Input-input) { min-height: 44px; }
+.root :global(.mantine-Button-label), .modal :global(.mantine-Button-label) { white-space: normal; }
+.tableViewport { overflow-x: auto; }
+.recordTable { min-width: 700px; table-layout: fixed; }
+.recordTable td { overflow-wrap: anywhere; }
+.sectionSelect { display: none; }
+.formRow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.formRow > :only-child { grid-column: 1 / -1; }
+.formRow > * { min-width: 0; }
+.breadcrumbItem { max-width: 100%; }
+.breadcrumbLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal { overflow-wrap: anywhere; }
+.siteSearch { flex: 1; min-width: 0; }
+
+@media (max-width: 74.99em) {
+  .sectionSelect { display: block; }
+  .sectionStrip { display: none; }
+}
+@media (max-width: 47.99em) {
+  .root h2 { font-size: 24px; }
+  .root :global(.mantine-Input-input), .modal :global(.mantine-Input-input) { min-height: 44px; font-size: 16px; }
+  .formRow { grid-template-columns: minmax(0, 1fr); }
+  .actions { flex-direction: column; align-items: stretch; width: 100%; gap: 10px; }
+  .actions :global(.mantine-Button-root), .actions > :global(.mantine-Group-root) { width: 100%; }
+}
+@media (max-width: 61.99em) {
+  .recordTable { display: block; min-width: 0; }
+  .recordTable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .recordTable tbody { display: block; padding: 8px; }
+  .recordTable tbody tr { display: block; border: 1px solid #d9e0dc; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  .recordTable tbody tr:last-child { margin-bottom: 0; }
+  .recordTable td { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 10px; padding: 8px 0; border: 0; text-align: left; }
+  .recordTable td::before { content: attr(data-label); font-size: 12px; font-weight: 600; color: #64748b; }
+  .recordTable td > * { min-width: 0; }
+  .recordTable td:not([data-label]), .recordTable td[data-label=''] { display: block; }
+  .recordTable td:not([data-label])::before, .recordTable td[data-label='']::before { display: none; }
+  .recordTable td :global(.mantine-Badge-root) { max-width: 100%; height: auto; min-height: 22px; white-space: normal; }
+  .recordTable td :global(.mantine-Badge-label) { white-space: normal; overflow-wrap: anywhere; }
+  .recordTable td[data-label=''] :global(.mantine-Button-root) { width: 100%; }
+}

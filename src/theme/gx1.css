@@ -19,6 +19,22 @@ body { margin:0; background:var(--gx1-bg); color:var(--gx1-text); }
 .gx1-doc-diagram::after { content:''; position:absolute; width:2px; background:#547763; top:15%; bottom:15%; left:50%; }
 .gx1-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#101828; color:#E7ECFF; padding:12px; border-radius:8px; font-size:12px; overflow:auto; }
 .gx1-density { max-width:60%; }
+.gx1-shell-brand { min-width:0; }
+.gx1-navigation-scroll { flex:1; min-height:0; }
+.gx1-navigation-drawer-body { display:flex; flex-direction:column; height:calc(100dvh - 60px); padding:0; }
+.gx1-navigation .mantine-NavLink-root { min-height:44px; }
+.gx1-navigation .mantine-NavLink-label { white-space:normal; overflow-wrap:anywhere; }
+.gx1-shell-brand .mantine-Burger-root { min-width:44px; min-height:44px; }
+.gx1-navigation-drawer-body .mantine-ScrollArea-viewport > div { display:block!important; }
+@media (max-width: 47.99em) {
+  .gx1-register-filters { flex-basis:100%!important; }
+  .gx1-register-filters > div { width:100%!important; min-width:0!important; flex-basis:100%!important; }
+  .gx1-desktop-only { display:none!important; }
+  .gx1-shell-brand { flex:1; min-width:0; gap:8px; }
+  .gx1-shell-brand > div { min-width:0; }
+  .gx1-shell-brand button { flex-shrink:0; }
+  .gx1-shell-logo { max-width:90px; height:auto!important; }
+}
 @media (max-width: 74.99em) and (min-width: 48em) { .gx1-page { padding:16px; } .gx1-desktop-only { display:none!important; } .gx1-density{max-width:74%;} }
 @media (max-width: 47.99em) { .gx1-page { padding:12px 12px 84px; } .gx1-density{max-width:100%;} .gx1-sticky-action{display:block; position:fixed; z-index:250; bottom:12px; left:12px; right:12px;} .gx1-mobile-stack{display:block!important;} }
 
@@ -118,7 +134,7 @@ body { margin:0; background:var(--gx1-bg); color:var(--gx1-text); }
   color: #007336;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 74.99em) {
   .auth-page-wrapper {
     flex-direction: column;
     overflow-y: auto;
@@ -144,4 +160,12 @@ body { margin:0; background:var(--gx1-bg); color:var(--gx1-text); }
     top: 16px;
     right: 16px;
   }
+}
+.auth-brand-card .mantine-PinInput-root { flex-wrap:nowrap; gap:6px; max-width:100%; }
+.auth-brand-card .mantine-PinInput-input { width:clamp(24px, 8vw, 40px); min-width:0; }
+@media (max-width:47.99em) {
+  .auth-brand-card { padding:20px!important; }
+  .auth-brand-card .mantine-Input-input { min-height:44px; font-size:16px; }
+  .auth-brand-card .mantine-Button-root { height:auto; min-height:44px; }
+  .auth-brand-card .mantine-Button-label { white-space:normal; padding-block:8px; }
 }

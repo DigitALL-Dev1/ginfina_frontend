@@ -1,5 +1,5 @@
 import DatePickerInput from '../components/common/DatePickerInput';
-import { useEffect, useState } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
   Accordion, Alert, Badge, Box, Button, Checkbox, Group, Loader, Paper, Progress, Select, SimpleGrid,
   Stack, Table, Text, TextInput, Title,
@@ -10,6 +10,8 @@ import {
   IconMapPin, IconRefresh, IconSend, IconShieldCheck,
 } from '@tabler/icons-react';
 import { autoCode } from '../utils/autoCode';
+import SEBPreparationReport from '../components/common/SEBPreparationReport';
+import styles from './SEBPreparationLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const ASSESSMENT_STAGES = ['INITIAL_ASSESSMENT', 'DETAILED_ASSESSMENT', 'REASSESSMENT', 'COMPLETION_REVIEW'];
@@ -39,13 +41,13 @@ async function request(path, options = {}) {
 }
 
 function Workflow({ activeStep }) {
-  return <Paper withBorder p="lg" radius="md" mb="lg" bg="#fbfdfc">
-    <Group justify="space-between" mb="sm">
+  return <Paper withBorder p={{ base: 'sm', sm: 'lg' }} radius="md" mb="lg" bg="#fbfdfc">
+    <Group className={styles.actions} justify="space-between" mb="sm">
       <Text size="sm" fw={700}>Step {activeStep + 1} of {STEPS.length}</Text>
-      <Text size="sm" c="green.8" fw={600}>{STEPS[activeStep].label}</Text>
+      <Text size="sm" c="green.8" fw={600} aria-live="polite">{STEPS[activeStep].label}</Text>
     </Group>
-    <Progress value={((activeStep + 1) / STEPS.length) * 100} color="green" size="sm" mb="lg" aria-label="Preparation progress" />
-    <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }} spacing="md">
+    <Progress value={((activeStep + 1) / STEPS.length) * 100} color="green" size="sm" aria-label="Preparation progress" />
+    <SimpleGrid cols={4} spacing="md" className={styles.stepRail}>
       {STEPS.map((step, index) => <Group key={step.label} gap="xs" wrap="nowrap" aria-current={index === activeStep ? 'step' : undefined}>
         <Badge circle size="lg" color={index <= activeStep ? 'green' : 'gray'} variant={index === activeStep ? 'filled' : 'light'}>
           {index < activeStep ? <IconCheck size={14} /> : index + 1}
@@ -65,23 +67,40 @@ function factKey(name, record) {
   return String(record.id);
 }
 
+function ResponsiveTable({ children, label, ...props }) {
+  const parts = Children.toArray(children);
+  const head = parts.find(part => part.type === Table.Thead);
+  const text = node => Children.toArray(node).map(child => isValidElement(child) ? text(child.props.children) : String(child)).join('');
+  const headings = Children.toArray(Children.toArray(head?.props.children)[0]?.props.children).map(cell => text(cell.props.children));
+  return <Box className={styles.tableViewport} role="region" aria-label={label} tabIndex={0}>
+    <Table {...props} className={styles.recordTable} style={{ '--table-width': `${Math.max(700, headings.length * 160)}px` }}>{parts.map(part => {
+      if (part.type !== Table.Tbody) return part;
+      return cloneElement(part, {}, Children.map(part.props.children, row => {
+        if (!isValidElement(row) || row.type !== Table.Tr) return row;
+        return cloneElement(row, {}, Children.map(row.props.children, (cell, index) => isValidElement(cell) && cell.type === Table.Td
+          ? cloneElement(cell, { 'data-label': headings[index] }) : cell));
+      }));
+    })}</Table>
+  </Box>;
+}
+
 function SectionTable({ name, records, createdFactKeys, addingFactId, onAddFact }) {
   const fields = [...new Set(records.flatMap(record => Object.keys(record)))].filter(field => field !== 'id');
-  return <Paper p="md" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
-    <Group justify="space-between" mb="sm">
+  if (!fields.length && records.length) fields.push('id');
+  return <Paper p={{ base: 'xs', sm: 'md' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
+    <Group className={styles.actions} justify="space-between" mb="sm">
       <Text fw={700} tt="capitalize">{name.replace(/^sia_/, '').replaceAll('_', ' ')}</Text>
       <Badge color="green" variant="light">{records.length} {records.length === 1 ? 'record' : 'records'}</Badge>
     </Group>
-    <Box style={{ overflowX: 'auto' }}>
-      <Table verticalSpacing="xs" horizontalSpacing="sm">
+    {!records.length ? <Text size="sm" c="dimmed">No source records available in this section.</Text> :
+      <ResponsiveTable label={`${name.replace(/^sia_/, '').replaceAll('_', ' ')} source records`} verticalSpacing="xs" horizontalSpacing="sm">
         <Table.Thead><Table.Tr>{onAddFact && <Table.Th>SEB item</Table.Th>}{fields.map(field => <Table.Th key={field}><Text size="xs" tt="capitalize">{field.replaceAll('_', ' ')}</Text></Table.Th>)}</Table.Tr></Table.Thead>
         <Table.Tbody>{records.map(record => {
           const key = factKey(name, record);
           const created = createdFactKeys?.has(key);
-          return <Table.Tr key={record.id || JSON.stringify(record)}>{onAddFact && <Table.Td><Button size="xs" variant={created ? 'light' : 'filled'} color="green" disabled={created} loading={addingFactId === key} onClick={() => onAddFact(name, record)}>{created ? 'Added' : 'Add to SEB item'}</Button></Table.Td>}{fields.map(field => <Table.Td key={field}><Text size="xs" maw={260} style={{ whiteSpace: 'pre-wrap' }}>{formatValue(record[field])}</Text></Table.Td>)}</Table.Tr>;
+          return <Table.Tr key={record.id || JSON.stringify(record)}>{onAddFact && <Table.Td><Button size="xs" variant={created ? 'light' : 'filled'} color="green" disabled={created} loading={addingFactId === key} onClick={() => onAddFact(name, record)}>{created ? 'Added' : 'Add to SEB item'}</Button></Table.Td>}{fields.map(field => <Table.Td key={field}><Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>{formatValue(record[field])}</Text></Table.Td>)}</Table.Tr>;
         })}</Table.Tbody>
-      </Table>
-    </Box>
+      </ResponsiveTable>}
   </Paper>;
 }
 
@@ -326,6 +345,7 @@ export default function SEBPreparationLayout() {
         body: JSON.stringify({ fact_id: record.id, seb_id: baseline.id, seb_revision_id: revision.id, status: 'review' }),
       });
       setCreatedFactKeys(current => new Set(current).add(key));
+      setSubmittedForReview(false);
       notifications.show({ title: 'SEB item added', message: `The selected fact is now an item under ${revision.revision_no}.`, color: 'green' });
     } catch (createError) {
       setError(createError.message);
@@ -359,6 +379,7 @@ export default function SEBPreparationLayout() {
         body: JSON.stringify({ seb_id: baseline.id }),
       });
       setRevision(updatedRevision);
+      setRevisions(current => current.map(item => item.id === updatedRevision.id ? updatedRevision : item));
       setSubmittedForReview(true);
       notifications.show({ title: 'R01 submitted', message: `${updatedRevision.revision_no} is now in engineering review.`, color: 'green' });
     } catch (submitError) {
@@ -384,7 +405,7 @@ export default function SEBPreparationLayout() {
     'Submit the reviewed R01 revision to the engineering review stage.',
   ];
 
-  return <Box p={{ base: 'sm', sm: 'lg' }} maw={1200} mx="auto">
+  return <Box className={styles.root} p={{ base: 'sm', sm: 'lg' }} maw={1200} mx="auto">
     <Box mb="xl">
       <Group gap="sm" mb={8}><Badge color="green" variant="light">SEP</Badge><Text size="xs" c="dimmed">Site Engineering Preparation / Module 2</Text></Group>
       <Title order={2}>SEB Preparation</Title>
@@ -392,7 +413,7 @@ export default function SEBPreparationLayout() {
     </Box>
     <Workflow activeStep={activeStep} />
     <Paper withBorder radius="md" p="md" mb="lg">
-      <SimpleGrid cols={{ base: 2, sm: 4 }}>
+      <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }}>
         {[
           ['SIA case', selectedCase?.case_code], ['Site', selectedSite?.site_name || selectedSite?.site_code],
           ['SEB', baseline?.seb_code], ['Revision', revision?.revision_no],
@@ -413,60 +434,60 @@ export default function SEBPreparationLayout() {
           <Select label="Site" placeholder="Select a site" data={sites.map(item => ({ value: item.id, label: `${item.site_code || item.id} / ${item.site_name || 'Unnamed site'}` }))} value={siteId || null} onChange={handleSiteChange} searchable clearable />
           {!sites.length && <Alert color="yellow">No sites are available for this case. Go back and select another case.</Alert>}
         </Stack>}
-        {activeStep === 2 && <Box style={{ overflowX: 'auto' }}>
-      <SimpleGrid cols={{ base: 1, md: 2 }}>
-        <TextInput label="SEB Code" value={sebForm.seb_code} onChange={event => setSebForm(current => ({ ...current, seb_code: event.currentTarget.value }))} />
+        {activeStep === 2 && <Box>
+      <SimpleGrid cols={{ base: 1, sm: 2 }}>
+        <TextInput label="SEB Code" value={sebForm.seb_code} onChange={event => { const value = event.currentTarget.value; setSebForm(current => ({ ...current, seb_code: value })); }} />
         <Select label="Assessment Stage" data={ASSESSMENT_STAGES} value={sebForm.assessment_stage} onChange={value => setSebForm(current => ({ ...current, assessment_stage: value || '' }))} />
-        <TextInput label="Current Revision No" placeholder="Optional" value={sebForm.current_revision_no} onChange={event => setSebForm(current => ({ ...current, current_revision_no: event.currentTarget.value }))} />
+        <TextInput label="Current Revision No" placeholder="Optional" value={sebForm.current_revision_no} onChange={event => { const value = event.currentTarget.value; setSebForm(current => ({ ...current, current_revision_no: value })); }} />
         <Select label="Status" data={BASELINE_STATUSES} value={sebForm.status} onChange={value => setSebForm(current => ({ ...current, status: value || 'DRAFT' }))} />
       </SimpleGrid>
       <Button mt="md" color="green" leftSection={<IconFilePlus size={15} />} onClick={createSeb} disabled={!sebForm.seb_code.trim()} loading={loading}>Create SEB</Button>
 
-      <Group justify="space-between" mt="xl" mb="sm">
+      <Group className={styles.actions} justify="space-between" mt="xl" mb="sm">
         <Box><Text size="xs" fw={700} c="#007336" tt="uppercase">Select SEB</Text><Text size="sm" c="dimmed">Existing SEBs for the selected site</Text></Box>
         <Button size="xs" variant="subtle" color="green" leftSection={<IconRefresh size={14} />} onClick={() => loadBaselines(caseId)} loading={baselineLoading}>Reload SEBs</Button>
       </Group>
       {baselineLoading ? <Loader size="sm" color="green" /> : baselines.filter(item => item.site_id === siteId).length === 0 ? <Text size="sm" c="dimmed">No SEBs for this site yet. Create one above to continue.</Text> : (
-        <Table highlightOnHover withTableBorder>
+        <ResponsiveTable label="Existing SEBs" highlightOnHover withTableBorder>
           <Table.Thead><Table.Tr><Table.Th>Select</Table.Th><Table.Th>SEB Code</Table.Th><Table.Th>Site ID</Table.Th><Table.Th>Assessment Stage</Table.Th><Table.Th>Revision</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead>
           <Table.Tbody>{baselines.filter(item => item.site_id === siteId).map(item => <Table.Tr key={item.id} style={{ cursor: 'pointer', backgroundColor: baseline?.id === item.id ? '#f0fdf4' : undefined }}>
-            <Table.Td><Button size="xs" variant="light" color="green" onClick={() => { setBaseline(item); setRevision(null); setRevisions([]); setSourcePackage(null); setReviewed(false); setSelectedFactKeys(new Set()); setCreatedFactKeys(new Set()); localStorage.setItem('seb_id', item.id); localStorage.removeItem('seb_revision_id'); loadRevisions(item.id); }}>{baseline?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.seb_code}</Text></Table.Td><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{item.site_id || '—'}</Text></Table.Td><Table.Td>{item.assessment_stage || '—'}</Table.Td><Table.Td>{item.current_revision_no || '—'}</Table.Td><Table.Td><Badge color={item.status === 'DRAFT' ? 'gray' : 'green'} variant="light">{item.status || '—'}</Badge></Table.Td>
+            <Table.Td><Button size="xs" variant="light" color="green" onClick={() => { setBaseline(item); setRevision(null); setRevisions([]); setSourcePackage(null); setReviewed(false); setReviewItems([]); setSubmittedForReview(false); setCreatedFactKeys(new Set()); localStorage.setItem('seb_id', item.id); localStorage.removeItem('seb_revision_id'); loadRevisions(item.id); }}>{baseline?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.seb_code}</Text></Table.Td><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{item.site_id || '—'}</Text></Table.Td><Table.Td>{item.assessment_stage || '—'}</Table.Td><Table.Td>{item.current_revision_no || '—'}</Table.Td><Table.Td><Badge color={item.status === 'DRAFT' ? 'gray' : 'green'} variant="light">{item.status || '—'}</Badge></Table.Td>
           </Table.Tr>)}</Table.Tbody>
-        </Table>
+        </ResponsiveTable>
       )}
         </Box>}
-        {activeStep === 3 && baseline && <Box style={{ overflowX: 'auto' }}>
-        <SimpleGrid cols={{ base: 1, md: 2 }}>
-          <TextInput label="Revision No" value={revisionForm.revision_no} onChange={event => setRevisionForm(current => ({ ...current, revision_no: event.currentTarget.value }))} />
+        {activeStep === 3 && baseline && <Box>
+        <SimpleGrid cols={{ base: 1, sm: 2 }}>
+          <TextInput label="Revision No" value={revisionForm.revision_no} onChange={event => { const value = event.currentTarget.value; setRevisionForm(current => ({ ...current, revision_no: value })); }} />
           <Select label="Revision Status" data={['DRAFT']} value="DRAFT" disabled description="Initial revisions are always created as drafts." />
           <DatePickerInput label="Issue Date" value={revisionForm.issue_date} onChange={value => setRevisionForm(current => ({ ...current, issue_date: value }))} />
-          <TextInput label="Previous Revision ID" placeholder="Optional" value={revisionForm.previous_revision_id} onChange={event => setRevisionForm(current => ({ ...current, previous_revision_id: event.currentTarget.value }))} />
+          <TextInput label="Previous Revision ID" placeholder="Optional" value={revisionForm.previous_revision_id} onChange={event => { const value = event.currentTarget.value; setRevisionForm(current => ({ ...current, previous_revision_id: value })); }} />
         </SimpleGrid>
-        <TextInput mt="md" label="Revision Reason" placeholder="Optional" value={revisionForm.revision_reason} onChange={event => setRevisionForm(current => ({ ...current, revision_reason: event.currentTarget.value }))} />
+        <TextInput mt="md" label="Revision Reason" placeholder="Optional" value={revisionForm.revision_reason} onChange={event => { const value = event.currentTarget.value; setRevisionForm(current => ({ ...current, revision_reason: value })); }} />
         <Button mt="md" size="sm" color="green" leftSection={<IconGitBranch size={15} />} onClick={createRevision} disabled={Boolean(revision) || !revisionForm.revision_no} loading={loading}>Create Initial Revision R01</Button>
-        <Group justify="space-between" mt="xl" mb="sm">
+        <Group className={styles.actions} justify="space-between" mt="xl" mb="sm">
           <Box><Text size="xs" fw={700} c="#007336" tt="uppercase">Select Revision</Text><Text size="sm" c="dimmed">Revisions for {baseline.seb_code}</Text></Box>
           <Button size="xs" variant="subtle" color="green" leftSection={<IconRefresh size={14} />} onClick={() => loadRevisions(baseline.id)} loading={revisionLoading}>Reload Revisions</Button>
         </Group>
-        {revisionLoading ? <Loader size="sm" color="green" /> : revisions.length > 0 && <Table highlightOnHover withTableBorder>
+        {revisionLoading ? <Loader size="sm" color="green" /> : revisions.length > 0 && <ResponsiveTable label="SEB revisions" highlightOnHover withTableBorder>
           <Table.Thead><Table.Tr><Table.Th>Select</Table.Th><Table.Th>Revision No</Table.Th><Table.Th>Status</Table.Th><Table.Th>Issue Date</Table.Th><Table.Th>Prepared By</Table.Th></Table.Tr></Table.Thead>
           <Table.Tbody>{revisions.map(item => <Table.Tr key={item.id} style={{ cursor: 'pointer', backgroundColor: revision?.id === item.id ? '#f0fdf4' : undefined }}>
-            <Table.Td><Button size="xs" variant="light" color="green" onClick={() => { setRevision(item); setSourcePackage(null); setReviewed(false); setSelectedFactKeys(new Set()); setCreatedFactKeys(new Set()); localStorage.setItem('seb_revision_id', item.id); }}>{revision?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.revision_no}</Text></Table.Td><Table.Td>{item.revision_status || '—'}</Table.Td><Table.Td>{item.issue_date || '—'}</Table.Td><Table.Td>{item.prepared_by || '—'}</Table.Td>
+            <Table.Td><Button size="xs" variant="light" color="green" onClick={() => { setRevision(item); setSourcePackage(null); setReviewed(false); setReviewItems([]); setSubmittedForReview(false); setCreatedFactKeys(new Set()); localStorage.setItem('seb_revision_id', item.id); }}>{revision?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.revision_no}</Text></Table.Td><Table.Td>{item.revision_status || '—'}</Table.Td><Table.Td>{item.issue_date || '—'}</Table.Td><Table.Td>{item.prepared_by || '—'}</Table.Td>
           </Table.Tr>)}</Table.Tbody>
-        </Table>}
+        </ResponsiveTable>}
         </Box>}
-        {activeStep === 4 && <Paper p="xl" radius="md" bg="gray.0" ta="center">
+        {activeStep === 4 && <Paper p={{ base: 'sm', sm: 'xl' }} radius="md" bg="gray.0" ta="center">
           <IconDatabaseImport size={36} color="#007336" />
           <Text fw={600} mt="sm">Your revision is ready for source review</Text>
           <Text size="sm" c="dimmed" mt={6} mb="lg">Load the SIA records for {selectedSite?.site_name || selectedSite?.site_code || siteId}.</Text>
           <Button color="green" leftSection={<IconDatabaseImport size={16} />} onClick={loadSourceData} loading={loading}>Load SIA source data</Button>
         </Paper>}
         {activeStep === 5 && sourcePackage && <Stack>
-          <Group justify="space-between"><Group gap="xs"><Badge color="green" variant="light">{sourceSections.length} source sections loaded</Badge><Badge color="green" variant="light">{createdFactKeys.size} SEB items added</Badge></Group><Button variant="subtle" color="green" leftSection={<IconRefresh size={15} />} onClick={loadSourceData} loading={loading}>Reload source data</Button></Group>
+          <Group className={styles.actions} justify="space-between"><Group gap="xs"><Badge color="green" variant="light">{sourceSections.length} source sections loaded</Badge><Badge color="green" variant="light">{createdFactKeys.size} SEB items added</Badge></Group><Button variant="subtle" color="green" leftSection={<IconRefresh size={15} />} onClick={loadSourceData} loading={loading}>Reload source data</Button></Group>
           <Alert color="blue" title="Add important engineering facts">Use the Add to SEB item button beside a fact to create an item under R01 with status <Text span fw={700}>review</Text>.</Alert>
           {sourceSections.length === 0 ? <Alert color="yellow">No SIA source sections were returned. Check the source case before continuing.</Alert> : <Accordion variant="separated" radius="md" multiple>
             {sourceSections.map(([name, records]) => <Accordion.Item key={name} value={name}>
-              <Accordion.Control><Group justify="space-between" pr="sm"><Text tt="capitalize" size="sm" fw={600}>{name.replace(/^sia_/, '').replaceAll('_', ' ')}</Text><Badge color="gray" variant="light">{records.length} records</Badge></Group></Accordion.Control>
+              <Accordion.Control><Group className={styles.actions} justify="space-between" pr="sm"><Text tt="capitalize" size="sm" fw={600}>{name.replace(/^sia_/, '').replaceAll('_', ' ')}</Text><Badge color="gray" variant="light">{records.length} records</Badge></Group></Accordion.Control>
               <Accordion.Panel><SectionTable name={name} records={records} createdFactKeys={createdFactKeys} addingFactId={addingFactId} onAddFact={addFactToSeb} /></Accordion.Panel>
             </Accordion.Item>)}
           </Accordion>}
@@ -475,20 +496,21 @@ export default function SEBPreparationLayout() {
           {reviewed && <Alert color="green" title="Engineering facts added to SEB" icon={<IconCheck size={18} />}>{createdFactKeys.size} source facts are now traceable SEB items under revision {revision?.revision_no}.</Alert>}
         </Stack>}
         {activeStep === 6 && <Stack>
-          <Group justify="space-between"><Box><Text fw={600}>Review-status SEB items</Text><Text size="sm" c="dimmed">Items for {baseline?.seb_code} / {revision?.revision_no}</Text></Box><Button size="sm" variant="light" color="green" leftSection={<IconRefresh size={15} />} onClick={loadReviewItems} loading={reviewItemsLoading}>Reload items</Button></Group>
-          {reviewItemsLoading ? <Group justify="center" py="xl"><Loader size="sm" color="green" /><Text size="sm" c="dimmed">Loading review items…</Text></Group> : reviewItems.length === 0 ? <Alert color="yellow">No items with status review were found for this SEB revision. Return to Step 6 and add at least one fact.</Alert> : <Table withTableBorder highlightOnHover>
+          <Group className={styles.actions} justify="space-between"><Box><Text fw={600}>Review-status SEB items</Text><Text size="sm" c="dimmed">Items for {baseline?.seb_code} / {revision?.revision_no}</Text></Box><Button size="sm" variant="light" color="green" leftSection={<IconRefresh size={15} />} onClick={loadReviewItems} loading={reviewItemsLoading}>Reload items</Button></Group>
+          {reviewItemsLoading ? <Group justify="center" py="xl"><Loader size="sm" color="green" /><Text size="sm" c="dimmed">Loading review items…</Text></Group> : reviewItems.length === 0 ? <Alert color="yellow">No items with status review were found for this SEB revision. Return to Step 6 and add at least one fact.</Alert> : <ResponsiveTable label="Review SEB items" withTableBorder highlightOnHover>
             <Table.Thead><Table.Tr><Table.Th>Fact ID</Table.Th><Table.Th>SEB ID</Table.Th><Table.Th>Revision ID</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead>
             <Table.Tbody>{reviewItems.map(item => <Table.Tr key={item.id}><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{item.fact_id}</Text></Table.Td><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{item.seb_id}</Text></Table.Td><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{item.seb_revision_id}</Text></Table.Td><Table.Td><Badge color="blue" variant="light">{item.status}</Badge></Table.Td></Table.Tr>)}</Table.Tbody>
-          </Table>}
+          </ResponsiveTable>}
         </Stack>}
-        {activeStep === 7 && <Paper p="xl" radius="md" bg="gray.0" ta="center">
+        {activeStep === 7 && <Paper p={{ base: 'sm', sm: 'xl' }} radius="md" bg="gray.0" ta="center">
           <IconSend size={36} color="#007336" />
           <Text fw={600} mt="sm">Submit {revision?.revision_no} for engineering review</Text>
           <Text size="sm" c="dimmed" mt={6} mb="lg">{reviewItems.length} review-status SEB {reviewItems.length === 1 ? 'item is' : 'items are'} ready for engineering review.</Text>
-          {submittedForReview ? <Alert color="green" title="Submitted for engineering review">Revision {revision?.revision_no} is now in review.</Alert> : <Button color="green" leftSection={<IconSend size={16} />} onClick={submitForEngineeringReview} loading={submittingForReview} disabled={!reviewItems.length}>Submit R01 for Engineering Review</Button>}
+          {submittedForReview ? <Alert color="green" title="Submitted for engineering review">Revision {revision?.revision_no} status: {revision?.revision_status}.</Alert> : <Button color="green" leftSection={<IconSend size={16} />} onClick={submitForEngineeringReview} loading={submittingForReview} disabled={!reviewItems.length}>Submit R01 for Engineering Review</Button>}
         </Paper>}
       </Box>
-      <Group justify="space-between" mt="xl" pt="lg" style={{ borderTop: '1px solid #e5e7eb' }}>
+      {activeStep === 7 && <SEBPreparationReport baseline={baseline} revision={revision} siaCase={selectedCase} site={selectedSite} items={reviewItems} reviewed={reviewed} submitted={submittedForReview} busy={busy} />}
+      <Group className={styles.actions} justify="space-between" mt="xl" pt="lg" style={{ borderTop: '1px solid #e5e7eb' }}>
         <Button variant="default" leftSection={<IconArrowLeft size={16} />} disabled={activeStep === 0 || busy} onClick={() => setActiveStep(current => current - 1)}>Back</Button>
         {activeStep < 7 ? <Button color="green" rightSection={<IconArrowRight size={16} />} disabled={!canContinue || busy} onClick={activeStep === 5 ? loadReviewItems : () => setActiveStep(current => current + 1)}>{activeStep === 5 ? 'Review SEB items' : 'Continue'}</Button> : <Text size="sm" c={submittedForReview ? 'green.8' : 'dimmed'} role="status">{submittedForReview ? 'Submitted for review' : 'Submit R01 to finish'}</Text>}
       </Group>

@@ -5,6 +5,8 @@ import {
   TextInput, Title, NumberInput,
 } from '@mantine/core';
 import DatePickerInput from '../components/common/DatePickerInput';
+import { useMediaQuery } from '@mantine/hooks';
+import styles from './SIAAndroidFieldOpsLayout.module.css';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconDeviceMobile, IconDownload, IconClipboard,
@@ -57,12 +59,12 @@ function DT({ loading, cols, rows, render }) {
   return (
     <Paper style={{ border: '1px solid #e5e7eb', borderRadius: 8, minHeight: 100 }}>
       {loading && <Group justify="center" py="xl"><Loader color="green" size="sm" /></Group>}
-      {!loading && <Table verticalSpacing="sm" horizontalSpacing="md">
+      {!loading && <Table.ScrollContainer minWidth={600} type="native"><Table verticalSpacing="sm" horizontalSpacing="md">
         <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
           <Table.Tr>{cols.map(c => <Table.Th key={c} style={thS}>{c}</Table.Th>)}</Table.Tr>
         </Table.Thead>
         <Table.Tbody>{rows.length === 0 ? <EmptyRow cols={cols.length} /> : rows.map(render)}</Table.Tbody>
-      </Table>}
+      </Table></Table.ScrollContainer>}
     </Paper>
   );
 }
@@ -74,7 +76,8 @@ function TH({ title, onAdd, addLabel, disabled = false }) {
   </Group>;
 }
 function FM({ opened, onClose, title, saving, onSubmit, children }) {
-  return <Modal opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
+  const isMobile = useMediaQuery('(max-width: 47.99em)');
+  return <Modal fullScreen={isMobile} classNames={{content:styles.modal}} closeButtonProps={{'aria-label':'Close dialog'}} opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
     <Stack gap="sm">{children}
       <Group justify="flex-end" mt="md">
         <Button variant="default" onClick={onClose}>Cancel</Button>
@@ -83,7 +86,7 @@ function FM({ opened, onClose, title, saving, onSubmit, children }) {
     </Stack>
   </Modal>;
 }
-function FR({ children }) { return <Group grow align="flex-start" gap="sm">{children}</Group>; }
+function FR({ children }) { return <Group className={styles.formRow} grow align="flex-start" gap="sm">{children}</Group>; }
 function FI({ label, field, fv, setFv, textarea, number, select }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
@@ -209,7 +212,7 @@ export default function SIAAndroidFieldOpsLayout() {
 
   // ════════════════════════════════════════════════════
   return (
-    <Box p="lg">
+    <Box className={styles.page} p={{base:'sm',sm:'lg'}}>
       {/* Header */}
       <Box mb="lg">
         <Group gap="sm" mb={4}>
@@ -225,7 +228,7 @@ export default function SIAAndroidFieldOpsLayout() {
       {/* Case ID + New Device bar */}
       <Paper p="md" mb="md" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
         <Group align="flex-end" gap="sm" wrap="wrap">
-          <Box style={{ flex: 1, minWidth: 220 }}>
+          <Box style={{ flex: 1, minWidth: 0 }}>
             <Text size="xs" fw={700} c="#374151" mb={4}>Active SIA Case</Text>
             {caseId
               ? <Text size="sm" fw={600} c="#007336" style={{ fontFamily: 'monospace' }}>{caseId}</Text>
@@ -825,7 +828,7 @@ function SessionsPanel({ dlid, selSess, setSess, setTab, did, uid, open }) {
   );
   return (
     <Paper style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
-      <Table verticalSpacing="sm" horizontalSpacing="md">
+      <Table.ScrollContainer minWidth={600} type="native"><Table verticalSpacing="sm" horizontalSpacing="md">
         <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
           <Table.Tr>
             {['Survey Visit ID', 'Status', 'Offline', 'Started At', 'Ended At'].map(c =>
@@ -846,7 +849,7 @@ function SessionsPanel({ dlid, selSess, setSess, setTab, did, uid, open }) {
             </Table.Tr>
           ))}
         </Table.Tbody>
-      </Table>
+      </Table></Table.ScrollContainer>
     </Paper>
   );
 }

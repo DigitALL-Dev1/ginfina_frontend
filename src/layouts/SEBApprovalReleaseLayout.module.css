@@ -1,0 +1,45 @@
+.root, .modal { min-width: 0; overflow-wrap: anywhere; }
+.root :global(.mantine-Group-root) > *, .root :global(.mantine-SimpleGrid-root) > *, .root :global(.mantine-Grid-col), .modal :global(.mantine-Group-root) > * { min-width: 0; }
+.root :global(.mantine-Button-root), .modal :global(.mantine-Button-root) { min-height: 44px; height: auto; max-width: 100%; padding-top: 10px; padding-bottom: 10px; }
+.root :global(.mantine-Button-label), .modal :global(.mantine-Button-label) { white-space: normal; }
+.root :global(.mantine-Input-input) { min-height: 44px; }
+.root :global(.mantine-Badge-root), .modal :global(.mantine-Badge-root) { max-width: 100%; height: auto; min-height: 22px; }
+.root :global(.mantine-Badge-label), .modal :global(.mantine-Badge-label) { white-space: normal; overflow-wrap: anywhere; }
+.root :global(.mantine-ThemeIcon-root) { flex-shrink: 0; }
+.heroTitle { font-size: 32px; }
+.activeStage { display: none; }
+.headingText { flex: 1; }
+.revisionField { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr); gap: 12px; padding: 5px 0; }
+.revisionField > * { min-width: 0; }
+.revisionValue { text-align: right; white-space: pre-wrap; }
+.modal :global(.mantine-Modal-title) { min-width: 0; }
+.modal :global(.mantine-Modal-close) { min-width: 44px; min-height: 44px; flex-shrink: 0; }
+.tableViewport { min-width: 0; max-width: 100%; overflow-x: auto; }
+.tableViewport:focus-visible { outline: 2px solid #007336; outline-offset: 2px; }
+.recordTable { min-width: 650px; table-layout: fixed; }
+.recordTable th, .recordTable td { overflow-wrap: anywhere; }
+.recordTable td > * { min-width: 0; }
+@media (max-width: 74.99em) {
+  .stepRail { display: none; }
+  .activeStage { display: block; }
+}
+@media (max-width: 61.99em) {
+  .recordTable { display: block; min-width: 0; }
+  .recordTable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .recordTable tbody { display: block; padding: 8px; }
+  .recordTable tbody tr { display: block; border: 1px solid #d9e0dc; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .recordTable tbody tr:last-child { margin-bottom: 0; }
+  .recordTable td { display: grid; grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr); gap: 12px; padding: 8px 0; border: 0; }
+  .recordTable td::before { content: attr(data-label); font-size: 12px; font-weight: 600; color: #64748b; }
+}
+@media (max-width: 47.99em) {
+  .heroTitle { font-size: 26px; }
+  .root h3 { font-size: 20px; }
+  .root :global(.mantine-Input-input) { font-size: 16px; }
+  .root :global(.mantine-Button-root) { width: 100%; }
+  .actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .metricIcon { display: none; }
+  .recordTable td, .revisionField { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .revisionValue { text-align: left; }
+  .modal :global(.mantine-Modal-header), .modal :global(.mantine-Modal-body) { padding: 12px; }
+}

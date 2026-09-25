@@ -1,18 +1,20 @@
-import { useEffect, useState } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader,
   Paper, Stack, Tabs, Table, Text, Textarea,
   TextInput, Title, NumberInput, Switch, Modal, Select,
 } from '@mantine/core';
 import DatePickerInput from '../components/common/DatePickerInput';
+import SIASitesSurveyReport from '../components/common/SIASitesSurveyReport';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconMapPin, IconBuilding, IconDoor,
   IconLocation, IconCalendar, IconUsers, IconLock,
   IconShield, IconClipboard, IconTool, IconArrowRight,
-  IconFolder, IconSearch, IconChevronRight, IconCheck,
+  IconFolder, IconSearch, IconChevronRight, IconCheck, IconFileText,
 } from '@tabler/icons-react';
 import { autoCode } from '../utils/autoCode';
+import styles from './SIASitesSurveyLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -32,14 +34,15 @@ const STEPS = [
 function Breadcrumb({ step, caseObj, site, onCase, onSites }) {
   const idx = STEPS.findIndex(s => s.key === step);
   return (
-    <Group gap={0} wrap="nowrap" mb="lg" align="center">
+    <Group gap="xs" wrap="wrap" mb="lg" align="center" aria-label="Survey progress">
       {STEPS.map((s, i) => {
         const done    = i < idx;
         const active  = i === idx;
         const canClick = done;
         return (
-          <Group key={s.key} gap={0} align="center" wrap="nowrap">
+          <Group className={styles.breadcrumbItem} key={s.key} gap={0} align="center" wrap="nowrap">
             <Box
+              component="button" type="button" disabled={!canClick} aria-current={active ? 'step' : undefined}
               onClick={() => { if (s.key === 'case' && canClick) onCase(); if (s.key === 'sites' && canClick && idx > 1) onSites(); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
@@ -52,7 +55,7 @@ function Breadcrumb({ step, caseObj, site, onCase, onSites }) {
               }}
             >
               {done && <IconCheck size={12} color="#007336" />}
-              <Text size="xs" fw={active ? 700 : 500}
+              <Text className={styles.breadcrumbLabel} size="xs" fw={active ? 700 : 500}
                 style={{ color: active ? '#fff' : done ? '#007336' : '#9ca3af' }}>
                 {s.key === 'case' && caseObj ? caseObj.case_code
                   : s.key === 'sites' && site ? site.site_name || site.site_code
@@ -110,14 +113,14 @@ function DataTable({ loading, cols, rows, render }) {
     <Paper style={{ border: '1px solid #e5e7eb', borderRadius: 8, position: 'relative', minHeight: 120 }}>
       {loading && <Group justify="center" py="xl"><Loader color="green" size="sm" /></Group>}
       {!loading && (
-        <Table verticalSpacing="sm" horizontalSpacing="md">
+        <ResponsiveTable verticalSpacing="sm" horizontalSpacing="md">
           <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
             <Table.Tr>{cols.map(c => <Table.Th key={c} style={thS}>{c}</Table.Th>)}</Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {rows.length === 0 ? <EmptyRow cols={cols.length} /> : rows.map(render)}
           </Table.Tbody>
-        </Table>
+        </ResponsiveTable>
       )}
     </Paper>
   );
@@ -125,7 +128,7 @@ function DataTable({ loading, cols, rows, render }) {
 
 function TabHeader({ title, onAdd, addLabel, disabled }) {
   return (
-    <Group justify="space-between" align="center" mb="sm">
+    <Group className={styles.actions} justify="space-between" align="center" mb="sm">
       <Text size="sm" fw={700} c="#111827">{title}</Text>
       <Button size="xs" leftSection={<IconPlus size={13} />}
         onClick={onAdd} disabled={disabled}
@@ -139,10 +142,10 @@ function TabHeader({ title, onAdd, addLabel, disabled }) {
 
 function FormModal({ opened, onClose, title, saving, onSubmit, children }) {
   return (
-    <Modal opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
+    <Modal classNames={{ content: styles.modal }} opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg" padding="md">
       <Stack gap="sm">
         {children}
-        <Group justify="flex-end" mt="md">
+        <Group className={styles.actions} justify="flex-end" mt="md">
           <Button variant="default" onClick={onClose}>Cancel</Button>
           <Button color="green" loading={saving} onClick={onSubmit}
             style={{ backgroundColor: '#007336' }}>Save</Button>
@@ -152,7 +155,22 @@ function FormModal({ opened, onClose, title, saving, onSubmit, children }) {
   );
 }
 
-function FormRow({ children }) { return <Group grow align="flex-start" gap="sm">{children}</Group>; }
+function FormRow({ children }) { return <Box className={styles.formRow}>{children}</Box>; }
+
+// Reuse the same cells and event handlers in desktop tables and phone cards.
+function ResponsiveTable({ children, ...props }) {
+  const parts = Children.toArray(children);
+  const head = parts.find(part => part.type === Table.Thead);
+  const headings = Children.toArray(Children.toArray(head?.props.children)[0]?.props.children).map(cell => cell.props.children);
+  return <Box className={styles.tableViewport}><Table {...props} className={styles.recordTable}>{parts.map(part => {
+    if (part.type !== Table.Tbody) return part;
+    return cloneElement(part, {}, Children.map(part.props.children, row => {
+      if (!isValidElement(row) || row.type !== Table.Tr) return row;
+      return cloneElement(row, {}, Children.map(row.props.children, (cell, index) => isValidElement(cell) && cell.type === Table.Td && !cell.props.colSpan
+        ? cloneElement(cell, { 'data-label': headings[index] || '' }) : cell));
+    }));
+  })}</Table></Box>;
+}
 
 function FI({ label, field, form, textarea, number, select }) {
   const val = form.values[field] ?? '';
@@ -185,30 +203,30 @@ function FI({ label, field, form, textarea, number, select }) {
   if (select) return (
     <Box>
       <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-      <Select data={select} value={val} onChange={v => onChange(v || '')} clearable styles={inputStyle} />
+      <Select data={select} aria-label={label} value={val} onChange={v => onChange(v || '')} clearable styles={inputStyle} />
     </Box>
   );
   if (textarea) return (
     <Box>
       <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-      <Textarea value={val} onChange={e => onChange(e.target.value)} autosize minRows={2} styles={inputStyle} />
+      <Textarea aria-label={label} value={val} onChange={e => onChange(e.target.value)} autosize minRows={2} styles={inputStyle} />
     </Box>
   );
   if (number) return (
     <Box>
       <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-      <NumberInput value={val === '' ? undefined : val} onChange={v => onChange(v)} styles={inputStyle} />
+      <NumberInput aria-label={label} value={val === '' ? undefined : val} onChange={v => onChange(v)} styles={inputStyle} />
     </Box>
   );
   
-  if (isDateField) return <DatePickerInput label={label} value={val} onChange={onChange} styles={inputStyle} />;
+  if (isDateField) return <DatePickerInput label={label} aria-label={label} value={val} onChange={onChange} styles={inputStyle} />;
   
   // Convert Type and Role fields to dropdowns automatically
   if (isTypeOrRoleField && autoDetectedOptions.length > 0) {
     return (
       <Box>
         <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-        <Select data={autoDetectedOptions} value={val || null} onChange={v => onChange(v || '')} clearable searchable placeholder={`Select ${label}`} styles={inputStyle} />
+        <Select data={autoDetectedOptions} aria-label={label} value={val || null} onChange={v => onChange(v || '')} clearable searchable placeholder={`Select ${label}`} styles={inputStyle} />
       </Box>
     );
   }
@@ -216,7 +234,7 @@ function FI({ label, field, form, textarea, number, select }) {
   return (
     <Box>
       <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-      <TextInput value={val} onChange={e => onChange(e.target.value)} styles={inputStyle} />
+      <TextInput aria-label={label} value={val} onChange={e => onChange(e.target.value)} styles={inputStyle} />
     </Box>
   );
 }
@@ -385,8 +403,21 @@ export default function SIASitesSurveyLayout() {
   };
 
   // ════════════════════════════════════════════════════
+  const surveySections = [
+                  { value: 'buildings', label: 'Buildings',     icon: <IconBuilding size={14} />,  enabled: true },
+                  { value: 'rooms',     label: 'Room / Areas',  icon: <IconDoor size={14} />,      enabled: !!selectedBuilding },
+                  { value: 'pois',      label: 'POIs',          icon: <IconLocation size={14} />,  enabled: true },
+                  { value: 'visits',    label: 'Survey Visits', icon: <IconCalendar size={14} />,  enabled: true },
+                  { value: 'team',      label: 'Team',          icon: <IconUsers size={14} />,     enabled: !!selectedVisit },
+                  { value: 'access',    label: 'Access',        icon: <IconLock size={14} />,      enabled: true },
+                  { value: 'safety',    label: 'Safety',        icon: <IconShield size={14} />,    enabled: true },
+                  { value: 'reqs',      label: 'Requirements',  icon: <IconClipboard size={14} />, enabled: !!selectedVisit },
+                  { value: 'instruments', label: 'Instruments', icon: <IconTool size={14} />,      enabled: !!selectedVisit },
+                  { value: 'report', label: 'Report', icon: <IconFileText size={14} />, enabled: true },
+                ];
+
   return (
-    <Box p="lg">
+    <Box className={styles.root} p={{ base: 0, sm: 'xs', lg: 'lg' }}>
 
       {/* ── Page header ── */}
       <Box mb="md">
@@ -413,7 +444,7 @@ export default function SIASitesSurveyLayout() {
           STEP 1 — Select SIA Case
       ════════════════════════════════════════════════ */}
       {step === 'case' && (
-        <Paper p="lg" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
+        <Paper p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
           <Group gap="xs" mb="xs" align="center">
             <IconFolder size={17} color="#007336" />
             <Title order={4} fw={600} c="#111827">Select SIA Case</Title>
@@ -426,7 +457,7 @@ export default function SIASitesSurveyLayout() {
           <Group gap="xs" mb="md" align="center">
             <IconSearch size={14} color="#9ca3af" />
             <TextInput
-              placeholder="Search by case code, purpose or stage…"
+              aria-label="Search cases" placeholder="Search by case code, purpose or stage…"
               value={caseSearch}
               onChange={e => setCaseSearch(e.target.value)}
               style={{ flex: 1 }}
@@ -438,7 +469,7 @@ export default function SIASitesSurveyLayout() {
             {casesLoading
               ? <Group justify="center" py="xl"><Loader color="green" size="sm" /></Group>
               : (
-                <Table verticalSpacing="sm" horizontalSpacing="md">
+                <ResponsiveTable verticalSpacing="sm" horizontalSpacing="md">
                   <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
                     <Table.Tr>
                       <Table.Th style={thS}>Case Code</Table.Th>
@@ -500,11 +531,11 @@ export default function SIASitesSurveyLayout() {
                       </Table.Tr>
                     )}
                   </Table.Tbody>
-                </Table>
+                </ResponsiveTable>
               )}
           </Paper>
 
-          <Group justify="space-between" align="center" mt="md">
+          <Group className={styles.actions} justify="space-between" align="center" mt="md">
             <Text size="xs" c="dimmed">
               {pendingCase
                 ? <><Text span fw={600} c="#007336">{pendingCase.case_code}</Text> selected — click Continue</>
@@ -548,8 +579,8 @@ export default function SIASitesSurveyLayout() {
           </Paper>
 
           {/* Sites list */}
-          <Paper p="lg" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
-            <Group justify="space-between" align="center" mb="sm">
+          <Paper p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
+            <Group className={styles.actions} justify="space-between" align="center" mb="sm">
               <Group gap="xs">
                 <IconMapPin size={16} color="#007336" />
                 <Title order={4} fw={600} c="#111827">Sites</Title>
@@ -559,11 +590,11 @@ export default function SIASitesSurveyLayout() {
                 <Group gap="xs" align="center">
                   <IconSearch size={13} color="#9ca3af" />
                   <TextInput
-                    placeholder="Search sites…"
+                    className={styles.siteSearch} aria-label="Search sites" placeholder="Search sites…"
                     value={siteSearch}
                     onChange={e => setSiteSearch(e.target.value)}
                     size="xs"
-                    styles={{ input: { borderColor: '#d1d5db', borderRadius: 6, width: 200 } }}
+                    styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }}
                   />
                 </Group>
                 <Button size="xs" leftSection={<IconPlus size={13} />}
@@ -577,7 +608,7 @@ export default function SIASitesSurveyLayout() {
             {sitesL
               ? <Group justify="center" py="xl"><Loader color="green" size="sm" /></Group>
               : (
-                <Table verticalSpacing="sm" horizontalSpacing="md">
+                <ResponsiveTable verticalSpacing="sm" horizontalSpacing="md">
                   <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
                     <Table.Tr>
                       <Table.Th style={thS}>Code</Table.Th>
@@ -620,7 +651,7 @@ export default function SIASitesSurveyLayout() {
                         </Table.Tr>
                       ))}
                   </Table.Tbody>
-                </Table>
+                </ResponsiveTable>
               )}
           </Paper>
         </Box>
@@ -667,22 +698,18 @@ export default function SIASitesSurveyLayout() {
           </Paper>
 
           {/* Survey tabs */}
+          <Group justify="flex-end" mb="md">
+            <Button color="green" variant="light" leftSection={<IconFileText size={16} />} onClick={() => setSurveyTab('report')}>View site report</Button>
+          </Group>
           <Tabs value={surveyTab} onChange={setSurveyTab} color="green">
 
+            <Select className={styles.sectionSelect} label="Survey section" mb="md" value={surveyTab}
+              onChange={value => value && setSurveyTab(value)} allowDeselect={false}
+              data={surveySections.map(section => ({ value: section.value, label: section.label, disabled: !section.enabled }))} />
             {/* Step-flow tab bar */}
-            <Box mb="md" style={{ overflowX: 'auto' }}>
+            <Box className={styles.sectionStrip} mb="md" style={{ overflowX: 'auto' }}>
               <Group gap={0} wrap="nowrap" style={{ minWidth: 'max-content' }}>
-                {[
-                  { value: 'buildings', label: 'Buildings',     icon: <IconBuilding size={14} />,  enabled: true },
-                  { value: 'rooms',     label: 'Room / Areas',  icon: <IconDoor size={14} />,      enabled: !!selectedBuilding },
-                  { value: 'pois',      label: 'POIs',          icon: <IconLocation size={14} />,  enabled: true },
-                  { value: 'visits',    label: 'Survey Visits', icon: <IconCalendar size={14} />,  enabled: true },
-                  { value: 'team',      label: 'Team',          icon: <IconUsers size={14} />,     enabled: !!selectedVisit },
-                  { value: 'access',    label: 'Access',        icon: <IconLock size={14} />,      enabled: true },
-                  { value: 'safety',    label: 'Safety',        icon: <IconShield size={14} />,    enabled: true },
-                  { value: 'reqs',      label: 'Requirements',  icon: <IconClipboard size={14} />, enabled: !!selectedVisit },
-                  { value: 'instruments', label: 'Instruments', icon: <IconTool size={14} />,      enabled: !!selectedVisit },
-                ].map((tab, idx, arr) => {
+                {surveySections.map((tab, idx, arr) => {
                   const isActive = surveyTab === tab.value;
                   const isDone   = arr.findIndex(t => t.value === surveyTab) > idx;
                   const bgColor  = isActive ? '#007336' : isDone ? '#bbf7d0' : tab.enabled ? '#f3f4f6' : '#f9fafb';
@@ -715,7 +742,7 @@ export default function SIASitesSurveyLayout() {
 
             {/* Hidden Mantine tab list for routing */}
             <Tabs.List style={{ display: 'none' }}>
-              {['buildings','rooms','pois','visits','team','access','safety','reqs','instruments'].map(v =>
+              {['buildings','rooms','pois','visits','team','access','safety','reqs','instruments','report'].map(v =>
                 <Tabs.Tab key={v} value={v}>{v}</Tabs.Tab>
               )}
             </Tabs.List>
@@ -925,6 +952,10 @@ export default function SIASitesSurveyLayout() {
                   </>}
             </Tabs.Panel>
 
+            {surveyTab === 'instruments' && <Group justify="flex-end" mt="lg"><Button color="green" rightSection={<IconArrowRight size={16} />} onClick={() => setSurveyTab('report')}>Continue to Report</Button></Group>}
+            <Tabs.Panel value="report">
+              {surveyTab === 'report' && <SIASitesSurveyReport api={API} siaCase={activeCase} siteId={selectedSite.id} />}
+            </Tabs.Panel>
           </Tabs>
         </Box>
       )}

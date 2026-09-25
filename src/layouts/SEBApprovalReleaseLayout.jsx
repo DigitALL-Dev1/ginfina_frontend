@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useMemo, useState } from 'react';
+import { useMediaQuery } from '@mantine/hooks';
+import styles from './SEBApprovalReleaseLayout.module.css';
 import {
   Alert, Badge, Box, Button, Center, Divider, Grid, Group, Loader, Modal,
   Paper, Progress, Select, SimpleGrid, Stack, Table, Text, Textarea,
   ThemeIcon, Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import SEBApprovalReleaseReport from '../components/common/SEBApprovalReleaseReport';
 import {
   IconAlertCircle, IconAlertTriangle, IconBan, IconCheck, IconCircleCheck,
   IconClipboardCheck, IconFileText, IconHistory, IconLock, IconMessage,
@@ -50,12 +53,13 @@ function WorkflowProgress({ revisionId, status }) {
   ];
   return (
     <Paper withBorder p="md" radius="lg" style={surface}>
-      <Group justify="space-between" mb="sm">
+      <Group className={styles.actions} justify="space-between" mb="sm">
         <Text size="sm" fw={700}>Approval workflow</Text>
         <Text size="xs" c="dimmed">{active === 4 ? 'Complete' : `Stage ${active + 1} of 4`}</Text>
       </Group>
-      <Progress value={(Math.min(active + 1, 4) / 4) * 100} color="green" size="sm" radius="xl" mb="md" />
-      <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
+      <Progress aria-label="Approval workflow progress" value={(Math.min(active + 1, 4) / 4) * 100} color="green" size="sm" radius="xl" mb="md" />
+      <Text className={styles.activeStage} fw={600} size="sm" c="green.8" aria-live="polite">{active === 4 ? 'Release complete' : steps[active][0]}</Text>
+      <SimpleGrid cols={4} spacing="sm" className={styles.stepRail}>
         {steps.map(([label, detail], index) => {
           const complete = index < active || active === 4;
           const current = index === active;
@@ -78,10 +82,10 @@ function WorkflowProgress({ revisionId, status }) {
 
 function SectionHeading({ icon: Icon, title, description, action }) {
   return (
-    <Group justify="space-between" align="flex-start" mb="lg" wrap="wrap">
-      <Group gap="sm" align="flex-start">
+    <Group className={styles.actions} justify="space-between" align="flex-start" mb="lg" wrap="wrap">
+      <Group gap="sm" align="flex-start" wrap="nowrap">
         <ThemeIcon color="green" variant="light" radius="md" size={36}><Icon size={19} /></ThemeIcon>
-        <Box><Text fw={800} c="#17251f">{title}</Text>{description && <Text size="xs" c="dimmed" mt={2}>{description}</Text>}</Box>
+        <Box className={styles.headingText}><Text fw={800} c="#17251f">{title}</Text>{description && <Text size="xs" c="dimmed" mt={2}>{description}</Text>}</Box>
       </Group>
       {action}
     </Group>
@@ -90,10 +94,10 @@ function SectionHeading({ icon: Icon, title, description, action }) {
 
 function Metric({ label, value, icon: Icon, color, background }) {
   return (
-    <Paper p="md" radius="lg" style={{ border: `1px solid ${color}22`, background }}>
-      <Group justify="space-between" align="flex-start" wrap="nowrap">
+    <Paper p={{ base: 'sm', sm: 'md' }} radius="lg" style={{ border: `1px solid ${color}22`, background }}>
+      <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
         <Box><Text size="xs" c="dimmed" fw={650}>{label}</Text><Text size="28px" lh={1.15} fw={850} c={color} mt={7}>{value}</Text></Box>
-        <ThemeIcon color={color} variant="transparent" size={30}><Icon size={22} /></ThemeIcon>
+        <ThemeIcon className={styles.metricIcon} color={color} variant="transparent" size={30}><Icon size={22} /></ThemeIcon>
       </Group>
     </Paper>
   );
@@ -102,7 +106,7 @@ function Metric({ label, value, icon: Icon, color, background }) {
 function FactListCard({ title, icon: Icon, color, items, type }) {
   return (
     <Paper withBorder p="md" radius="lg" style={{ borderColor: '#e7ebe9' }}>
-      <Group justify="space-between" mb="sm">
+      <Group className={styles.actions} justify="space-between" mb="sm">
         <Group gap="xs"><ThemeIcon size={28} radius="md" color={color} variant="light"><Icon size={16} /></ThemeIcon><Text fw={750}>{title}</Text></Group>
         <Badge color={color} variant="light" circle>{items.length}</Badge>
       </Group>
@@ -123,8 +127,23 @@ function FactListCard({ title, icon: Icon, color, items, type }) {
   );
 }
 
+function ResponsiveTable({ children, label, ...props }) {
+  const parts = Children.toArray(children);
+  const head = parts.find(part => part.type === Table.Thead);
+  const headings = Children.toArray(Children.toArray(head?.props.children)[0]?.props.children).map(cell => cell.props.children);
+  return <Box className={styles.tableViewport} role="region" aria-label={label} tabIndex={0}><Table {...props} className={styles.recordTable}>{parts.map(part => {
+    if (part.type !== Table.Tbody) return part;
+    return cloneElement(part, {}, Children.map(part.props.children, row => {
+      if (!isValidElement(row) || row.type !== Table.Tr) return row;
+      return cloneElement(row, {}, Children.map(row.props.children, (cell, index) => isValidElement(cell) && cell.type === Table.Td
+        ? cloneElement(cell, { 'data-label': headings[index] }, <Box>{cell.props.children}</Box>) : cell));
+    }));
+  })}</Table></Box>;
+}
+
 function DetailModal({ opened, onClose, title, children }) {
-  return <Modal opened={opened} onClose={onClose} title={<Text fw={800}>{title}</Text>} size="xl" centered radius="lg"><Box style={{ overflowX: 'auto' }}>{children}</Box></Modal>;
+  const isMobile = useMediaQuery('(max-width: 47.99em)');
+  return <Modal opened={opened} onClose={onClose} title={<Text fw={800}>{title}</Text>} size="xl" centered radius="lg" fullScreen={isMobile} classNames={{ content: styles.modal }}>{children}</Modal>;
 }
 
 export default function SEBApprovalReleaseLayout() {
@@ -227,15 +246,15 @@ export default function SEBApprovalReleaseLayout() {
   const canSubmitApproval = revisionStatus === 'READINESS_COMPLETED' && approver && decision && (!requiresComment || comment.trim());
 
   return (
-    <Box p={{ base: 'sm', sm: 'lg', xl: 'xl' }} maw={1320} mx="auto" pb={60}>
-      <Paper radius="xl" p={{ base: 'lg', sm: 'xl' }} mb="lg" style={{ color: 'white', border: '1px solid #1d5f42', background: 'radial-gradient(circle at 88% 10%, rgba(102, 214, 151, .25), transparent 30%), linear-gradient(130deg, #0f3d2b 0%, #17603f 58%, #237a50 100%)', boxShadow: '0 18px 40px rgba(15, 61, 43, .18)' }}>
-        <Group justify="space-between" align="center" wrap="wrap" gap="lg">
+    <Box className={styles.root} p={{ base: 'sm', sm: 'lg', xl: 'xl' }} maw={1320} mx="auto" pb={60}>
+      <Paper radius="xl" p={{ base: 'md', sm: 'xl' }} mb="lg" style={{ color: 'white', border: '1px solid #1d5f42', background: 'radial-gradient(circle at 88% 10%, rgba(102, 214, 151, .25), transparent 30%), linear-gradient(130deg, #0f3d2b 0%, #17603f 58%, #237a50 100%)', boxShadow: '0 18px 40px rgba(15, 61, 43, .18)' }}>
+        <Group className={styles.actions} justify="space-between" align="center" wrap="wrap" gap="lg">
           <Box>
             <Badge color="green.1" c="green.9" variant="filled" mb="md">SITE ENGINEERING PREPARATION</Badge>
-            <Title order={1} size="32px" c="white">Approval & Release</Title>
+            <Title order={1} className={styles.heroTitle} c="white">Approval & Release</Title>
             <Text size="sm" c="green.0" mt={7} maw={650}>Review the engineering baseline, record the authorized decision, and issue a traceable controlled release.</Text>
           </Box>
-          <ThemeIcon size={72} radius="xl" color="white" variant="light"><IconShieldCheck size={36} /></ThemeIcon>
+          <ThemeIcon visibleFrom="sm" size={72} radius="xl" color="white" variant="light"><IconShieldCheck size={36} /></ThemeIcon>
         </Group>
       </Paper>
 
@@ -244,20 +263,20 @@ export default function SEBApprovalReleaseLayout() {
       <Paper withBorder p={{ base: 'md', sm: 'lg' }} radius="lg" mt="md" style={surface}>
         <SectionHeading icon={IconHistory} title="Select approval context" description={`Active SIA case: ${caseId || 'Not selected'}`} action={<Button size="xs" variant="subtle" color="green" leftSection={<IconRefresh size={14} />} loading={contextLoading} onClick={() => { loadBaselines(); loadRevisions(); }}>Refresh</Button>} />
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
-          <Select label="1. SEB baseline" placeholder={caseId ? 'Choose an SEB' : 'Select an SIA case first'} data={baselines.map(item => ({ value: item.id, label: `${item.seb_code || item.id} · ${item.status}` }))} value={sebId || null} onChange={value => { const next = value || ''; setSebId(next); setRevisionId(''); setSummary(null); setRevisions([]); if (next) localStorage.setItem('seb_id', next); else localStorage.removeItem('seb_id'); localStorage.removeItem('seb_revision_id'); }} searchable clearable disabled={!caseId || contextLoading} styles={{ input: { minHeight: 42 } }} />
-          <Select label="2. Eligible revision" description="Only readiness-completed revisions can enter approval." placeholder={sebId ? 'Choose a revision' : 'Choose an SEB first'} data={revisions.map(item => ({ value: item.id, label: `${item.revision_no} · ${item.revision_status.replaceAll('_', ' ')}` }))} value={revisionId || null} onChange={value => { const next = value || ''; setRevisionId(next); setSummary(null); if (next) localStorage.setItem('seb_revision_id', next); else localStorage.removeItem('seb_revision_id'); }} searchable clearable disabled={!sebId || contextLoading} styles={{ input: { minHeight: 42 } }} />
+          <Select label="1. SEB baseline" placeholder={caseId ? 'Choose an SEB' : 'Select an SIA case first'} data={baselines.map(item => ({ value: item.id, label: `${item.seb_code || item.id} · ${item.status}` }))} value={sebId || null} onChange={value => { const next = value || ''; setSebId(next); setRevisionId(''); setSummary(null); setRevisions([]); if (next) localStorage.setItem('seb_id', next); else localStorage.removeItem('seb_id'); localStorage.removeItem('seb_revision_id'); }} searchable clearable disabled={!caseId || contextLoading} styles={{ input: { minHeight: 44 } }} />
+          <Select label="2. Eligible revision" description="Only readiness-completed revisions can enter approval." placeholder={sebId ? 'Choose a revision' : 'Choose an SEB first'} data={revisions.map(item => ({ value: item.id, label: `${item.revision_no} · ${item.revision_status.replaceAll('_', ' ')}` }))} value={revisionId || null} onChange={value => { const next = value || ''; setRevisionId(next); setSummary(null); if (next) localStorage.setItem('seb_revision_id', next); else localStorage.removeItem('seb_revision_id'); }} searchable clearable disabled={!sebId || contextLoading} styles={{ input: { minHeight: 44 } }} />
         </SimpleGrid>
         {!contextLoading && sebId && revisions.length === 0 && !error && <Alert color="yellow" variant="light" mt="md" icon={<IconAlertTriangle size={17} />}>No readiness-completed revision is available for this SEB.</Alert>}
       </Paper>
 
       {error && <Alert color="red" icon={<IconAlertCircle size={17} />} mt="md" radius="lg" withCloseButton onClose={() => setError('')}>{error}</Alert>}
-      {!revisionId && <Paper withBorder p={48} mt="md" radius="lg" style={{ ...surface, borderStyle: 'dashed' }}><Center><Stack align="center" gap="xs"><ThemeIcon size={48} radius="xl" color="gray" variant="light"><IconClipboardCheck size={25} /></ThemeIcon><Text fw={700}>Select a revision to begin</Text><Text size="sm" c="dimmed" ta="center">The approval summary and decision controls will appear here.</Text></Stack></Center></Paper>}
-      {summaryLoading && <Paper withBorder mt="md" p={55} radius="lg" style={surface}><Center><Stack align="center" gap="sm"><Loader color="green" /><Text size="sm" c="dimmed">Building approval summary…</Text></Stack></Center></Paper>}
+      {!revisionId && <Paper withBorder p={{ base: 'md', sm: 48 }} mt="md" radius="lg" style={{ ...surface, borderStyle: 'dashed' }}><Center><Stack align="center" gap="xs"><ThemeIcon size={48} radius="xl" color="gray" variant="light"><IconClipboardCheck size={25} /></ThemeIcon><Text fw={700}>Select a revision to begin</Text><Text size="sm" c="dimmed" ta="center">The approval summary and decision controls will appear here.</Text></Stack></Center></Paper>}
+      {summaryLoading && <Paper withBorder mt="md" p={{ base: 'md', sm: 55 }} radius="lg" style={surface}><Center><Stack align="center" gap="sm"><Loader color="green" /><Text size="sm" c="dimmed">Building approval summary…</Text></Stack></Center></Paper>}
 
       {summary && !summaryLoading && (
         <Stack mt="md" gap="md">
           <Paper radius="lg" p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #cce6d7', background: 'linear-gradient(100deg, #f1fbf5, #fbfefd)' }}>
-            <Group justify="space-between" align="center" wrap="wrap">
+            <Group className={styles.actions} justify="space-between" align="center" wrap="wrap">
               <Group gap="md"><ThemeIcon size={44} radius="lg" color="green" variant="filled"><IconFileText size={22} /></ThemeIcon><Box><Text size="xs" c="dimmed" fw={700}>SELECTED CONTROLLED BASELINE</Text><Title order={3}>{selectedBaseline?.seb_code || sebId} <Text span c="dimmed" fw={500}>/</Text> {selectedRevision?.revision_no || revisionId}</Title><Text size="xs" c="dimmed">Site {selectedBaseline?.site_id || '—'} · Project {selectedBaseline?.project_id || '—'}</Text></Box></Group>
               <StatusBadge value={revisionStatus} size="lg" />
             </Group>
@@ -267,7 +286,7 @@ export default function SEBApprovalReleaseLayout() {
             <Grid.Col span={{ base: 12, lg: 8 }}>
               <Paper withBorder p={{ base: 'md', sm: 'xl' }} radius="lg" h="100%" style={surface}>
                 <SectionHeading icon={IconClipboardCheck} title="3. Approval summary" description="Engineering review and discipline readiness at a glance" action={<Button size="xs" variant="subtle" color="green" leftSection={<IconRefresh size={14} />} onClick={loadSummary}>Refresh</Button>} />
-                <SimpleGrid cols={{ base: 2, sm: 5 }} spacing="sm">
+                <SimpleGrid cols={{ base: 2, sm: 3, xl: 5 }} spacing="sm">
                   <Metric label="Total items" value={review.total || 0} icon={IconFileText} color="#334155" background="#f8fafc" />
                   <Metric label="Accepted" value={review.accepted || 0} icon={IconCircleCheck} color="#16834f" background="#f0faf4" />
                   <Metric label="Conditional" value={review.conditional || 0} icon={IconAlertTriangle} color="#d97706" background="#fff9ed" />
@@ -276,7 +295,7 @@ export default function SEBApprovalReleaseLayout() {
                 </SimpleGrid>
 
                 <Divider my="xl" />
-                <Group justify="space-between" mb="md"><Box><Text fw={800}>Discipline readiness</Text><Text size="xs" c="dimmed">The most restrictive result is shown for each discipline.</Text></Box><Badge color="green" variant="light">{summary.readiness.length} disciplines</Badge></Group>
+                <Group className={styles.actions} justify="space-between" mb="md"><Box><Text fw={800}>Discipline readiness</Text><Text size="xs" c="dimmed">The most restrictive result is shown for each discipline.</Text></Box><Badge color="green" variant="light">{summary.readiness.length} disciplines</Badge></Group>
                 {summary.readiness.length ? <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">{summary.readiness.map(item => <Group key={item.discipline} justify="space-between" p="sm" style={{ border: '1px solid #e6ebe8', borderRadius: 9, background: '#fbfcfb' }}><Text size="sm" fw={700}>{item.discipline}</Text><StatusBadge value={item.status} /></Group>)}</SimpleGrid> : <Text size="sm" c="dimmed">No discipline readiness records.</Text>}
 
                 <Divider my="xl" />
@@ -294,7 +313,7 @@ export default function SEBApprovalReleaseLayout() {
                 <FactListCard title="Blockers" icon={IconBan} color="red" items={summary.blockers} type="blocker" />
                 <Paper withBorder p="md" radius="lg" style={{ borderColor: '#e7ebe9', background: '#fbfcfb' }}>
                   <Text size="xs" fw={800} c="dimmed" mb="sm">REVISION DETAILS</Text>
-                  {[['Issue date', selectedRevision?.issue_date], ['Prepared by', selectedRevision?.prepared_by], ['Reason', selectedRevision?.revision_reason]].map(([label, value]) => <Group key={label} justify="space-between" py={5} wrap="nowrap"><Text size="xs" c="dimmed">{label}</Text><Text size="xs" fw={650} ta="right" lineClamp={1}>{value || '—'}</Text></Group>)}
+                  {[['Issue date', selectedRevision?.issue_date], ['Prepared by', selectedRevision?.prepared_by], ['Reason', selectedRevision?.revision_reason]].map(([label, value]) => <Box key={label} className={styles.revisionField}><Text size="xs" c="dimmed">{label}</Text><Text size="xs" fw={650} className={styles.revisionValue}>{value || '—'}</Text></Box>)}
                 </Paper>
               </Stack>
             </Grid.Col>
@@ -306,9 +325,9 @@ export default function SEBApprovalReleaseLayout() {
                 <SectionHeading icon={IconUsers} title="4-7. Engineering approval" description="Assign the authorized approver and record the formal decision" />
                 {revisionStatus === 'READINESS_COMPLETED' ? (
                   <Stack gap="md">
-                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md"><Select label="Engineering Approver" placeholder="Select user" data={APPROVERS} value={approver || null} onChange={value => setApprover(value || '')} searchable required styles={{ input: { minHeight: 42 } }} /><Select label="Decision" placeholder="Select decision" data={DECISIONS} value={decision || null} onChange={value => setDecision(value || '')} required styles={{ input: { minHeight: 42 } }} /></SimpleGrid>
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md"><Select label="Engineering Approver" placeholder="Select user" data={APPROVERS} value={approver || null} onChange={value => setApprover(value || '')} searchable required styles={{ input: { minHeight: 44 } }} /><Select label="Decision" placeholder="Select decision" data={DECISIONS} value={decision || null} onChange={value => setDecision(value || '')} required styles={{ input: { minHeight: 44 } }} /></SimpleGrid>
                     <Textarea label="Approval comment" placeholder="Record the basis for this decision" value={comment} onChange={event => setComment(event.currentTarget.value)} autosize minRows={4} required={Boolean(requiresComment)} description={requiresComment ? 'Required for conditional approval, change required, and reject.' : 'Optional for a standard approval.'} />
-                    <Group justify="space-between" align="center" wrap="wrap"><Text size="xs" c="dimmed">Submitting an approval moves this revision to <strong>APPROVED FOR RELEASE</strong>.</Text><Button size="md" color="green" leftSection={<IconCheck size={17} />} onClick={submitApproval} loading={approvalSaving} disabled={!canSubmitApproval}>Submit Approval</Button></Group>
+                    <Group className={styles.actions} justify="space-between" align="center" wrap="wrap"><Text size="xs" c="dimmed">Submitting an approval moves this revision to <strong>APPROVED FOR RELEASE</strong>.</Text><Button size="md" color="green" leftSection={<IconCheck size={17} />} onClick={submitApproval} loading={approvalSaving} disabled={!canSubmitApproval}>Submit Approval</Button></Group>
                   </Stack>
                 ) : (
                   <Alert color="green" variant="light" icon={<IconShieldCheck size={19} />} title="Engineering approval recorded" radius="md"><SimpleGrid cols={{ base: 1, sm: 2 }}><Box><Text size="xs" c="dimmed">Approver</Text><Text size="sm" fw={700}>{summary.approval?.engineering_approver_id || '—'}</Text></Box><Box><Text size="xs" c="dimmed">Decision</Text><StatusBadge value={summary.approval?.decision || 'APPROVE'} /></Box></SimpleGrid>{summary.approval?.comment && <Text size="sm" mt="sm">{summary.approval.comment}</Text>}</Alert>
@@ -321,16 +340,18 @@ export default function SEBApprovalReleaseLayout() {
                 <SectionHeading icon={IconRocket} title="8-10. Controlled release" description="Freeze the approved baseline and issue the release" />
                 {revisionStatus === 'READINESS_COMPLETED' && <Box p="lg" style={{ borderRadius: 12, background: '#f8fafc', border: '1px dashed #cbd5e1' }}><Center><Stack align="center" gap="xs"><ThemeIcon color="gray" variant="light" radius="xl"><IconLock size={17} /></ThemeIcon><Text size="sm" fw={700}>Waiting for approval</Text><Text size="xs" c="dimmed" ta="center">Release unlocks after an approving decision.</Text></Stack></Center></Box>}
                 {revisionStatus === 'APPROVED_FOR_RELEASE' && <Stack><Alert color="orange" variant="light" icon={<IconLock size={17} />} radius="md">This creates a SHA-256 verified immutable snapshot.</Alert><Select label="Released by" placeholder="Select authorized user" data={APPROVERS} value={releasedBy || null} onChange={value => setReleasedBy(value || '')} searchable required /><Textarea label="Release note" placeholder="Optional controlled-release note" value={releaseComment} onChange={event => setReleaseComment(event.currentTarget.value)} autosize minRows={3} /><Button color="green" size="md" fullWidth leftSection={<IconRocket size={17} />} onClick={releaseRevision} loading={releaseSaving} disabled={!releasedBy}>Release SEB Revision</Button></Stack>}
-                {revisionStatus === 'RELEASED' && <Stack><Alert color="green" variant="light" icon={<IconLock size={18} />} title="Controlled baseline released" radius="md">This revision is frozen and immutable.</Alert><Box p="md" style={{ borderRadius: 10, background: '#f0faf4' }}><Text size="xs" c="dimmed">Release</Text><Text fw={800}>{summary.release?.release_code || '—'}</Text><Divider my="sm" /><Text size="xs" c="dimmed">SHA-256</Text><Text size="10px" ff="monospace" style={{ overflowWrap: 'anywhere' }}>{summary.release?.release_hash || '—'}</Text><Group justify="space-between" mt="sm"><Text size="xs" c="dimmed">Frozen items</Text><Text size="xs" fw={700}>{summary.release?.frozen_snapshot?.item_ids?.length || summary.items.length}</Text></Group><Group justify="space-between" mt={5}><Text size="xs" c="dimmed">Released by</Text><Text size="xs" fw={700}>{summary.release?.released_by || '—'}</Text></Group></Box></Stack>}
+                {revisionStatus === 'RELEASED' && <Stack><Alert color="green" variant="light" icon={<IconLock size={18} />} title="Controlled baseline released" radius="md">This revision is frozen and immutable.</Alert><Box p="md" style={{ borderRadius: 10, background: '#f0faf4' }}><Text size="xs" c="dimmed">Release</Text><Text fw={800}>{summary.release?.release_code || '—'}</Text><Divider my="sm" /><Text size="xs" c="dimmed">SHA-256</Text><Text size="10px" ff="monospace" style={{ overflowWrap: 'anywhere' }}>{summary.release?.release_hash || '—'}</Text><Group className={styles.actions} justify="space-between" mt="sm"><Text size="xs" c="dimmed">Frozen items</Text><Text size="xs" fw={700}>{summary.release?.frozen_snapshot?.item_ids?.length || summary.items.length}</Text></Group><Group className={styles.actions} justify="space-between" mt={5}><Text size="xs" c="dimmed">Released by</Text><Text size="xs" fw={700}>{summary.release?.released_by || '—'}</Text></Group></Box></Stack>}
               </Paper>
             </Grid.Col>
           </Grid>
         </Stack>
       )}
 
-      <DetailModal opened={modal === 'items'} onClose={() => setModal('')} title="SEB Items"><Table withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Fact</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Review Decision</Table.Th><Table.Th>Readiness</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(summary?.items || []).map(item => <Table.Tr key={item.id}><Table.Td><Text size="sm" fw={650}>{item.fact_name}</Text><Text size="10px" c="dimmed">{item.fact_collection}</Text></Table.Td><Table.Td>{item.discipline}</Table.Td><Table.Td><StatusBadge value={item.review_decision} /></Table.Td><Table.Td><StatusBadge value={item.readiness} /></Table.Td></Table.Tr>)}</Table.Tbody></Table></DetailModal>
-      <DetailModal opened={modal === 'evidence'} onClose={() => setModal('')} title="Evidence References">{(summary?.evidence_references || []).length ? <Table withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Type</Table.Th><Table.Th>Evidence ID</Table.Th><Table.Th>SEB Item</Table.Th><Table.Th>Evidence Hash</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{summary.evidence_references.map(item => <Table.Tr key={item.id}><Table.Td>{item.evidence_type || '—'}</Table.Td><Table.Td>{item.sia_evidence_id || '—'}</Table.Td><Table.Td>{item.seb_item_id || '—'}</Table.Td><Table.Td><Text size="xs" ff="monospace">{item.evidence_hash || '—'}</Text></Table.Td></Table.Tr>)}</Table.Tbody></Table> : <Center py="xl"><Text c="dimmed">No evidence references.</Text></Center>}</DetailModal>
-      <DetailModal opened={modal === 'comments'} onClose={() => setModal('')} title="Engineering Review Comments">{(summary?.review_comments || []).length ? <Table withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Fact</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Comment</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{summary.review_comments.map(item => <Table.Tr key={item.item_id}><Table.Td>{item.fact_name}</Table.Td><Table.Td>{item.discipline}</Table.Td><Table.Td>{item.comment}</Table.Td></Table.Tr>)}</Table.Tbody></Table> : <Center py="xl"><Text c="dimmed">No review comments.</Text></Center>}</DetailModal>
+      {sebId && revisionId && <SEBApprovalReleaseReport summary={summary} sebId={sebId} revisionId={revisionId} busy={summaryLoading || contextLoading || approvalSaving || releaseSaving} loadError={error} onReload={loadSummary} />}
+
+      <DetailModal opened={modal === 'items'} onClose={() => setModal('')} title="SEB Items"><ResponsiveTable label="SEB item details" withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Fact</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Review Decision</Table.Th><Table.Th>Readiness</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(summary?.items || []).map(item => <Table.Tr key={item.id}><Table.Td><Text size="sm" fw={650}>{item.fact_name}</Text><Text size="10px" c="dimmed">{item.fact_collection}</Text></Table.Td><Table.Td>{item.discipline}</Table.Td><Table.Td><StatusBadge value={item.review_decision} /></Table.Td><Table.Td><StatusBadge value={item.readiness} /></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable></DetailModal>
+      <DetailModal opened={modal === 'evidence'} onClose={() => setModal('')} title="Evidence References">{(summary?.evidence_references || []).length ? <ResponsiveTable label="Evidence details" withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Type</Table.Th><Table.Th>Evidence ID</Table.Th><Table.Th>SEB Item</Table.Th><Table.Th>Evidence Hash</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{summary.evidence_references.map(item => <Table.Tr key={item.id}><Table.Td>{item.evidence_type || '—'}</Table.Td><Table.Td>{item.sia_evidence_id || '—'}</Table.Td><Table.Td>{item.seb_item_id || '—'}</Table.Td><Table.Td><Text size="xs" ff="monospace">{item.evidence_hash || '—'}</Text></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable> : <Center py="xl"><Text c="dimmed">No evidence references.</Text></Center>}</DetailModal>
+      <DetailModal opened={modal === 'comments'} onClose={() => setModal('')} title="Engineering Review Comments">{(summary?.review_comments || []).length ? <ResponsiveTable label="Review comment details" withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Fact</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Comment</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{summary.review_comments.map(item => <Table.Tr key={item.item_id}><Table.Td>{item.fact_name}</Table.Td><Table.Td>{item.discipline}</Table.Td><Table.Td>{item.comment}</Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable> : <Center py="xl"><Text c="dimmed">No review comments.</Text></Center>}</DetailModal>
     </Box>
   );
 }

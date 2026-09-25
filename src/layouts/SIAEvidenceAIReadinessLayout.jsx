@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader, Modal,
   Paper, Select, Stack, Tabs, Table, Text, Textarea,
@@ -9,10 +9,12 @@ import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconFile, IconRobot, IconAlertTriangle,
   IconDatabase, IconShieldCheck, IconBulb, IconClipboardCheck,
-  IconX, IconCheck, IconBolt, IconLock,
+  IconX, IconCheck, IconBolt, IconLock, IconFileText, IconArrowRight,
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
+import SIAEvidenceAIReadinessReport from '../components/common/SIAEvidenceAIReadinessReport';
 import { autoCode } from '../utils/autoCode';
+import styles from './SIAEvidenceAIReadinessLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -52,37 +54,51 @@ function EmptyRow({ cols }) {
   return <Table.Tr><Table.Td colSpan={cols} style={{ textAlign: 'center', padding: '28px 0' }}>
     <Text size="sm" c="dimmed">No records found.</Text></Table.Td></Table.Tr>;
 }
+function ResponsiveTable({ children, ...props }) {
+  const parts = Children.toArray(children);
+  const head = parts.find(part => part.type === Table.Thead);
+  const headings = Children.toArray(Children.toArray(head?.props.children)[0]?.props.children).map(cell => cell.props.children);
+  return <Box className={styles.tableViewport}><Table {...props} className={styles.recordTable}>{parts.map(part => {
+    if (part.type !== Table.Tbody) return part;
+    return cloneElement(part, {}, Children.map(part.props.children, row => {
+      if (!isValidElement(row) || row.type !== Table.Tr) return row;
+      return cloneElement(row, {}, Children.map(row.props.children, (cell, index) => isValidElement(cell) && cell.type === Table.Td && !cell.props.colSpan
+        ? cloneElement(cell, { 'data-label': headings[index] || '' }) : cell));
+    }));
+  })}</Table></Box>;
+}
+
 function DataTable({ loading, cols, rows, render }) {
   return (
     <Paper style={{ border: '1px solid #e5e7eb', borderRadius: 8, minHeight: 110 }}>
       {loading && <Group justify="center" py="xl"><Loader color="green" size="sm" /></Group>}
-      {!loading && <Table verticalSpacing="sm" horizontalSpacing="md">
+      {!loading && <ResponsiveTable verticalSpacing="sm" horizontalSpacing="md">
         <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
           <Table.Tr>{cols.map(c => <Table.Th key={c} style={thS}>{c}</Table.Th>)}</Table.Tr>
         </Table.Thead>
         <Table.Tbody>{rows.length === 0 ? <EmptyRow cols={cols.length} /> : rows.map(render)}</Table.Tbody>
-      </Table>}
+      </ResponsiveTable>}
     </Paper>
   );
 }
 function TabHeader({ title, onAdd, addLabel, disabled = false }) {
-  return <Group justify="space-between" mb="sm">
+  return <Group className={styles.actions} justify="space-between" mb="sm">
     <Text fw={600} size="sm" c="#374151">{title}</Text>
     <Button size="xs" color="green" leftSection={<IconPlus size={13} />} disabled={disabled}
       onClick={onAdd} style={{ backgroundColor: disabled ? undefined : '#007336' }}>{addLabel}</Button>
   </Group>;
 }
 function FormModal({ opened, onClose, title, saving, onSubmit, children }) {
-  return <Modal opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
+  return <Modal classNames={{ content: styles.modal }} opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
     <Stack gap="sm">{children}
-      <Group justify="flex-end" mt="md">
+      <Group className={styles.actions} justify="flex-end" mt="md">
         <Button variant="default" onClick={onClose}>Cancel</Button>
         <Button color="green" loading={saving} onClick={onSubmit} style={{ backgroundColor: '#007336' }}>Save</Button>
       </Group>
     </Stack>
   </Modal>;
 }
-function FR({ children }) { return <Group grow align="flex-start" gap="sm">{children}</Group>; }
+function FR({ children }) { return <Box className={styles.formRow}>{children}</Box>; }
 function FI({ label, field, fv, setFv, textarea, select }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
@@ -104,22 +120,22 @@ function FI({ label, field, fv, setFv, textarea, select }) {
   };
   const autoOpts = getTypeRoleOptions(field);
   
-  const s = { input: { borderColor: '#d1d5db', borderRadius: 6, height: textarea ? undefined : 36 } };
+  const s = { input: { borderColor: '#d1d5db', borderRadius: 6, minHeight: 44 } };
   if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-    <Select data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
+    <Select aria-label={label} data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
   if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-    <Textarea value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
+    <Textarea aria-label={label} value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
   
   if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
   
   // Convert Type and Role fields to dropdowns
   if (isTypeOrRoleField && autoOpts.length > 0) {
     return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-      <Select data={autoOpts} value={val || null} onChange={v => upd(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
+      <Select aria-label={label} data={autoOpts} value={val || null} onChange={v => upd(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
   }
   
   return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-    <TextInput value={val} onChange={e => upd(e.target.value)} styles={s} /></Box>;
+    <TextInput aria-label={label} value={val} onChange={e => upd(e.target.value)} styles={s} /></Box>;
 }
 function SBadge({ v }) {
   const m = {
@@ -157,6 +173,25 @@ export default function SIAEvidenceAIReadinessLayout() {
   const { data: rfiActions, loading: rfL, reload: rRfi } = useApi(loadedCaseId ? `${API}/sia/cases/${loadedCaseId}/rfi-actions` : null, [loadedCaseId]);
 
   // ── child data ───────────────────────────────────────
+  const sections = [
+    { value:'evidence',    label:'Evidence',               icon:<IconFile size={13}/>,           enabled:true },
+    { value:'ev-verif',    label:'Verifications',          icon:<IconShieldCheck size={13}/>,    enabled:!!selEvidence },
+    { value:'sourcefacts', label:'Source Facts',           icon:<IconDatabase size={13}/>,       enabled:true },
+    { value:'aiobs',       label:'AI Observations',        icon:<IconRobot size={13}/>,          enabled:true },
+    { value:'aidisp',      label:'AI Dispositions',        icon:<IconBolt size={13}/>,           enabled:!!selAIObs },
+    { value:'conflicts',   label:'Conflicts',              icon:<IconAlertTriangle size={13}/>,  enabled:true },
+    { value:'cf-resol',    label:'Resolutions',            icon:<IconCheck size={13}/>,          enabled:!!selConflict },
+    { value:'datagaps',    label:'Data Gaps',              icon:<IconX size={13}/>,              enabled:true },
+    { value:'rfi',         label:'RFI Actions',            icon:<IconClipboardCheck size={13}/>, enabled:true },
+    { value:'gap-rfi',     label:'Gap RFIs',               icon:<IconClipboardCheck size={13}/>, enabled:!!selGap },
+    { value:'constraints', label:'Constraints',            icon:<IconLock size={13}/>,           enabled:true },
+    { value:'readiness',   label:'Readiness',              icon:<IconBulb size={13}/>,           enabled:true },
+    { value:'r-conds',     label:'Conditions',             icon:<IconCheck size={13}/>,          enabled:!!selReadiness },
+    { value:'r-blockers',  label:'Blockers',               icon:<IconX size={13}/>,              enabled:!!selReadiness },
+    { value:'r-reviews',   label:'Reviews',                icon:<IconShieldCheck size={13}/>,    enabled:!!selReadiness },
+    { value:'report',      label:'Report',                 icon:<IconFileText size={13}/>,       enabled:true },
+  ];
+
   const eid = selEvidence?.id;
   const aoid = selAIObs?.id;
   const cfid = selConflict?.id;
@@ -214,7 +249,7 @@ export default function SIAEvidenceAIReadinessLayout() {
 
   // ════════════════════════════════════════════════════
   return (
-    <Box p="lg">
+    <Box className={styles.root} p={{ base: 'sm', sm: 'lg' }}>
       {/* Header */}
       <Box mb="lg">
         <Group gap="sm" mb={4}>
@@ -229,7 +264,7 @@ export default function SIAEvidenceAIReadinessLayout() {
 
       {/* Case ID loader */}
       <Paper p="sm" mb="md" style={{ border:'1px solid #e5e7eb', borderRadius:8, backgroundColor:'#f9fafb' }}>
-        <Group justify="space-between" align="center">
+        <Group className={styles.actions} justify="space-between" align="center">
           <Group gap="xs">
             <Text size="xs" fw={700} c="#374151">Active SIA Case:</Text>
             {loadedCaseId
@@ -249,10 +284,8 @@ export default function SIAEvidenceAIReadinessLayout() {
             {selConflict && <Text size="xs" c="#374151">Conflict: <Text span fw={700} c="#007336">{selConflict.conflict_code || selConflict.id}</Text></Text>}
             {selGap && <Text size="xs" c="#374151">Gap: <Text span fw={700} c="#007336">{selGap.gap_code || selGap.id}</Text></Text>}
             {selReadiness && <Text size="xs" c="#374151">Readiness: <Text span fw={700} c="#007336">{selReadiness.discipline}</Text></Text>}
-            <Text size="xs" c="#9ca3af" style={{ marginLeft: 'auto', cursor: 'pointer' }}
-              onClick={() => { setSelEvidence(null); setSelAIObs(null); setSelConflict(null); setSelGap(null); setSelReadiness(null); }}>
-              Clear
-            </Text>
+            <Button variant="subtle" color="gray" size="xs" ml="auto"
+              onClick={() => { setSelEvidence(null); setSelAIObs(null); setSelConflict(null); setSelGap(null); setSelReadiness(null); setTab('evidence'); }}>Clear</Button>
           </Group>
         </Paper>
       )}
@@ -260,27 +293,20 @@ export default function SIAEvidenceAIReadinessLayout() {
       {/* Tabs */}
       {loadedCaseId && (
         <Tabs value={activeTab} onChange={setTab} color="green">
+          <Group className={styles.actions} justify="flex-end" mb="md"><Button color="green" variant="light" leftSection={<IconFileText size={16} />} onClick={() => setTab('report')}>View case report</Button></Group>
+          <Box className={styles.sectionSelect} mb="md">
+            <Select label="Evidence, AI and Readiness section" value={activeTab} onChange={value => value && setTab(value)} allowDeselect={false}
+              data={sections.map(({ value, label, enabled }) => ({ value, label, disabled: !enabled }))} />
+            <Text size="xs" c="dimmed" mt={6} aria-live="polite">Section {sections.findIndex(section => section.value === activeTab) + 1} of {sections.length}</Text>
+            {sections.some(section => !section.enabled) && <Text size="xs" c="dimmed" mt={4}>Select a record to open its verification, disposition, resolution or readiness details.</Text>}
+          </Box>
+          <Box className={styles.sectionStrip}>
           <SIAStepFlow
             activeTab={activeTab}
             onStep={setTab}
-            steps={[
-              { value:'evidence',    label:'Evidence',               icon:<IconFile size={13}/>,           enabled:true },
-              { value:'ev-verif',    label:'Verifications',          icon:<IconShieldCheck size={13}/>,    enabled:!!selEvidence },
-              { value:'sourcefacts', label:'Source Facts',           icon:<IconDatabase size={13}/>,       enabled:true },
-              { value:'aiobs',       label:'AI Observations',        icon:<IconRobot size={13}/>,          enabled:true },
-              { value:'aidisp',      label:'AI Dispositions',        icon:<IconBolt size={13}/>,           enabled:!!selAIObs },
-              { value:'conflicts',   label:'Conflicts',              icon:<IconAlertTriangle size={13}/>,  enabled:true },
-              { value:'cf-resol',    label:'Resolutions',            icon:<IconCheck size={13}/>,          enabled:!!selConflict },
-              { value:'datagaps',    label:'Data Gaps',              icon:<IconX size={13}/>,              enabled:true },
-              { value:'rfi',         label:'RFI Actions',            icon:<IconClipboardCheck size={13}/>, enabled:true },
-              { value:'gap-rfi',     label:'Gap RFIs',               icon:<IconClipboardCheck size={13}/>, enabled:!!selGap },
-              { value:'constraints', label:'Constraints',            icon:<IconLock size={13}/>,           enabled:true },
-              { value:'readiness',   label:'Readiness',              icon:<IconBulb size={13}/>,           enabled:true },
-              { value:'r-conds',     label:'Conditions',             icon:<IconCheck size={13}/>,          enabled:!!selReadiness },
-              { value:'r-blockers',  label:'Blockers',               icon:<IconX size={13}/>,              enabled:!!selReadiness },
-              { value:'r-reviews',   label:'Reviews',                icon:<IconShieldCheck size={13}/>,    enabled:!!selReadiness },
-            ]}
+            steps={sections}
           />
+          </Box>
           <Tabs.List style={{ display:'none' }}>
             <Tabs.Tab value="evidence">Evidence</Tabs.Tab>
             <Tabs.Tab value="ev-verif">Verifications</Tabs.Tab>
@@ -297,6 +323,7 @@ export default function SIAEvidenceAIReadinessLayout() {
             <Tabs.Tab value="r-conds">Conditions</Tabs.Tab>
             <Tabs.Tab value="r-blockers">Blockers</Tabs.Tab>
             <Tabs.Tab value="r-reviews">Reviews</Tabs.Tab>
+            <Tabs.Tab value="report">Report</Tabs.Tab>
           </Tabs.List>
 
           {/* EVIDENCE */}
@@ -308,10 +335,10 @@ export default function SIAEvidenceAIReadinessLayout() {
                   style={{ cursor: 'pointer', backgroundColor: selEvidence?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selEvidence?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selEvidence?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Text size="sm" fw={600} c="#007336">{r.evidence_code}</Text></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selEvidence?.id === r.id} onClick={event => { event.stopPropagation(); setSelEvidence(r); setTab('ev-verif'); }}>{r.evidence_code || r.id}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.evidence_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.source_type || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={160}>{r.file_name || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.file_name || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.captured_at || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
                   <Table.Td><SBadge v={r.evidence_status} /></Table.Td>
@@ -328,7 +355,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.verified_by || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.verification_status} /></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.verification_comment || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.verification_comment || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.verified_at || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
@@ -341,7 +368,7 @@ export default function SIAEvidenceAIReadinessLayout() {
               rows={sourceFacts} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" fw={600}>{r.fact_name || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={150}>{r.fact_value || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.fact_value || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.unit || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.source_type || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
@@ -359,7 +386,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   style={{ cursor: 'pointer', backgroundColor: selAIObs?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selAIObs?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selAIObs?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Text size="sm" fw={600} c="#007336">{r.observation_code}</Text></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selAIObs?.id === r.id} onClick={event => { event.stopPropagation(); setSelAIObs(r); setTab('aidisp'); }}>{r.observation_code || r.id}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.task_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.model_name || '—'} {r.model_version ? `v${r.model_version}` : ''}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.confidence_score != null ? `${(r.confidence_score * 100).toFixed(0)}%` : '—'}</Text></Table.Td>
@@ -377,8 +404,8 @@ export default function SIAEvidenceAIReadinessLayout() {
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><SBadge v={r.disposition} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.reviewer_user_id || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={180}>{r.reviewer_comment || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={120}>{r.modified_value || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.reviewer_comment || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.modified_value || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.disposition_at || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
@@ -393,11 +420,11 @@ export default function SIAEvidenceAIReadinessLayout() {
                   style={{ cursor: 'pointer', backgroundColor: selConflict?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selConflict?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selConflict?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Text size="sm" fw={600} c="#007336">{r.conflict_code || '—'}</Text></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selConflict?.id === r.id} onClick={event => { event.stopPropagation(); setSelConflict(r); setTab('cf-resol'); }}>{r.conflict_code || r.id}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.discipline || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.conflict_type || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280" truncate maw={120}>{r.source_a || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280" truncate maw={120}>{r.source_b || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280" className={styles.description}>{r.source_a || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280" className={styles.description}>{r.source_b || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.priority} /></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
                 </Table.Tr>
@@ -411,8 +438,8 @@ export default function SIAEvidenceAIReadinessLayout() {
             <DataTable loading={crL} cols={['Accepted Value', 'Resolution Reason', 'Status', 'Resolved By', 'Resolved At']}
               rows={cfResols} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                  <Table.Td><Text size="sm" truncate maw={150}>{r.accepted_value || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={180}>{r.resolution_reason || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" className={styles.description}>{r.accepted_value || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.resolution_reason || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.resolution_status} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.resolved_by || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.resolved_at || '—'}</Text></Table.Td>
@@ -429,12 +456,12 @@ export default function SIAEvidenceAIReadinessLayout() {
                   style={{ cursor: 'pointer', backgroundColor: selGap?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selGap?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selGap?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Text size="sm" fw={600} c="#007336">{r.gap_code || '—'}</Text></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selGap?.id === r.id} onClick={event => { event.stopPropagation(); setSelGap(r); setTab('gap-rfi'); }}>{r.gap_code || r.id}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.discipline || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.priority} /></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.target_date || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.gap_description || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.gap_description || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -447,7 +474,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" fw={600} c="#007336">{r.action_code || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm">{r.action_type || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" truncate maw={200}>{r.subject || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" className={styles.description}>{r.subject || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.assigned_to || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.target_date || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
@@ -464,7 +491,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" fw={600} c="#007336">{r.action_code || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm">{r.action_type || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" truncate maw={200}>{r.subject || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" className={styles.description}>{r.subject || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.assigned_to || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
                 </Table.Tr>
@@ -481,7 +508,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Text size="sm">{r.discipline || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={220}>{r.description || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.description || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -495,10 +522,10 @@ export default function SIAEvidenceAIReadinessLayout() {
                   style={{ cursor: 'pointer', backgroundColor: selReadiness?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selReadiness?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selReadiness?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Text size="sm" fw={600}>{r.discipline}</Text></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selReadiness?.id === r.id} onClick={event => { event.stopPropagation(); setSelReadiness(r); setTab('r-conds'); }}>{r.discipline || r.id}</Button></Table.Td>
                   <Table.Td><SBadge v={r.readiness_status} /></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.assessment_date || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={220}>{r.summary || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.summary || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -510,8 +537,8 @@ export default function SIAEvidenceAIReadinessLayout() {
             <DataTable loading={rcL} cols={['Condition', 'Required Action', 'Target Date', 'Status']}
               rows={readyConds} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                  <Table.Td><Text size="sm" truncate maw={200}>{r.condition_description || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.required_action || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" className={styles.description}>{r.condition_description || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.required_action || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.target_date || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
                 </Table.Tr>
@@ -528,7 +555,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Text size="sm">{r.blocker_type || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.severity} /></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={240}>{r.blocker_description || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.blocker_description || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -542,10 +569,14 @@ export default function SIAEvidenceAIReadinessLayout() {
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><SBadge v={r.review_decision} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.reviewer_user_id || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={220}>{r.review_comment || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.review_comment || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
+          </Tabs.Panel>
+          {activeTab === 'r-reviews' && <Group className={styles.actions} justify="flex-end" mt="lg"><Button color="green" rightSection={<IconArrowRight size={16} />} onClick={() => setTab('report')}>Continue to Report</Button></Group>}
+          <Tabs.Panel value="report">
+            {activeTab === 'report' && <SIAEvidenceAIReadinessReport api={API} caseId={loadedCaseId} />}
           </Tabs.Panel>
         </Tabs>
       )}

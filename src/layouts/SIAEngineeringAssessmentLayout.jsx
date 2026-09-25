@@ -1,21 +1,38 @@
-import React, { useEffect, useState } from 'react';
+import React, { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader, Modal,
   Paper, Select, Stack, Tabs, Table, Text, Textarea,
   TextInput, Title, NumberInput, Switch,
 } from '@mantine/core';
 import DatePickerInput from '../components/common/DatePickerInput';
+import SIAEngineeringAssessmentReport from '../components/common/SIAEngineeringAssessmentReport';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconBolt, IconBuildingBridge, IconBuildingSkyscraper,
   IconEngine, IconDroplet, IconRadar, IconShield,
-  IconBuildingFactory2, IconAlertTriangle, IconAlertCircle, IconUserCheck,
+  IconBuildingFactory2, IconAlertTriangle, IconAlertCircle, IconUserCheck, IconFileText, IconArrowRight,
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
 import { autoCode } from '../utils/autoCode';
+import styles from './SIAEngineeringAssessmentLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
+
+const assessmentSections = [
+              { value:'electrical',  label:'Electrical',     icon:<IconBolt size={13}/>,              enabled:true },
+              { value:'civil',       label:'Civil',          icon:<IconBuildingBridge size={13}/>,    enabled:true },
+              { value:'structural',  label:'Structural',     icon:<IconBuildingSkyscraper size={13}/>,enabled:true },
+              { value:'mechanical',  label:'Mechanical',     icon:<IconEngine size={13}/>,            enabled:true },
+              { value:'water',       label:'Water Pumping',  icon:<IconDroplet size={13}/>,           enabled:true },
+              { value:'scada',       label:'SCADA',          icon:<IconRadar size={13}/>,             enabled:true },
+              { value:'hse',         label:'HSE / Env',      icon:<IconShield size={13}/>,            enabled:true },
+              { value:'industrial',  label:'Industrial',     icon:<IconBuildingFactory2 size={13}/>,  enabled:true },
+              { value:'findings',    label:'Findings',       icon:<IconAlertTriangle size={13}/>,     enabled:true },
+              { value:'gaps',        label:'Gaps',           icon:<IconAlertCircle size={13}/>,       enabled:true },
+              { value:'reviews',     label:'Reviews',        icon:<IconUserCheck size={13}/>,         enabled:true },
+              { value:'report',      label:'Report',         icon:<IconFileText size={13}/>,          enabled:true },
+            ];
 
 const DISCIPLINES = ['Electrical', 'Civil', 'Structural', 'Mechanical', 'Water Pumping', 'SCADA', 'HSE/Environment', 'Industrial'];
 const STATUS_OPTS = ['Draft', 'In Progress', 'Completed', 'Verified', 'Rejected'];
@@ -50,22 +67,36 @@ async function postApi(path, body) {
 function EmptyRow({ cols }) {
   return <Table.Tr><Table.Td colSpan={cols} style={{ textAlign: 'center', padding: '30px 0' }}><Text size="sm" c="dimmed">No records found.</Text></Table.Td></Table.Tr>;
 }
+function ResponsiveTable({ children, ...props }) {
+  const parts = Children.toArray(children);
+  const head = parts.find(part => part.type === Table.Thead);
+  const headings = Children.toArray(Children.toArray(head?.props.children)[0]?.props.children).map(cell => cell.props.children);
+  return <Box className={styles.tableViewport}><Table {...props} className={styles.recordTable}>{parts.map(part => {
+    if (part.type !== Table.Tbody) return part;
+    return cloneElement(part, {}, Children.map(part.props.children, row => {
+      if (!isValidElement(row) || row.type !== Table.Tr) return row;
+      return cloneElement(row, {}, Children.map(row.props.children, (cell, index) => isValidElement(cell) && cell.type === Table.Td && !cell.props.colSpan
+        ? cloneElement(cell, { 'data-label': headings[index] || '' }) : cell));
+    }));
+  })}</Table></Box>;
+}
+
 function DataTable({ loading, cols, rows, render }) {
   return (
     <Paper style={{ border: '1px solid #e5e7eb', borderRadius: 8, position: 'relative', minHeight: 120 }}>
       {loading && <Group justify="center" py="xl"><Loader color="green" size="sm" /></Group>}
-      {!loading && <Table verticalSpacing="sm" horizontalSpacing="md">
+      {!loading && <ResponsiveTable verticalSpacing="sm" horizontalSpacing="md">
         <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
           <Table.Tr>{cols.map(c => <Table.Th key={c} style={thS}>{c}</Table.Th>)}</Table.Tr>
         </Table.Thead>
         <Table.Tbody>{rows.length === 0 ? <EmptyRow cols={cols.length} /> : rows.map(render)}</Table.Tbody>
-      </Table>}
+      </ResponsiveTable>}
     </Paper>
   );
 }
 function TabHeader({ title, onAdd, addLabel, disabled = false }) {
   return (
-    <Group justify="space-between" mb="sm">
+    <Group className={styles.actions} justify="space-between" mb="sm">
       <Text fw={600} size="sm" c="#374151">{title}</Text>
       <Button size="xs" color="green" leftSection={<IconPlus size={13} />} disabled={disabled}
         onClick={onAdd} style={{ backgroundColor: disabled ? undefined : '#007336' }}>{addLabel}</Button>
@@ -74,10 +105,10 @@ function TabHeader({ title, onAdd, addLabel, disabled = false }) {
 }
 function FormModal({ opened, onClose, title, saving, onSubmit, children }) {
   return (
-    <Modal opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
+    <Modal classNames={{ content: styles.modal }} opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
       <Stack gap="sm">
         {children}
-        <Group justify="flex-end" mt="md">
+        <Group className={styles.actions} justify="flex-end" mt="md">
           <Button variant="default" onClick={onClose}>Cancel</Button>
           <Button color="green" loading={saving} onClick={onSubmit} style={{ backgroundColor: '#007336' }}>Save</Button>
         </Group>
@@ -85,7 +116,7 @@ function FormModal({ opened, onClose, title, saving, onSubmit, children }) {
     </Modal>
   );
 }
-function FormRow({ children }) { return <Group grow align="flex-start" gap="sm">{children}</Group>; }
+function FormRow({ children }) { return <Box className={styles.formRow}>{children}</Box>; }
 function FI({ label, field, fv, setFv, textarea, number, select, readonly }) {
   const val = fv[field] ?? '';
   const onChange = v => setFv(p => ({ ...p, [field]: v }));
@@ -103,19 +134,19 @@ function FI({ label, field, fv, setFv, textarea, number, select, readonly }) {
   };
   const autoOpts = getTypeRoleOptions(field);
   
-  const s = { input: { borderColor: readonly ? '#bbf7d0' : '#d1d5db', borderRadius: 6, height: textarea ? undefined : 36, backgroundColor: readonly ? '#f0fdf4' : undefined } };
-  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Select data={select} value={val} onChange={v => onChange(v || '')} clearable styles={s} /></Box>;
-  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Textarea value={val} onChange={e => onChange(e.target.value)} autosize minRows={2} styles={s} /></Box>;
-  if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><NumberInput value={val === '' ? undefined : val} onChange={v => onChange(v)} styles={s} /></Box>;
+  const s = { input: { borderColor: readonly ? '#bbf7d0' : '#d1d5db', borderRadius: 6, minHeight: 44, backgroundColor: readonly ? '#f0fdf4' : undefined } };
+  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Select aria-label={label} data={select} value={val} onChange={v => onChange(v || '')} clearable styles={s} /></Box>;
+  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Textarea aria-label={label} value={val} onChange={e => onChange(e.target.value)} autosize minRows={2} styles={s} /></Box>;
+  if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><NumberInput aria-label={label} value={val === '' ? undefined : val} onChange={v => onChange(v)} styles={s} /></Box>;
   
   if (isDateField) return <DatePickerInput label={label} value={val} onChange={onChange} styles={s} />;
   
   // Convert Type and Role fields to dropdowns
   if (isTypeOrRoleField && autoOpts.length > 0) {
-    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Select data={autoOpts} value={val || null} onChange={v => onChange(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Select aria-label={label} data={autoOpts} value={val || null} onChange={v => onChange(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
   }
   
-  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><TextInput value={val} onChange={e => onChange(e.target.value)} readOnly={readonly} styles={s} /></Box>;
+  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><TextInput aria-label={label} value={val} onChange={e => onChange(e.target.value)} readOnly={readonly} styles={s} /></Box>;
 }
 function SBadge({ v }) {
   const m = { completed: '#007336', verified: '#007336', confirmed: '#007336', draft: '#6b7280', 'in progress': '#1971c2', rejected: '#e03131', unverified: '#f08c00', estimated: '#f08c00', 'not assessed': '#6b7280' };
@@ -189,7 +220,7 @@ export default function SIAEngineeringAssessmentLayout() {
   };
 
   return (
-    <Box p="lg">
+    <Box className={styles.root} p={{ base: 'sm', sm: 'lg' }}>
       {/* Header */}
       <Box mb="lg">
         <Group gap="sm" mb={4}>
@@ -202,15 +233,15 @@ export default function SIAEngineeringAssessmentLayout() {
 
       {/* Case ID loader */}
       <Paper p="sm" mb="md" style={{ border:'1px solid #e5e7eb', borderRadius:8, backgroundColor:'#f9fafb' }}>
-        <Group justify="space-between" align="center">
+        <Group className={styles.actions} justify="space-between" align="center">
           <Group gap="xs">
             <Text size="xs" fw={700} c="#374151">Active SIA Case:</Text>
             {caseId
               ? <Text size="xs" fw={600} c="#007336" style={{ fontFamily:'monospace' }}>{caseId}</Text>
               : <Text size="xs" c="red">No active case — create one in Start and Case Control first.</Text>}
           </Group>
-          <Group gap="sm">
-            <Button size="xs" variant="subtle" color="green" onClick={loadByCaseId} disabled={!caseId}>Reload</Button>
+          <Group className={styles.actions} gap="sm">
+            <Button size="xs" variant="subtle" color="green" onClick={() => loadByCaseId(caseId)} disabled={!caseId}>Reload</Button>
             <Button size="xs" color="green" variant="outline" disabled={!caseId}
               onClick={() => openModal('ea', { sia_case_id: caseId, site_id: localStorage.getItem('sia_site_id') || '' })}>+ New Assessment</Button>
           </Group>
@@ -219,10 +250,10 @@ export default function SIAEngineeringAssessmentLayout() {
 
       {/* EA list */}
       {eaList.length > 0 && (
-        <Paper p="md" mb="md" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
+        <Paper p={{ base: 'xs', sm: 'md' }} mb="md" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
           <Text size="xs" fw={700} c="#374151" mb={8}>Select Assessment</Text>
           {eaLoading ? <Loader size="sm" color="green" /> : (
-            <Table verticalSpacing="xs" horizontalSpacing="md">
+            <ResponsiveTable verticalSpacing="xs" horizontalSpacing="md">
               <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
                 <Table.Tr>
                   <Table.Th style={thS}>Code</Table.Th><Table.Th style={thS}>Discipline</Table.Th>
@@ -241,7 +272,7 @@ export default function SIAEngineeringAssessmentLayout() {
                       }}
                       onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                       onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                      <Table.Td><Text size="sm" fw={600} c="#007336">{ea.assessment_code}</Text></Table.Td>
+                      <Table.Td><Button variant="subtle" color="green" className={styles.assessmentButton} aria-pressed={isSel} onClick={event => { event.stopPropagation(); setEa(ea); setTab('electrical'); }}>{ea.assessment_code}</Button></Table.Td>
                       <Table.Td><Text size="sm">{ea.discipline}</Text></Table.Td>
                       <Table.Td><SBadge v={ea.status} /></Table.Td>
                       <Table.Td><SBadge v={ea.reliability_status} /></Table.Td>
@@ -250,7 +281,7 @@ export default function SIAEngineeringAssessmentLayout() {
                   );
                 })}
               </Table.Tbody>
-            </Table>
+            </ResponsiveTable>
           )}
         </Paper>
       )}
@@ -262,7 +293,7 @@ export default function SIAEngineeringAssessmentLayout() {
             <Text size="xs" c="#374151">Assessment: <Text span fw={700} c="#007336">{selectedEa.assessment_code}</Text></Text>
             <Text size="xs" c="#374151">Discipline: <Text span fw={600}>{selectedEa.discipline}</Text></Text>
             <Text size="xs" c="#374151">Status: <Text span fw={600}>{selectedEa.status || '—'}</Text></Text>
-            <Text size="xs" c="#9ca3af" style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={() => setEa(null)}>Clear</Text>
+            <Button variant="subtle" color="gray" size="xs" ml="auto" onClick={() => setEa(null)}>Clear</Button>
           </Group>
         </Paper>
       )}
@@ -270,23 +301,19 @@ export default function SIAEngineeringAssessmentLayout() {
       {/* Tabs — only when an EA is selected */}
       {selectedEa && (
         <Tabs value={activeTab} onChange={setTab} color="green">
+          <Group className={styles.actions} justify="flex-end" mb="md"><Button color="green" variant="light" leftSection={<IconFileText size={16} />} onClick={() => setTab('report')}>View assessment report</Button></Group>
+          <Box className={styles.sectionSelect} mb="md">
+            <Select label="Assessment section" value={activeTab} onChange={value => value && setTab(value)} allowDeselect={false}
+              data={assessmentSections.map(({ value, label }) => ({ value, label }))} />
+            <Text size="xs" c="dimmed" mt={6} aria-live="polite">Section {assessmentSections.findIndex(section => section.value === activeTab) + 1} of {assessmentSections.length}</Text>
+          </Box>
+          <Box className={styles.sectionStrip}>
           <SIAStepFlow
             activeTab={activeTab}
             onStep={setTab}
-            steps={[
-              { value:'electrical',  label:'Electrical',     icon:<IconBolt size={13}/>,              enabled:true },
-              { value:'civil',       label:'Civil',          icon:<IconBuildingBridge size={13}/>,    enabled:true },
-              { value:'structural',  label:'Structural',     icon:<IconBuildingSkyscraper size={13}/>,enabled:true },
-              { value:'mechanical',  label:'Mechanical',     icon:<IconEngine size={13}/>,            enabled:true },
-              { value:'water',       label:'Water Pumping',  icon:<IconDroplet size={13}/>,           enabled:true },
-              { value:'scada',       label:'SCADA',          icon:<IconRadar size={13}/>,             enabled:true },
-              { value:'hse',         label:'HSE / Env',      icon:<IconShield size={13}/>,            enabled:true },
-              { value:'industrial',  label:'Industrial',     icon:<IconBuildingFactory2 size={13}/>,  enabled:true },
-              { value:'findings',    label:'Findings',       icon:<IconAlertTriangle size={13}/>,     enabled:true },
-              { value:'gaps',        label:'Gaps',           icon:<IconAlertCircle size={13}/>,       enabled:true },
-              { value:'reviews',     label:'Reviews',        icon:<IconUserCheck size={13}/>,         enabled:true },
-            ]}
+            steps={assessmentSections}
           />
+          </Box>
           <Tabs.List style={{ display:'none' }}>
             <Tabs.Tab value="electrical">Electrical</Tabs.Tab>
             <Tabs.Tab value="civil">Civil</Tabs.Tab>
@@ -299,6 +326,7 @@ export default function SIAEngineeringAssessmentLayout() {
             <Tabs.Tab value="findings">Findings</Tabs.Tab>
             <Tabs.Tab value="gaps">Gaps</Tabs.Tab>
             <Tabs.Tab value="reviews">Reviews</Tabs.Tab>
+            <Tabs.Tab value="report">Report</Tabs.Tab>
           </Tabs.List>
 
           {/* ELECTRICAL */}
@@ -443,7 +471,7 @@ export default function SIAEngineeringAssessmentLayout() {
                   <Table.Td><SBadge v={r.severity} /></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.description || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.description || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -459,7 +487,7 @@ export default function SIAEngineeringAssessmentLayout() {
                   <Table.Td><SBadge v={r.priority} /></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.target_date || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.description || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.description || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -476,6 +504,10 @@ export default function SIAEngineeringAssessmentLayout() {
                   <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
+          </Tabs.Panel>
+          {activeTab === 'reviews' && <Group className={styles.actions} justify="flex-end" mt="lg"><Button color="green" rightSection={<IconArrowRight size={16} />} onClick={() => setTab('report')}>Continue to Report</Button></Group>}
+          <Tabs.Panel value="report">
+            {activeTab === 'report' && <SIAEngineeringAssessmentReport api={API} assessmentId={eid} caseId={caseId} />}
           </Tabs.Panel>
         </Tabs>
       )}
@@ -556,7 +588,7 @@ export default function SIAEngineeringAssessmentLayout() {
         <FormRow><FI label="Pump Power (kW)" field="pump_power_kw" fv={fv} setFv={setFv} number /><FI label="Pump Condition" field="pump_condition" fv={fv} setFv={setFv} /></FormRow>
         <FormRow><FI label="Tank Capacity (L)" field="tank_capacity" fv={fv} setFv={setFv} number /><FI label="Required Pressure (bar)" field="required_pressure" fv={fv} setFv={setFv} number /></FormRow>
         <FI label="Controller Type" field="controller_type" fv={fv} setFv={setFv} />
-        <Group mt="sm"><Text size="xs" fw={600} c="#374151">Monitoring Available</Text><Switch checked={!!fv.monitoring_available} onChange={(e) => { const v = e.currentTarget.checked; setFv(p => ({ ...p, monitoring_available: v })); }} color="green" /></Group>
+        <Group mt="sm"><Text size="xs" fw={600} c="#374151">Monitoring Available</Text><Switch aria-label="Monitoring Available" checked={!!fv.monitoring_available} onChange={(e) => { const v = e.currentTarget.checked; setFv(p => ({ ...p, monitoring_available: v })); }} color="green" /></Group>
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
       </FormModal>
 
@@ -568,7 +600,7 @@ export default function SIAEngineeringAssessmentLayout() {
         <FI label="Sensor Details" field="sensor_details" fv={fv} setFv={setFv} textarea />
         <Group mt="sm" gap="xl">
           {[['scada_available', 'SCADA Available'], ['network_available', 'Network'], ['telemetry_available', 'Telemetry'], ['remote_monitoring', 'Remote Monitoring']].map(([f, l]) => (
-            <Group key={f} gap="xs"><Text size="xs" fw={600} c="#374151">{l}</Text><Switch checked={!!fv[f]} onChange={(e) => { const v = e.currentTarget.checked; setFv(p => ({ ...p, [f]: v })); }} color="green" /></Group>
+            <Group key={f} gap="xs"><Text size="xs" fw={600} c="#374151">{l}</Text><Switch aria-label={l} checked={!!fv[f]} onChange={(e) => { const v = e.currentTarget.checked; setFv(p => ({ ...p, [f]: v })); }} color="green" /></Group>
           ))}
         </Group>
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
@@ -586,7 +618,7 @@ export default function SIAEngineeringAssessmentLayout() {
         <FI label="Environmental Condition" field="environmental_condition" fv={fv} setFv={setFv} textarea />
         <FI label="Environmental Constraint" field="environmental_constraint" fv={fv} setFv={setFv} textarea />
         <FI label="HSE Constraint" field="hse_constraint" fv={fv} setFv={setFv} textarea />
-        <Group mt="sm"><Text size="xs" fw={600} c="#374151">Restricted Area</Text><Switch checked={!!fv.restricted_area} onChange={(e) => { const v = e.currentTarget.checked; setFv(p => ({ ...p, restricted_area: v })); }} color="red" /></Group>
+        <Group mt="sm"><Text size="xs" fw={600} c="#374151">Restricted Area</Text><Switch aria-label="Restricted Area" checked={!!fv.restricted_area} onChange={(e) => { const v = e.currentTarget.checked; setFv(p => ({ ...p, restricted_area: v })); }} color="red" /></Group>
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
       </FormModal>
 

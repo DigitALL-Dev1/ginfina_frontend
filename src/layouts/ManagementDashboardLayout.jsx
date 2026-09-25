@@ -276,7 +276,7 @@ export default function ManagementDashboardLayout() {
             <Title order={4} fw={700} fz={15} c="#111827" mb="sm">
               UNICEF pilot engineering packages
             </Title>
-            <Table verticalSpacing="xs" horizontalSpacing="sm" style={{ minWidth: 400 }}>
+            <Table.ScrollContainer minWidth={560} type="native"><Table verticalSpacing="xs" horizontalSpacing="sm" style={{ minWidth: 400 }}>
               <Table.Thead>
                 <Table.Tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                   <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>EWP ID</Table.Th>
@@ -328,7 +328,7 @@ export default function ManagementDashboardLayout() {
                   );
                 })}
               </Table.Tbody>
-            </Table>
+            </Table></Table.ScrollContainer>
           </Paper>
         </Grid.Col>
 
