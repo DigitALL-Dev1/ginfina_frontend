@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../utils/dateOnly';
 import { useState, useMemo } from 'react';
 import {
   Box, Button, Grid, Group, Paper, Select, MultiSelect,
@@ -233,7 +234,7 @@ export default function MyWorkLayout() {
                           </Badge>
                         </Table.Td>
                         <Table.Td style={{ padding: '12px 14px' }}>
-                          <Text size="sm" c="#6b7280">{row.due}</Text>
+                          <Text size="sm" c="#6b7280">{formatDisplayValue(row.due)}</Text>
                         </Table.Td>
                       </Table.Tr>
                     );

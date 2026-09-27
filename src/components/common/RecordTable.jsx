@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../../utils/dateOnly';
 import { ActionIcon, Group, Paper, ScrollArea, Table, Text, LoadingOverlay } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { useState, useEffect } from 'react';
@@ -96,7 +97,7 @@ export default function RecordTable({ title = 'Controlled records', search = '',
                     <StatusBadge status={project.project_status} />
                   </Table.Td>
                   <Table.Td>
-                    <Text size="xs">{project.start_date}</Text>
+                    <Text size="xs">{formatDisplayValue(project.start_date)}</Text>
                   </Table.Td>
                   <Table.Td>
                     <ActionIcon variant="subtle" color="green" onClick={() => onOpen?.(project)}>
@@ -150,7 +151,7 @@ export default function RecordTable({ title = 'Controlled records', search = '',
                 <Table.Td>
                   <StatusBadge status={row.status} />
                 </Table.Td>
-                <Table.Td>{row.due}</Table.Td>
+                <Table.Td>{formatDisplayValue(row.due)}</Table.Td>
                 <Table.Td>
                   <ActionIcon variant="subtle" color="green" onClick={() => onOpen?.(row)}>
                     <IconChevronRight size={16} />

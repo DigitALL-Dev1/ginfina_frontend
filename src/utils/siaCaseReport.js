@@ -1,3 +1,5 @@
+import { formatDisplayValue } from './dateOnly';
+
 const display = value => value === null || value === undefined || value === '' ? 'Not provided' : String(value);
 
 export function buildSiaCaseReport(project, siaCase, links, packs) {
@@ -81,7 +83,7 @@ export async function downloadSiaReport(report, options = {}) {
   field(reference, report.code);
   for (const section of report.sections) {
     heading(section.title);
-    for (const entry of section.fields) field(entry.label, entry.value);
+    for (const entry of section.fields) field(entry.label, formatDisplayValue(entry.value));
   }
   if (report.packs) {
     heading(`Linked assessment packs (${report.packs.length})`, 155);

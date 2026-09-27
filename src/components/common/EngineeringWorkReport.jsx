@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../../utils/dateOnly';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { IconDownload, IconRefresh } from '@tabler/icons-react';
@@ -52,7 +53,7 @@ export default function EngineeringWorkReport({ ewp, source, links, activityVers
     {(result?.error || error || downloadError) && <Alert color="red" title="Unable to prepare report">{result?.error || error || downloadError}</Alert>}
     {report && <Stack gap="xl"><Text fw={600}>{report.code}</Text>
       <SimpleGrid cols={{ base: 1, sm: 3 }}>{report.counts.map(count => <Paper key={count.label} withBorder p="sm"><Text size="xs" c="dimmed">{count.label}</Text><Text size="xl" fw={700}>{count.value}</Text></Paper>)}</SimpleGrid>
-      {report.sections.map((section, index) => <Box key={index}><Title order={4} mb="md">{section.title}</Title><SimpleGrid cols={{ base: 1, sm: 2 }}>{section.fields.map((field, fieldIndex) => <Box key={fieldIndex} style={{ minWidth: 0 }}><Text size="xs" c="dimmed">{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{field.value}</Text></Box>)}</SimpleGrid></Box>)}
+      {report.sections.map((section, index) => <Box key={index}><Title order={4} mb="md">{section.title}</Title><SimpleGrid cols={{ base: 1, sm: 2 }}>{section.fields.map((field, fieldIndex) => <Box key={fieldIndex} style={{ minWidth: 0 }}><Text size="xs" c="dimmed">{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{formatDisplayValue(field.value)}</Text></Box>)}</SimpleGrid></Box>)}
     </Stack>}
   </Paper>;
 }

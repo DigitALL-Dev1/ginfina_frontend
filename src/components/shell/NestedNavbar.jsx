@@ -2,6 +2,8 @@
 import { Link, matchPath, useLocation } from 'react-router-dom';
 import { IconFolder, IconMap2 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
+import { visibleNavigation } from '../../utils/moduleAccess';
 import { navigationGroups } from '../../config/navigation';
 import { resolveDemoPath } from '../../utils/routes';
 
@@ -12,7 +14,9 @@ const groupTitle = label => label.includes('Site Intelligence') ? 'Site Intellig
 
 export default function NestedNavbar({ onNavigate }) {
   const { pathname } = useLocation();
-  const activeGroup = navigationGroups.find(group => groupItems(group).some(item => matchPath(item.route, pathname)))?.label;
+  const { user } = useAuth();
+  const groups = visibleNavigation(navigationGroups, user?.role);
+  const activeGroup = groups.find(group => groupItems(group).some(item => matchPath(item.route, pathname)))?.label;
   const [expandedModule, setExpandedModule] = useState(activeGroup || null);
   useEffect(() => { setExpandedModule(activeGroup || null); }, [activeGroup]);
   const renderLink = item => (
@@ -29,7 +33,7 @@ export default function NestedNavbar({ onNavigate }) {
     <Divider />
     <ScrollArea className="gx1-navigation-scroll" p="xs" type="auto">
       <Box component="nav" aria-label="Engineering modules" className="gx1-navigation">
-        {navigationGroups.filter(group => groupItems(group).length).map(group => (
+        {groups.filter(group => groupItems(group).length).map(group => (
           <NavLink component="button" type="button" key={group.label} label={groupTitle(group.label)} leftSection={<IconFolder size={19} />}
             aria-expanded={expandedModule === group.label}
             opened={expandedModule === group.label} onChange={opened => setExpandedModule(opened ? group.label : null)}

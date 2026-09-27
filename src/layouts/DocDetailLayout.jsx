@@ -1,3 +1,4 @@
+import { formatDate } from '../utils/dateOnly';
 import { useState, useEffect } from 'react';
 import {
   Box, Button, Grid, Group, Paper, Select,
@@ -236,7 +237,7 @@ function OverviewTab({ docRevisionData, isLoading }) {
               </Grid.Col>
               <Grid.Col span={6}>
                 <Text size="11px" c="#9ca3af">Last Updated:</Text>
-                <Text size="xs" c="#374151">{docRevisionData.updated_at ? new Date(docRevisionData.updated_at).toLocaleDateString() : 'N/A'}</Text>
+                <Text size="xs" c="#374151">{docRevisionData.updated_at ? formatDate(docRevisionData.updated_at) : 'N/A'}</Text>
               </Grid.Col>
             </Grid>
           </Box>

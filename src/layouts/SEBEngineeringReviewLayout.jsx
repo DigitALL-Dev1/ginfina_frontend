@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../utils/dateOnly';
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Box, Button, Group, Loader, Paper, Progress, Select, SimpleGrid, Stack, Table, Text, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -16,7 +17,7 @@ async function request(path, options = {}) {
   if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.detail || `Request failed (HTTP ${response.status})`); }
   return response.json();
 }
-const value = item => item === null || item === undefined || item === '' ? '—' : typeof item === 'object' ? 'Recorded details' : String(item);
+const value = item => item === null || item === undefined || item === '' ? '—' : typeof item === 'object' ? 'Recorded details' : String(formatDisplayValue(item));
 
 function Steps({ active }) {
   return <Paper withBorder p={{ base: 'sm', sm: 'md' }} mb="lg">

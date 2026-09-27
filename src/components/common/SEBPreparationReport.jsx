@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../../utils/dateOnly';
 import { useMemo, useState } from 'react';
 import { Alert, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
@@ -35,7 +36,7 @@ export default function SEBPreparationReport({ baseline, revision, siaCase, site
     {report && <Stack gap="xl">
       <Text fw={600}>{report.code} · {report.itemCount} saved SEB {report.itemCount === 1 ? 'item' : 'items'}</Text>
       {report.sections.map((section, index) => <Box key={index}><Title order={4} mb="md">{section.title}</Title>
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">{section.fields.map((field, fieldIndex) => <Box key={fieldIndex} style={{ minWidth: 0 }}><Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{field.value}</Text></Box>)}</SimpleGrid>
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">{section.fields.map((field, fieldIndex) => <Box key={fieldIndex} style={{ minWidth: 0 }}><Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{formatDisplayValue(field.value)}</Text></Box>)}</SimpleGrid>
       </Box>)}
     </Stack>}
   </Paper>;

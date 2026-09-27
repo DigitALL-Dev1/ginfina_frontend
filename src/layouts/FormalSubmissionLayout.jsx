@@ -147,7 +147,7 @@ function StepContext({ form, onChange, ewpOptions, ewpMap, isLoadingEwp }) {
             <DatePickerInput aria-label="Target review due date"
               value={form.targetDate}
               onChange={value => onChange('targetDate', value)}
-              placeholder="YYYY-MM-DD"
+              placeholder="DD/MMM/YYYY"
               styles={inputSt}
             />
             <H>DatePickerInput · SLA validated</H></Box>

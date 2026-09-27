@@ -1,3 +1,4 @@
+import { formatDate, formatDisplayValue } from '../utils/dateOnly';
 import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader,
@@ -5,6 +6,8 @@ import {
   TextInput, Title, NumberInput, Switch, Modal, Select,
 } from '@mantine/core';
 import DatePickerInput from '../components/common/DatePickerInput';
+import PhoneNumberInput from '../components/common/PhoneNumberInput';
+import { phoneNumberError } from '../utils/phoneNumber';
 import SIASitesSurveyReport from '../components/common/SIASitesSurveyReport';
 import { notifications } from '@mantine/notifications';
 import {
@@ -176,6 +179,8 @@ function FI({ label, field, form, textarea, number, select }) {
   const val = form.values[field] ?? '';
   const onChange = (v) => form.setFieldValue(field, v);
   
+  if (field === 'contact_phone') return <PhoneNumberInput label={label} value={val} onChange={onChange} />;
+
   // Auto-detect Type and Role fields and convert to dropdowns
   const fieldLower = field.toLowerCase();
   const isTypeOrRoleField = fieldLower.includes('type') || fieldLower.includes('role');
@@ -386,6 +391,10 @@ export default function SIASitesSurveyLayout() {
   const closeModal = () => { setModal(null); setFormValues({}); };
 
   const save = async (path, body, reload) => {
+    if (path === '/sia/sites' && phoneNumberError(body.contact_phone)) {
+      notifications.show({ title: 'Check contact phone', message: phoneNumberError(body.contact_phone), color: 'red' });
+      return;
+    }
     setSaving(true);
     const cleaned = Object.fromEntries(
       Object.entries(body).map(([k, v]) => [k, v === '' ? null : v])
@@ -510,7 +519,7 @@ export default function SIASitesSurveyLayout() {
                           </Table.Td>
                           <Table.Td>
                             <Text size="xs" c="#9ca3af">
-                              {new Date(c.created_at).toLocaleDateString()}
+                              {formatDate(c.created_at)}
                             </Text>
                           </Table.Td>
                           <Table.Td>
@@ -834,7 +843,7 @@ export default function SIASitesSurveyLayout() {
                     <Table.Td><Text size="sm" fw={700} c="#007336">{v.visit_code || '—'}</Text></Table.Td>
                     <Table.Td><Text size="sm">{v.visit_type || '—'}</Text></Table.Td>
                     <Table.Td><Text size="sm" c="#6b7280">{v.purpose || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="xs" c="#6b7280">{v.planned_date || '—'}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(v.planned_date || '—')}</Text></Table.Td>
                     <Table.Td><StatusBadge v={v.status} /></Table.Td>
                     <Table.Td>
                       <Button size="xs" variant="subtle" color="green" rightSection={<IconArrowRight size={12} />}
@@ -1036,7 +1045,7 @@ export default function SIASitesSurveyLayout() {
           <FI label="Visit Type" field="visit_type" form={form} />
         </FormRow>
         <FI label="Purpose" field="purpose" form={form} />
-        <FI label="Planned Date (YYYY-MM-DD)" field="planned_date" form={form} />
+        <FI label="Planned Date (DD/MMM/YYYY)" field="planned_date" form={form} />
         <FI label="Status" field="status" form={form} select={['Planned', 'In Progress', 'Completed', 'Cancelled']} />
       </FormModal>
 
@@ -1131,7 +1140,7 @@ function VisitBanner({ visit, onClear }) {
         <IconCalendar size={13} color="#007336" />
         <Text size="xs" c="#374151">Visit: <Text span fw={600} c="#007336">{visit.visit_code}</Text></Text>
         {visit.visit_type && <Text size="xs" c="#6b7280">· {visit.visit_type}</Text>}
-        {visit.planned_date && <Text size="xs" c="#9ca3af">· {visit.planned_date}</Text>}
+        {visit.planned_date && <Text size="xs" c="#9ca3af">· {formatDisplayValue(visit.planned_date)}</Text>}
         <StatusBadge v={visit.status} />
         <Text size="xs" c="#9ca3af" style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={onClear}>Clear</Text>
       </Group>

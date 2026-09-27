@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../utils/dateOnly';
 import DatePickerInput from '../components/common/DatePickerInput';
 import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
@@ -60,7 +61,7 @@ function Workflow({ activeStep }) {
 
 function formatValue(value) {
   if (value === null || value === undefined || value === '') return '—';
-  return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  return typeof value === 'object' ? JSON.stringify(value, (_key, item) => formatDisplayValue(item)) : String(formatDisplayValue(value));
 }
 
 function factKey(name, record) {
@@ -472,7 +473,7 @@ export default function SEBPreparationLayout() {
         {revisionLoading ? <Loader size="sm" color="green" /> : revisions.length > 0 && <ResponsiveTable label="SEB revisions" highlightOnHover withTableBorder>
           <Table.Thead><Table.Tr><Table.Th>Select</Table.Th><Table.Th>Revision No</Table.Th><Table.Th>Status</Table.Th><Table.Th>Issue Date</Table.Th><Table.Th>Prepared By</Table.Th></Table.Tr></Table.Thead>
           <Table.Tbody>{revisions.map(item => <Table.Tr key={item.id} style={{ cursor: 'pointer', backgroundColor: revision?.id === item.id ? '#f0fdf4' : undefined }}>
-            <Table.Td><Button size="xs" variant="light" color="green" onClick={() => { setRevision(item); setSourcePackage(null); setReviewed(false); setReviewItems([]); setSubmittedForReview(false); setCreatedFactKeys(new Set()); localStorage.setItem('seb_revision_id', item.id); }}>{revision?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.revision_no}</Text></Table.Td><Table.Td>{item.revision_status || '—'}</Table.Td><Table.Td>{item.issue_date || '—'}</Table.Td><Table.Td>{item.prepared_by || '—'}</Table.Td>
+            <Table.Td><Button size="xs" variant="light" color="green" onClick={() => { setRevision(item); setSourcePackage(null); setReviewed(false); setReviewItems([]); setSubmittedForReview(false); setCreatedFactKeys(new Set()); localStorage.setItem('seb_revision_id', item.id); }}>{revision?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.revision_no}</Text></Table.Td><Table.Td>{item.revision_status || '—'}</Table.Td><Table.Td>{formatDisplayValue(item.issue_date || '—')}</Table.Td><Table.Td>{item.prepared_by || '—'}</Table.Td>
           </Table.Tr>)}</Table.Tbody>
         </ResponsiveTable>}
         </Box>}

@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../utils/dateOnly';
 import { useEffect, useState } from 'react';
 import {
   Alert, Badge, Box, Button, Checkbox, Divider, Grid, Group, Loader,
@@ -65,9 +66,9 @@ function formatLabel(value) {
 function formatValue(value) {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'object') return recordFields({ details: displayRecord(value) })
-    .map(field => `${field.label.replace(/^Details\s*\/\s*/, '')}: ${field.value}`).join('\n');
+    .map(field => `${field.label.replace(/^Details\s*\/\s*/, '')}: ${formatDisplayValue(field.value)}`).join('\n');
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  return String(value);
+  return String(formatDisplayValue(value));
 }
 
 function ModuleTable({ name, records }) {

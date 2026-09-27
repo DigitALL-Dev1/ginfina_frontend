@@ -1,3 +1,4 @@
+import { formatDateTime, formatDisplayValue } from '../utils/dateOnly';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -37,7 +38,7 @@ function Status({ value }) {
 }
 
 function Field({ label, value }) {
-  return <Box><Text size="xs" c="dimmed" mb={3}>{label}</Text><Text size="sm" fw={650} style={{ overflowWrap: 'anywhere' }}>{value || 'Not recorded'}</Text></Box>;
+  return <Box><Text size="xs" c="dimmed" mb={3}>{label}</Text><Text size="sm" fw={650} style={{ overflowWrap: 'anywhere' }}>{formatDisplayValue(value) || 'Not recorded'}</Text></Box>;
 }
 
 function ReadinessDetails({ item }) {
@@ -46,7 +47,7 @@ function ReadinessDetails({ item }) {
   const blocker = readiness.blocked || {};
   return <Stack gap="xs">
     <Status value={typeof item.readiness === 'string' ? item.readiness : readiness.status} />
-    {condition.enabled && <Alert color="orange" title="Condition"><Text size="sm">{condition.condition}</Text><Text size="xs">Action: {condition.required_action || 'Not recorded'}</Text><Text size="xs">Owner: {condition.owner || 'Not recorded'} · Target: {condition.target_date || 'Not recorded'}</Text></Alert>}
+    {condition.enabled && <Alert color="orange" title="Condition"><Text size="sm">{condition.condition}</Text><Text size="xs">Action: {condition.required_action || 'Not recorded'}</Text><Text size="xs">Owner: {condition.owner || 'Not recorded'} · Target: {formatDisplayValue(condition.target_date || 'Not recorded')}</Text></Alert>}
     {blocker.enabled && <Alert color="red" title="Blocker"><Text size="sm">{blocker.blocker}</Text><Text size="xs">{blocker.reason}</Text><Text size="xs">Owner: {blocker.owner || 'Not recorded'} · Related fact/gap: {blocker.related_fact_or_gap || blocker.related_fact_id || 'Not recorded'}</Text></Alert>}
   </Stack>;
 }
@@ -189,7 +190,7 @@ export default function EWPApprovalReleaseLayout() {
             <Text size="sm" c="dimmed">Inputs remain linked to the frozen SEB release used by this EWP.</Text>
             <Accordion variant="separated">{pkg.inputs.map(row => <Accordion.Item value={row.link_id} key={row.link_id}><Accordion.Control><Text size="sm" fw={600}>{row.item.display_value || row.item.item_name || row.release_item_id}</Text><Text size="xs" c="dimmed">{row.item.discipline || 'Discipline not recorded'}</Text></Accordion.Control><Accordion.Panel><ReadinessDetails item={row.item} /><Text size="xs" c="dimmed" mt="sm">Released item: {row.release_item_id}</Text><Text size="xs" c="dimmed">Source fact: {row.item.fact_id || row.item.source_reference?.fact_id || 'Not recorded'}</Text></Accordion.Panel></Accordion.Item>)}</Accordion>
             {!pkg.inputs.length && <Text size="sm" c="dimmed">No SEB inputs recorded.</Text>}
-            {pkg.input_confirmations.map(row => <Field key={row.id} label="Engineering inputs confirmed by" value={`${row.confirmed_by || 'Not recorded'} · ${row.confirmed_at || ''}`} />)}
+            {pkg.input_confirmations.map(row => <Field key={row.id} label="Engineering inputs confirmed by" value={`${row.confirmed_by || 'Not recorded'} · ${formatDisplayValue(row.confirmed_at || '')}`} />)}
             {approval?.condition && <Alert color="orange" title="Approval condition">{approval.condition}</Alert>}
           </Stack></Tabs.Panel>
           <Tabs.Panel value="traceability" pt="md"><Stack>
@@ -218,7 +219,7 @@ export default function EWPApprovalReleaseLayout() {
         {approval.condition && <Alert color="orange" title="Release condition">{approval.condition}</Alert>}
         {['CHANGE_REQUIRED', 'REJECTED'].includes(context.status) && <Alert color="orange">Create a new document revision in Documents & Reviews, resolve the decision, and complete technical review again.</Alert>}
         {context.status === 'READY_FOR_RELEASE' && <><Divider /><Group justify="space-between"><Box><Text fw={700}>Ready for controlled release</Text><Text size="sm" c="dimmed">Release freezes this revision and its approval package.</Text></Box><Button color="green" leftSection={<IconLock size={16} />} disabled={!canRelease || saving} onClick={() => { setReleaseComment(''); setReleaseModal(true); }}>Release {pkg.revision.revision_no}</Button></Group></>}
-        {release && <Alert color="green" icon={<IconLock size={18} />} title={`${pkg.revision.revision_no} released and locked`}>Released by {release.released_by} on {new Date(release.released_at).toLocaleString()}. Engineering changes require a new revision.</Alert>}
+        {release && <Alert color="green" icon={<IconLock size={18} />} title={`${pkg.revision.revision_no} released and locked`}>Released by {release.released_by} on {formatDateTime(release.released_at)}. Engineering changes require a new revision.</Alert>}
         <Group><Button component={Link} to="/ginfina/ewp/documents-reviews" variant="subtle" color="green">Open Documents & Reviews</Button></Group>
       </Stack></Paper>}
     </>}

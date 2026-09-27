@@ -1,3 +1,4 @@
+import { formatDate } from '../utils/dateOnly';
 import { useState, useEffect } from 'react';
 import {
   Box,
@@ -282,7 +283,7 @@ function OverviewTab({
             <OutputRow
               label="Accepted timestamp"
               sub="Controlled system output"
-              value={ewoData?.updated_at ? new Date(ewoData.updated_at).toLocaleDateString() : 'Pending'}
+              value={ewoData?.updated_at ? formatDate(ewoData.updated_at) : 'Pending'}
             />
             <OutputRow
               label="Clarification request"

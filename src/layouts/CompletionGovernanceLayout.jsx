@@ -1,3 +1,4 @@
+import { formatDateTime } from '../utils/dateOnly';
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Box, Button, Divider, Group, Loader, Modal, Paper, Progress,
   Select, SimpleGrid, Stack, Table, Text, Textarea, TextInput, ThemeIcon, Title } from '@mantine/core';
@@ -108,7 +109,7 @@ export default function CompletionGovernanceLayout() {
           <Text size="sm" mt="lg" mb="xs">{passed} of {checks.length} completion checks satisfied</Text><Progress color="green" value={checks.length ? passed / checks.length * 100 : 0} />
           <SimpleGrid cols={{ base: 2, lg: 4 }} mt="lg">{[['Required checks', checks.length], ['Satisfied', passed], ['Failed checks', summary.blockers.length], ['Open conditions / actions', summary.obligations.filter(o => o.status === 'OPEN').length]].map(([label, count]) => <Box key={label}><Text size="xs" c="dimmed">{label}</Text><Text size="xl" fw={800}>{count}</Text></Box>)}</SimpleGrid>
         </Paper>
-        {closed ? <Alert color="green" icon={<IconLock size={18} />} title="EWP closed">Closed by {closure.approved_by} on {new Date(closure.closed_at).toLocaleString()}. The checklist below is the saved closure snapshot.</Alert>
+        {closed ? <Alert color="green" icon={<IconLock size={18} />} title="EWP closed">Closed by {closure.approved_by} on {formatDateTime(closure.closed_at)}. The checklist below is the saved closure snapshot.</Alert>
           : summary.blockers.length ? <Alert color="red" icon={<IconAlertTriangle size={18} />} title="Completion blockers"><Stack gap={4}>{summary.blockers.flatMap(c => c.issues.map((issue, i) => <Text size="sm" key={`${c.id}-${i}`}>&bull; {issue}</Text>))}</Stack></Alert>
           : <Alert color="green" icon={<IconCheck size={18} />} title="Ready for closure">All mandatory source checks pass. Complete governance verification and submit for closure review.</Alert>}
         <Paper withBorder radius="lg" style={surface}><Box p={{ base: 'sm', sm: 'lg' }}><Title order={4}>Completion checklist</Title><Text size="sm" c="dimmed">Calculated from saved records. Resolve failed checks in their originating module.</Text></Box><Divider />
@@ -125,12 +126,12 @@ export default function CompletionGovernanceLayout() {
             {!closed && <><Text size="sm" c="dimmed">Review the completion summary and record the accountable reviewer and evidence.</Text><Button color="green" disabled={!summary.ready_for_closure || saving} onClick={() => openAction('governance')}>Run governance checks</Button></>}
           </Stack></Paper>
           <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}><Title order={4} mb="md">Closure control</Title><Stack><Text size="sm" c="dimmed">Ready for closure &rarr; Completion review &rarr; Closed</Text>
-            {state.submitted_by && <Text size="sm">Submitted by {state.submitted_by} on {new Date(state.submitted_at).toLocaleString()}.</Text>}
+            {state.submitted_by && <Text size="sm">Submitted by {state.submitted_by} on {formatDateTime(state.submitted_at)}.</Text>}
             {!closed && <><Button color="green" disabled={!canSubmit || saving} onClick={() => openAction('submit')}>Submit for Closure</Button><Button color="green" leftSection={<IconLock size={16} />} disabled={!canClose || saving} onClick={() => openAction('close')}>Approve Closure</Button></>}
             {closed && <><Text size="sm">{closure.comment}</Text><Text size="xs" c="dimmed" style={{ overflowWrap: 'anywhere' }}>Closure snapshot: {closure.snapshot_hash}</Text></>}
           </Stack></Paper>
         </SimpleGrid>
-        {!!state.history?.length && <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}><Title order={4} mb="md">Governance history</Title><Stack gap="sm">{[...state.history].reverse().map(h => <Box key={h.id}><Text size="sm" fw={600}>{h.action.replaceAll('_', ' ')} &middot; {h.actor}</Text><Text size="xs" c="dimmed">{new Date(h.at).toLocaleString()} &middot; {h.comment}</Text></Box>)}</Stack></Paper>}
+        {!!state.history?.length && <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}><Title order={4} mb="md">Governance history</Title><Stack gap="sm">{[...state.history].reverse().map(h => <Box key={h.id}><Text size="sm" fw={600}>{h.action.replaceAll('_', ' ')} &middot; {h.actor}</Text><Text size="xs" c="dimmed">{formatDateTime(h.at)} &middot; {h.comment}</Text></Box>)}</Stack></Paper>}
       </>}
       {ewpId && <CompletionGovernanceReport key={ewpId} summary={summary} ewpId={ewpId}
         busy={loading || listLoading || saving} loadError={error} onReload={() => { setError(''); setRefresh(value => value + 1); }} />}

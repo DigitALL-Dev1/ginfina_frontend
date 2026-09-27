@@ -1,8 +1,10 @@
 import { Alert, Anchor, Button, Center, Checkbox, Group, Image, Paper, PasswordInput, PinInput, Stack, Text, TextInput, Title, Box, LoadingOverlay } from '@mantine/core';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import { postJson } from '../services/apiClient';
+import { useAuth } from '../components/auth/AuthProvider';
+import { roleHome } from '../utils/moduleAccess';
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ marginRight: '8px' }}>
@@ -26,8 +28,16 @@ export default function AuthScreen({ spec }) {
   const [tempToken, setTempToken] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const verifying = useRef(false);
+  const signingIn = useRef(false);
+  const [authError, setAuthError] = useState('');
   
   const navigate = useNavigate();
+  const { signIn } = useAuth();
+  const finishSignIn = response => {
+    const role = signIn(response);
+    navigate(roleHome(role), { replace: true });
+  };
   const [searchParams] = useSearchParams();
   const urlToken = searchParams.get('token');
 
@@ -102,6 +112,9 @@ export default function AuthScreen({ spec }) {
 
   const handleSignIn = async (e) => {
     if (e) e.preventDefault();
+    if (signingIn.current) return;
+    signingIn.current = true;
+    setAuthError('');
     setLoading(true);
     try {
       const response = await postJson('/auth/login', { 
@@ -111,6 +124,7 @@ export default function AuthScreen({ spec }) {
       });
 
       if (response && response.mfa_required) {
+        setMfaCode('');
         setTempToken(response.temp_token);
         notifications.show({
           title: 'MFA Required',
@@ -119,43 +133,43 @@ export default function AuthScreen({ spec }) {
         });
         setStep('mfa');
       } else {
-        setStep('success');
+        finishSignIn(response);
       }
     } catch (err) {
+      setAuthError(err.message || 'Unable to sign in. Please try again.');
       notifications.show({
         title: 'Authentication Failed',
         message: err.message || 'Invalid username or password.',
         color: 'red'
       });
     } finally {
+      signingIn.current = false;
       setLoading(false);
     }
   };
 
   const handleVerifyMfa = async (codeValue) => {
     const activeCode = codeValue || mfaCode;
-    if (!activeCode || activeCode.length < 6) return;
+    if (!activeCode || activeCode.length !== 6 || verifying.current) return;
 
+    verifying.current = true;
+    setAuthError('');
     setLoading(true);
     try {
       const response = await postJson('/auth/verify-mfa', {
         code: activeCode,
         temp_token: tempToken
       });
-      if (response && response.access_token) {
-        localStorage.setItem('access_token', response.access_token);
-        localStorage.setItem('user_name', response.name);
-        localStorage.setItem('user_id', response.user_id);
-        navigate('/ginfina', { replace: true });
-      }
-      setStep('success');
+      finishSignIn(response);
     } catch (err) {
+      setAuthError(err.message || 'Unable to verify the code. Please try again.');
       notifications.show({
         title: 'Verification Failed',
         message: err.message || 'Invalid verification code.',
         color: 'red'
       });
     } finally {
+      verifying.current = false;
       setLoading(false);
     }
   };
@@ -210,6 +224,8 @@ export default function AuthScreen({ spec }) {
               <div className="auth-card-logo-text">GINFINA</div>
               <div className="auth-card-logo-sub">Engineering Workbench</div>
             </div>
+
+            {authError && <Alert color="red" title="Unable to sign in" role="alert">{authError}</Alert>}
 
             {/* Step 1: Sign In */}
             {step === 'signin' && (
@@ -406,7 +422,7 @@ export default function AuthScreen({ spec }) {
                     }}
                   >
                     <Text size="xs" fw={600} style={{ color: '#007336', textAlign: 'center', lineHeight: 1.4 }}>
-                      MFA required for privileged and external consultant access.
+                      MFA is required for all accounts. Enter the code sent to your email.
                     </Text>
                   </Box>
 
@@ -418,6 +434,12 @@ export default function AuthScreen({ spec }) {
                   >
                     Verify & Continue
                   </Button>
+                  <Button variant="subtle" disabled={loading} onClick={() => {
+                    setAuthError('');
+                    setTempToken('');
+                    setMfaCode('');
+                    setStep('signin');
+                  }}>Back to sign in / request a new code</Button>
                 </Stack>
               </form>
             )}

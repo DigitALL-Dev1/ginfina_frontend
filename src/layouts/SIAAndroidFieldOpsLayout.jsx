@@ -1,3 +1,4 @@
+import { formatDateTime, formatDisplayValue } from '../utils/dateOnly';
 import { useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader, Modal,
@@ -343,7 +344,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="sm" c="#6b7280">{r.pack_version || '—'}</Text></Table.Td>
                 <Table.Td><SBadge v={r.download_status} /></Table.Td>
                 <Table.Td><Badge size="sm" color={r.offline_ready ? 'green' : 'gray'} variant="light">{r.offline_ready ? 'Ready' : 'No'}</Badge></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.downloaded_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.downloaded_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -368,7 +369,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="xs" c="#6b7280">{r.unit || '—'}</Text></Table.Td>
                 <Table.Td><SBadge v={r.applicability_status} /></Table.Td>
                 <Table.Td><SBadge v={r.validation_status} /></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.answered_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.answered_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -382,7 +383,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.poi_id}</Text></Table.Td>
                 <Table.Td><Text size="sm">{r.geometry_type || '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#6b7280">{r.gps_accuracy ?? '—'}</Text></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.captured_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.captured_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -398,7 +399,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="xs" c="#6b7280">{r.longitude ?? '—'}</Text></Table.Td>
                 <Table.Td><Text size="xs" c="#6b7280">{r.gps_accuracy ?? '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#6b7280" truncate maw={160}>{r.annotation || '—'}</Text></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.captured_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.captured_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -413,7 +414,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="xs" c="#6b7280">{r.start_latitude ?? '—'}</Text></Table.Td>
                 <Table.Td><Text size="xs" c="#6b7280">{r.start_longitude ?? '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.spoken_note || '—'}</Text></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.captured_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.captured_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -429,7 +430,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="xs" c="#6b7280">{r.unit || '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#6b7280">{r.measurement_method || '—'}</Text></Table.Td>
                 <Table.Td><SBadge v={r.calibration_status} /></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.measured_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.measured_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -443,7 +444,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="sm" truncate maw={200}>{r.ocr_text || '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#6b7280" truncate maw={160}>{r.proposed_data || '—'}</Text></Table.Td>
                 <Table.Td><Badge size="sm" color={r.user_confirmed ? 'green' : 'gray'} variant="light">{r.user_confirmed ? 'Confirmed' : 'Pending'}</Badge></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.captured_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.captured_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -456,7 +457,7 @@ export default function SIAAndroidFieldOpsLayout() {
               <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                 <Table.Td><Text size="sm" truncate maw={300}>{r.transcription || '—'}</Text></Table.Td>
                 <Table.Td><SBadge v={r.transcription_status} /></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.recorded_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.recorded_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -469,7 +470,7 @@ export default function SIAAndroidFieldOpsLayout() {
               <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                 <Table.Td><Text size="sm">{r.sketch_type || '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#6b7280" truncate maw={260}>{r.description || '—'}</Text></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.created_at ? new Date(r.created_at).toLocaleString() : '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{r.created_at ? formatDateTime(r.created_at) : '—'}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -484,7 +485,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><SBadge v={r.result} /></Table.Td>
                 <Table.Td><Text size="sm" c="#6b7280">{r.confidence_score != null ? `${(r.confidence_score * 100).toFixed(0)}%` : '—'}</Text></Table.Td>
                 <Table.Td><Badge size="sm" color={r.user_confirmed ? 'green' : 'gray'} variant="light">{r.user_confirmed ? 'Yes' : 'No'}</Badge></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.checked_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.checked_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -530,7 +531,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="sm" c="#007336">{r.free_storage_mb ?? '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#f08c00">{r.pending_media_count ?? '—'}</Text></Table.Td>
                 <Table.Td><SBadge v={r.warning_status} /></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.recorded_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.recorded_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -596,7 +597,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="sm" c="#007336">{r.accepted_count ?? '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#e03131">{r.rejected_count ?? '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#9c36b5">{r.quarantined_count ?? '—'}</Text></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.received_at || '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.received_at || '—')}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -613,7 +614,7 @@ export default function SIAAndroidFieldOpsLayout() {
                 <Table.Td><Text size="sm" c="#6b7280">{r.schema_version || '—'}</Text></Table.Td>
                 <Table.Td><Text size="sm" c="#6b7280">{r.export_method || '—'}</Text></Table.Td>
                 <Table.Td><SBadge v={r.pack_status} /></Table.Td>
-                <Table.Td><Text size="xs" c="#6b7280">{r.created_at ? new Date(r.created_at).toLocaleString() : '—'}</Text></Table.Td>
+                <Table.Td><Text size="xs" c="#6b7280">{r.created_at ? formatDateTime(r.created_at) : '—'}</Text></Table.Td>
               </Table.Tr>
             )} />
         </Tabs.Panel>
@@ -844,8 +845,8 @@ function SessionsPanel({ dlid, selSess, setSess, setTab, did, uid, open }) {
               <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.survey_visit_id}</Text></Table.Td>
               <Table.Td><Badge size="sm" color={r.session_status === 'Completed' ? 'green' : r.session_status === 'Active' ? 'blue' : 'gray'} variant="light">{r.session_status || '—'}</Badge></Table.Td>
               <Table.Td><Badge size="sm" color={r.offline_mode ? 'orange' : 'gray'} variant="light">{r.offline_mode ? 'Offline' : 'Online'}</Badge></Table.Td>
-              <Table.Td><Text size="xs" c="#6b7280">{r.started_at || '—'}</Text></Table.Td>
-              <Table.Td><Text size="xs" c="#6b7280">{r.ended_at || '—'}</Text></Table.Td>
+              <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.started_at || '—')}</Text></Table.Td>
+              <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.ended_at || '—')}</Text></Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>

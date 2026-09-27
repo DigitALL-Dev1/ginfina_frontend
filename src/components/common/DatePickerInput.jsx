@@ -16,9 +16,10 @@ export default function DatePickerInput({
       maxDate={normalizeDateOnly(maxDate) || undefined}
       disabled={disabled}
       readOnly={readOnly}
-      valueFormat="YYYY-MM-DD"
+      valueFormat="DD/MMM/YYYY"
       dateParser={input => normalizeDateOnly(input) || null}
-      placeholder="YYYY-MM-DD"
+      placeholder="DD/MMM/YYYY"
+      locale="en"
       leftSection={<IconCalendar size={16} />}
       leftSectionPointerEvents="none"
       clearable={clearable && !readOnly && !disabled}

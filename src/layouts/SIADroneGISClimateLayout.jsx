@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../utils/dateOnly';
 import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader, Modal,
@@ -332,8 +333,8 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={mission?.id === r.id} onClick={event => { event.stopPropagation(); setMission(r); setTab('operators'); }}>{r.mission_code || r.id}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.mission_purpose || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.target_discipline || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.planned_date || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.actual_date || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.planned_date || '—')}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.actual_date || '—')}</Text></Table.Td>
                   <Table.Td><SBadge v={r.mission_status} /></Table.Td>
                 </Table.Tr>
               )} />
@@ -412,7 +413,7 @@ export default function SIADroneGISClimateLayout() {
             <DataTable loading={fcL} cols={['Recorded At', 'Weather', 'Wind (m/s)', 'Temp (°C)', 'Lighting', 'Visibility', 'Rain']}
               rows={fieldConds} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.recorded_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.recorded_at || '—')}</Text></Table.Td>
                   <Table.Td><Text size="sm">{r.weather_condition || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.wind_speed ?? '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.temperature ?? '—'}</Text></Table.Td>
@@ -432,7 +433,7 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><Text size="sm">{r.file_name || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.data_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.file_size ?? '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.captured_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.captured_at || '—')}</Text></Table.Td>
                   <Table.Td><SBadge v={r.import_status} /></Table.Td>
                 </Table.Tr>
               )} />
@@ -533,8 +534,8 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><Text size="sm">{r.parameter_name || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" fw={600}>{r.parameter_value ?? '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.unit || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.period_from || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.period_to || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.period_from || '—')}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.period_to || '—')}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
                 </Table.Tr>
               )} />
@@ -557,7 +558,7 @@ export default function SIADroneGISClimateLayout() {
         <FR><FI label="Mission Code *" field="mission_code" fv={fv} setFv={setFv} /><FI label="Mission Status" field="mission_status" fv={fv} setFv={setFv} select={MISSION_STATUS} /></FR>
         <FI label="Mission Purpose" field="mission_purpose" fv={fv} setFv={setFv} />
         <FI label="Target Discipline" field="target_discipline" fv={fv} setFv={setFv} />
-        <FR><FI label="Planned Date (YYYY-MM-DD)" field="planned_date" fv={fv} setFv={setFv} /><FI label="Actual Date (YYYY-MM-DD)" field="actual_date" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Planned Date (DD/MMM/YYYY)" field="planned_date" fv={fv} setFv={setFv} /><FI label="Actual Date (DD/MMM/YYYY)" field="actual_date" fv={fv} setFv={setFv} /></FR>
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
       </FormModal>
 
@@ -695,7 +696,7 @@ export default function SIADroneGISClimateLayout() {
         onSubmit={() => save('/sia/climate-resources', { site_id: loadedSiteId, ...fv }, rClim)}>
         <FR><FI label="Resource Type" field="resource_type" fv={fv} setFv={setFv} select={CLIMATE_TYPES} /><FI label="Parameter Name" field="parameter_name" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Parameter Value" field="parameter_value" fv={fv} setFv={setFv} number /><FI label="Unit" field="unit" fv={fv} setFv={setFv} /></FR>
-        <FR><FI label="Period From (YYYY-MM-DD)" field="period_from" fv={fv} setFv={setFv} /><FI label="Period To (YYYY-MM-DD)" field="period_to" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Period From (DD/MMM/YYYY)" field="period_from" fv={fv} setFv={setFv} /><FI label="Period To (DD/MMM/YYYY)" field="period_to" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Source Name" field="source_name" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={['Confirmed', 'Estimated', 'Unverified']} /></FR>
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
       </FormModal>

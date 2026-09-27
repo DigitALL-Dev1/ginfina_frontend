@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../utils/dateOnly';
 import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader, Modal,
@@ -339,7 +340,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Text size="sm">{r.evidence_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.source_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.file_name || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.captured_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.captured_at || '—')}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
                   <Table.Td><SBadge v={r.evidence_status} /></Table.Td>
                 </Table.Tr>
@@ -356,7 +357,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.verified_by || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.verification_status} /></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.verification_comment || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.verified_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.verified_at || '—')}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -406,7 +407,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.reviewer_user_id || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.reviewer_comment || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.modified_value || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.disposition_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.disposition_at || '—')}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -442,7 +443,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.resolution_reason || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.resolution_status} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.resolved_by || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.resolved_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.resolved_at || '—')}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -459,7 +460,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selGap?.id === r.id} onClick={event => { event.stopPropagation(); setSelGap(r); setTab('gap-rfi'); }}>{r.gap_code || r.id}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.discipline || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.priority} /></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.target_date || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.target_date || '—')}</Text></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.gap_description || '—'}</Text></Table.Td>
                 </Table.Tr>
@@ -476,7 +477,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Text size="sm">{r.action_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" className={styles.description}>{r.subject || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.assigned_to || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.target_date || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.target_date || '—')}</Text></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
                 </Table.Tr>
               )} />
@@ -524,7 +525,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   onMouseLeave={e => { if (selReadiness?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
                   <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selReadiness?.id === r.id} onClick={event => { event.stopPropagation(); setSelReadiness(r); setTab('r-conds'); }}>{r.discipline || r.id}</Button></Table.Td>
                   <Table.Td><SBadge v={r.readiness_status} /></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.assessment_date || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.assessment_date || '—')}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.summary || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
@@ -539,7 +540,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" className={styles.description}>{r.condition_description || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.required_action || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.target_date || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.target_date || '—')}</Text></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
                 </Table.Tr>
               )} />
@@ -570,7 +571,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><SBadge v={r.review_decision} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.reviewer_user_id || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.review_comment || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.reviewed_at || '—')}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -652,7 +653,7 @@ export default function SIAEvidenceAIReadinessLayout() {
       <FormModal opened={modal === 'datagap'} onClose={closeModal} title="Add Data Gap" saving={saving}
         onSubmit={() => save('/sia/data-gaps', { sia_case_id: loadedCaseId, owner_user_id: uid, ...fv }, rDg)}>
         <FR><FI label="Gap Code" field="gap_code" fv={fv} setFv={setFv} /><FI label="Discipline" field="discipline" fv={fv} setFv={setFv} /></FR>
-        <FR><FI label="Priority" field="priority" fv={fv} setFv={setFv} select={PRIORITY_OPTS} /><FI label="Target Date (YYYY-MM-DD)" field="target_date" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Priority" field="priority" fv={fv} setFv={setFv} select={PRIORITY_OPTS} /><FI label="Target Date (DD/MMM/YYYY)" field="target_date" fv={fv} setFv={setFv} /></FR>
         <FI label="Gap Description" field="gap_description" fv={fv} setFv={setFv} textarea />
         <FI label="Impact" field="impact" fv={fv} setFv={setFv} textarea />
         <FI label="Status" field="status" fv={fv} setFv={setFv} select={STATUS_OPTS} />
@@ -664,7 +665,7 @@ export default function SIAEvidenceAIReadinessLayout() {
         <FR><FI label="Action Code" field="action_code" fv={fv} setFv={setFv} /><FI label="Action Type" field="action_type" fv={fv} setFv={setFv} select={['RFI', 'TQ', 'Clarification', 'Site Visit']} /></FR>
         <FI label="Subject" field="subject" fv={fv} setFv={setFv} />
         <FI label="Description" field="description" fv={fv} setFv={setFv} textarea />
-        <FR><FI label="Target Date (YYYY-MM-DD)" field="target_date" fv={fv} setFv={setFv} /><FI label="Status" field="status" fv={fv} setFv={setFv} select={STATUS_OPTS} /></FR>
+        <FR><FI label="Target Date (DD/MMM/YYYY)" field="target_date" fv={fv} setFv={setFv} /><FI label="Status" field="status" fv={fv} setFv={setFv} select={STATUS_OPTS} /></FR>
         <FI label="Response" field="response" fv={fv} setFv={setFv} textarea />
       </FormModal>
 
@@ -690,7 +691,7 @@ export default function SIAEvidenceAIReadinessLayout() {
         onSubmit={() => save('/sia/readiness-conditions', { discipline_readiness_id: rid, owner_user_id: uid, ...fv }, rRc)}>
         <FI label="Condition Description" field="condition_description" fv={fv} setFv={setFv} textarea />
         <FI label="Required Action" field="required_action" fv={fv} setFv={setFv} textarea />
-        <FR><FI label="Target Date (YYYY-MM-DD)" field="target_date" fv={fv} setFv={setFv} /><FI label="Status" field="status" fv={fv} setFv={setFv} select={STATUS_OPTS} /></FR>
+        <FR><FI label="Target Date (DD/MMM/YYYY)" field="target_date" fv={fv} setFv={setFv} /><FI label="Status" field="status" fv={fv} setFv={setFv} select={STATUS_OPTS} /></FR>
       </FormModal>
 
       {/* Readiness Blocker */}

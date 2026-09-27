@@ -1,3 +1,4 @@
+import { formatDate } from '../utils/dateOnly';
 import DatePickerInput from '../components/common/DatePickerInput';
 import React, { useEffect, useState } from 'react';
 import {
@@ -349,7 +350,7 @@ export default function SEBRevisionChangeLayout() {
                       <Table.Td><SBadge v={change.materiality} /></Table.Td>
                       <Table.Td><SBadge v={change.change_status} /></Table.Td>
                       <Table.Td><Text size="sm" c="#6b7280" truncate maw={250}>{change.change_reason}</Text></Table.Td>
-                      <Table.Td><Text size="xs" c="#6b7280">{new Date(change.raised_at).toLocaleDateString()}</Text></Table.Td>
+                      <Table.Td><Text size="xs" c="#6b7280">{formatDate(change.raised_at)}</Text></Table.Td>
                     </Table.Tr>
                   );
                 })}
@@ -441,7 +442,7 @@ export default function SEBRevisionChangeLayout() {
                   <Table.Td><Badge size="sm" color="blue" variant="light">{r.source_type}</Badge></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.source_reference || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" truncate maw={300}>{r.source_description || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.received_at ? new Date(r.received_at).toLocaleDateString() : '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.received_at ? formatDate(r.received_at) : '—'}</Text></Table.Td>
                 </Table.Tr>
               )}
             />
@@ -497,7 +498,7 @@ export default function SEBRevisionChangeLayout() {
                   <Table.Td><SBadge v={r.status} /></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.supersession_reason || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280" style={{ fontFamily: 'monospace' }}>{r.superseded_by.substring(0, 8)}...</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{new Date(r.superseded_at).toLocaleDateString()}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDate(r.superseded_at)}</Text></Table.Td>
                 </Table.Tr>
               )}
             />
@@ -525,7 +526,7 @@ export default function SEBRevisionChangeLayout() {
                   <Table.Td><SBadge v={r.review_status} /></Table.Td>
                   <Table.Td><Badge size="sm" color="cyan" variant="light">{r.review_decision || '—'}</Badge></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" truncate maw={250}>{r.review_comment || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString() : '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at ? formatDate(r.reviewed_at) : '—'}</Text></Table.Td>
                 </Table.Tr>
               )}
             />

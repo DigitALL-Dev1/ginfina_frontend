@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../utils/dateOnly';
 import { useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader, Modal,
@@ -317,7 +318,7 @@ export default function SIASEBEWBHandoffLayout() {
                   onMouseLeave={e => { if (selRev?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
                   <Table.Td><Text size="sm" fw={600} c="#007336">{r.revision_no}</Text></Table.Td>
                   <Table.Td><SBadge v={r.revision_status} /></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.issue_date || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.issue_date || '—')}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.revision_reason || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
@@ -391,7 +392,7 @@ export default function SIASEBEWBHandoffLayout() {
                   <Table.Td><SBadge v={r.review_status} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.reviewer_user_id || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.review_comment || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.reviewed_at || '—')}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -405,7 +406,7 @@ export default function SIASEBEWBHandoffLayout() {
                   <Table.Td><SBadge v={r.approval_decision} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.approver_user_id || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" truncate maw={200}>{r.approval_comment || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.approved_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.approved_at || '—')}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -419,7 +420,7 @@ export default function SIASEBEWBHandoffLayout() {
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }} truncate maw={200}>{r.release_hash}</Text></Table.Td>
                   <Table.Td><SBadge v={r.release_status} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.released_by || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.released_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.released_at || '—')}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -452,7 +453,7 @@ export default function SIASEBEWBHandoffLayout() {
                   <Table.Td><Text size="sm" c="#6b7280">{r.ewp_reference_id || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.handoff_status} /></Table.Td>
                   <Table.Td><SBadge v={r.readiness_status} /></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.prepared_at || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.prepared_at || '—')}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -503,7 +504,7 @@ export default function SIASEBEWBHandoffLayout() {
       <FormModal opened={modal === 'revision'} onClose={closeModal} title="Add SEB Revision" saving={saving}
         onSubmit={() => save('/sia/seb-revisions', { seb_id: sid, created_by: uid, ...fv }, rRev)}>
         <FR><FI label="Revision No *" field="revision_no" fv={fv} setFv={setFv} /><FI label="Revision Status" field="revision_status" fv={fv} setFv={setFv} select={STATUS_OPTS} /></FR>
-        <FR><FI label="Issue Date (YYYY-MM-DD)" field="issue_date" fv={fv} setFv={setFv} /><FI label="Previous Revision ID" field="previous_revision_id" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Issue Date (DD/MMM/YYYY)" field="issue_date" fv={fv} setFv={setFv} /><FI label="Previous Revision ID" field="previous_revision_id" fv={fv} setFv={setFv} /></FR>
         <FI label="Revision Reason" field="revision_reason" fv={fv} setFv={setFv} textarea />
       </FormModal>
 

@@ -246,6 +246,19 @@ export const CRM_SYSTEMS = [
  * @param {string} fieldName - The name of the field (e.g., 'role', 'type', 'site_type')
  * @returns {Array<string>} - Array of predefined options
  */
+export const ENGINEERING_FIELD_OPTIONS = {
+  phase: ['Single Phase', 'Three Phase', 'DC', 'Unknown', 'Not Applicable'],
+  supply_type: ['Grid', 'Generator', 'Solar PV', 'Battery', 'Hybrid', 'Off-grid', 'Other', 'Unknown'],
+  structure_type: ['Steel Frame', 'Reinforced Concrete', 'Load-bearing Masonry', 'Timber Frame', 'Mixed Structure', 'Ground-mounted', 'Other', 'Unknown'],
+  roof_type: ['Flat', 'Pitched', 'Gable', 'Hip', 'Shed', 'Curved', 'Other', 'Unknown', 'Not Applicable'],
+  material_type: ['Steel', 'Reinforced Concrete', 'Aluminium', 'Timber', 'Masonry', 'Composite', 'Mixed Materials', 'Other', 'Unknown'],
+  water_source_type: ['Borehole', 'Well', 'River', 'Lake', 'Reservoir', 'Municipal Supply', 'Rainwater', 'Other', 'Unknown'],
+  pipe_material: ['PVC', 'uPVC', 'HDPE', 'Steel', 'Stainless Steel', 'Galvanized Steel', 'Copper', 'Ductile Iron', 'Concrete', 'Other', 'Unknown'],
+  controller_type: ['Manual', 'On/Off', 'Variable Frequency Drive', 'PLC', 'Solar Pump Controller', 'Other', 'Unknown'],
+  control_system_type: ['Manual', 'Relay Logic', 'PLC', 'DCS', 'SCADA', 'BMS', 'Other', 'Unknown'],
+  communication_type: ['Ethernet', 'Fiber Optic', 'Cellular', 'Radio', 'Wi-Fi', 'Satellite', 'Serial', 'Other', 'None', 'Unknown'],
+};
+
 export function getFieldOptions(fieldName) {
   const fieldMap = {
     // Role fields
@@ -279,5 +292,5 @@ export function getFieldOptions(fieldName) {
     reference_type: PROJECT_TYPES, // CRM reference types use project types
   };
 
-  return fieldMap[fieldName?.toLowerCase()] || [];
+  return ENGINEERING_FIELD_OPTIONS[fieldName?.toLowerCase()] || fieldMap[fieldName?.toLowerCase()] || [];
 }

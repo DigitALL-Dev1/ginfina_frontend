@@ -1,3 +1,4 @@
+import { formatDateTime, formatDisplayValue } from '../utils/dateOnly';
 import { useEffect, useState } from 'react';
 import {
   Alert, Badge, Box, Button, Divider, Grid, Group, Loader, Modal, NumberInput,
@@ -32,7 +33,7 @@ function Status({ value }) {
 }
 
 function Field({ label, value }) {
-  return <Box><Text size="xs" c="dimmed">{label}</Text><Text size="sm" fw={600} style={{ overflowWrap: 'anywhere' }}>{value || 'Not recorded'}</Text></Box>;
+  return <Box><Text size="xs" c="dimmed">{label}</Text><Text size="sm" fw={600} style={{ overflowWrap: 'anywhere' }}>{formatDisplayValue(value) || 'Not recorded'}</Text></Box>;
 }
 
 function QuantityTable({ rows, editable = false, onEdit, onRemove, onSource, saving }) {
@@ -187,13 +188,13 @@ export default function QuantitiesProcurementLayout() {
                 ? 'This handoff was cancelled and does not satisfy the procurement completion check.'
                 : `Recording a reference does not complete the handoff. Use Update procurement status to record actual progress with an evidence note. Next: ${(TRACKING[handoff.status]?.[0] || 'status review').replaceAll('_', ' ')}. Completion & Governance requires COMPLETED.`}
           </Alert>
-          <Text size="xs" c="dimmed">Recorded by {handoff.recorded_by} · {new Date(handoff.created_at).toLocaleString()}</Text>
+          <Text size="xs" c="dimmed">Recorded by {handoff.recorded_by} · {formatDateTime(handoff.created_at)}</Text>
           {handoff.tracking_note && <Text size="sm">{handoff.tracking_note}</Text>}
           <Group>{handoff.url && <Button component="a" href={handoff.url} target="_blank" rel="noreferrer" variant="light">Open procurement reference</Button>}{TRACKING[handoff.status] && <Button color="green" onClick={() => openAction('tracking')}>Update procurement status</Button>}</Group>
         </>}
       </Stack></Paper>}
 
-      {!!register.history.length && <Paper withBorder p={{ base: 'sm', sm: 'lg' }} radius="lg" style={surface}><Text fw={750} mb="md">Activity history</Text><Stack gap="xs">{[...register.history].reverse().map((row, index) => <Group key={`${row.at}-${index}`} justify="space-between"><Box><Text size="sm">{row.action.replaceAll('_', ' ')} · {row.actor}</Text>{row.comment && <Text size="xs" c="dimmed">{row.comment}</Text>}</Box><Text size="xs" c="dimmed">{new Date(row.at).toLocaleString()}</Text></Group>)}</Stack></Paper>}
+      {!!register.history.length && <Paper withBorder p={{ base: 'sm', sm: 'lg' }} radius="lg" style={surface}><Text fw={750} mb="md">Activity history</Text><Stack gap="xs">{[...register.history].reverse().map((row, index) => <Group key={`${row.at}-${index}`} justify="space-between"><Box><Text size="sm">{row.action.replaceAll('_', ' ')} · {row.actor}</Text>{row.comment && <Text size="xs" c="dimmed">{row.comment}</Text>}</Box><Text size="xs" c="dimmed">{formatDateTime(row.at)}</Text></Group>)}</Stack></Paper>}
     </>}
     {registerId && <QuantitiesProcurementReport key={registerId} register={register} ewp={currentEwp} ewpId={ewpId} registerId={registerId}
       busy={busy} loadError={error} onReload={() => { setError(''); setRefresh(value => value + 1); }} />}

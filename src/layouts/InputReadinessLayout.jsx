@@ -1,3 +1,4 @@
+import { formatDateTime } from '../utils/dateOnly';
 import DatePickerInput from '../components/common/DatePickerInput';
 import { useState, useEffect } from 'react';
 import {
@@ -201,7 +202,7 @@ function OverviewTab({ readinessData, onUpdate, isLoading }) {
                 <DatePickerInput aria-label="Override expiry"
                   value={overrideExpiry}
                   onChange={value => setOverrideExpiry(value)}
-                  placeholder="YYYY-MM-DD"
+                  placeholder="DD/MMM/YYYY"
                   styles={{ input: { backgroundColor: '#ffffff', borderColor: '#d1d5db', borderRadius: 6, height: 38 } }}
                 />
                 <Text size="11px" c="#9ca3af" mt={4}>DatePickerInput · Required for temporary override</Text>
@@ -248,11 +249,11 @@ function OverviewTab({ readinessData, onUpdate, isLoading }) {
             <Stack gap={8}>
               <Box>
                 <Text size="11px" c="#9ca3af">Created</Text>
-                <Text size="xs" c="#374151">{readinessData.created_at ? new Date(readinessData.created_at).toLocaleString() : 'N/A'}</Text>
+                <Text size="xs" c="#374151">{readinessData.created_at ? formatDateTime(readinessData.created_at) : 'N/A'}</Text>
               </Box>
               <Box>
                 <Text size="11px" c="#9ca3af">Last Updated</Text>
-                <Text size="xs" c="#374151">{readinessData.updated_at ? new Date(readinessData.updated_at).toLocaleString() : 'N/A'}</Text>
+                <Text size="xs" c="#374151">{readinessData.updated_at ? formatDateTime(readinessData.updated_at) : 'N/A'}</Text>
               </Box>
               <Box>
                 <Text size="11px" c="#9ca3af">Submitted By</Text>

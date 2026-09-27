@@ -1,7 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeDateOnly } from './dateOnly';
+import { normalizeDateOnly, formatDate, formatDateTime, formatDisplayValue } from './dateOnly';
 
 describe('calendar dates', () => {
+  it('round trips the agreed display format without changing the API date', () => {
+    expect(normalizeDateOnly('26/Sep/2026')).toBe('2026-09-26');
+    expect(normalizeDateOnly('29/Feb/2024')).toBe('2024-02-29');
+    expect(normalizeDateOnly('29/Feb/2026')).toBe('');
+    expect(normalizeDateOnly('31/Apr/2026')).toBe('');
+    expect(formatDate('2026-09-26')).toBe('26/Sep/2026');
+    expect(formatDateTime('2026-09-26T23:45:00+05:00')).toBe('26/Sep/2026 23:45:00 +05:00');
+    expect(formatDisplayValue('Ready')).toBe('Ready');
+    expect(formatDisplayValue(0)).toBe(0);
+    expect(formatDisplayValue(false)).toBe(false);
+  });
   it('preserves the source day regardless of timestamp offset', () => {
     expect(normalizeDateOnly('2026-09-19T00:00:00+05:00')).toBe('2026-09-19');
     expect(normalizeDateOnly('2026-09-19T23:00:00-07:00')).toBe('2026-09-19');

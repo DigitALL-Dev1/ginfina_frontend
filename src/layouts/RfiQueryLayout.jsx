@@ -211,7 +211,7 @@ function OverviewTab() {
                 <DatePickerInput aria-label="Required by"
                   value={requiredBy}
                   onChange={value => setRequiredBy(value)}
-                  placeholder="YYYY-MM-DD"
+                  placeholder="DD/MMM/YYYY"
                   styles={inputSt}
                 />
                 <Text size="11px" c="#9ca3af" mt={4}>DatePickerInput · SLA validated</Text>

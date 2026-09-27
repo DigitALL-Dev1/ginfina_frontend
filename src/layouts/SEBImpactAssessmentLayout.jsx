@@ -1,3 +1,4 @@
+import { formatDate, formatDisplayValue } from '../utils/dateOnly';
 import DatePickerInput from '../components/common/DatePickerInput';
 import React, { useEffect, useState } from 'react';
 import {
@@ -350,7 +351,7 @@ export default function SEBImpactAssessmentLayout() {
                     <Table.Td><SBadge v={assessment.overall_impact_level} /></Table.Td>
                     <Table.Td><SBadge v={assessment.assessment_status} /></Table.Td>
                     <Table.Td><Text size="xs" c="#6b7280" style={{ fontFamily: 'monospace' }}>{assessment.assessed_by.substring(0, 8)}...</Text></Table.Td>
-                    <Table.Td><Text size="xs" c="#6b7280">{new Date(assessment.assessed_at).toLocaleDateString()}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#6b7280">{formatDate(assessment.assessed_at)}</Text></Table.Td>
                   </Table.Tr>
                 );
               })}
@@ -484,7 +485,7 @@ export default function SEBImpactAssessmentLayout() {
                     <Table.Td><Text size="sm" c="#6b7280" truncate maw={250}>{r.action_description}</Text></Table.Td>
                     <Table.Td><Text size="xs" c="#6b7280">{r.owner_user_id ? r.owner_user_id.substring(0, 8) + '...' : '—'}</Text></Table.Td>
                     <Table.Td><Badge size="sm" color={r.priority === 'P0' ? 'red' : r.priority === 'P1' ? 'orange' : 'gray'}>{r.priority || '—'}</Badge></Table.Td>
-                    <Table.Td><Text size="xs" c="#6b7280">{r.target_date || '—'}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.target_date || '—')}</Text></Table.Td>
                     <Table.Td><SBadge v={r.action_status} /></Table.Td>
                   </Table.Tr>
                 )}
@@ -508,7 +509,7 @@ export default function SEBImpactAssessmentLayout() {
                     <Table.Td><Badge size="sm" color="blue" variant="light">{r.discipline || '—'}</Badge></Table.Td>
                     <Table.Td><SBadge v={r.review_decision} /></Table.Td>
                     <Table.Td><Text size="sm" c="#6b7280" truncate maw={300}>{r.review_comment || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString() : '—'}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at ? formatDate(r.reviewed_at) : '—'}</Text></Table.Td>
                   </Table.Tr>
                 )}
               />
@@ -532,8 +533,8 @@ export default function SEBImpactAssessmentLayout() {
                     <Table.Td><Text size="xs" c="#6b7280">{r.recipient_user_id ? r.recipient_user_id.substring(0, 8) + '...' : '—'}</Text></Table.Td>
                     <Table.Td><Badge size="sm" color="gray" variant="light">{r.notification_type || '—'}</Badge></Table.Td>
                     <Table.Td><SBadge v={r.notification_status} /></Table.Td>
-                    <Table.Td><Text size="xs" c="#6b7280">{r.sent_at ? new Date(r.sent_at).toLocaleDateString() : '—'}</Text></Table.Td>
-                    <Table.Td><Text size="xs" c="#6b7280">{r.acknowledged_at ? new Date(r.acknowledged_at).toLocaleDateString() : '—'}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#6b7280">{r.sent_at ? formatDate(r.sent_at) : '—'}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#6b7280">{r.acknowledged_at ? formatDate(r.acknowledged_at) : '—'}</Text></Table.Td>
                   </Table.Tr>
                 )}
               />

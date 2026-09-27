@@ -1,3 +1,4 @@
+import { formatDateTime, formatDisplayValue } from '../utils/dateOnly';
 import DatePickerInput from '../components/common/DatePickerInput';
 import { useMemo, useState } from 'react';
 import {
@@ -119,7 +120,7 @@ export default function EWPAssistLayout() {
     setResultTask(task);
     setDisposition('');
     setEngineerNote('');
-    setHistory(current => [{ id: Date.now(), task, question, time: new Date().toLocaleString() }, ...current]);
+    setHistory(current => [{ id: Date.now(), task, question, time: formatDateTime(new Date()) }, ...current]);
     notifications.show({ color: 'blue', title: 'Advisory analysis refreshed', message: `${task} · ${ewp.id}` });
   };
 
@@ -168,7 +169,7 @@ export default function EWPAssistLayout() {
 
         <Paper withBorder radius="lg" p="lg" style={surface}><Group gap="xs" mb="md"><IconClipboardCheck size={19} color="#176c3a" /><Box><Text fw={800}>Human Review</Text><Text size="xs" c="dimmed">Record how the engineer handled this advisory result.</Text></Box></Group><Grid><Grid.Col span={{ base: 12, md: 5 }}><Select classNames={{dropdown:styles.dropdown}} label="Disposition" placeholder="Select human decision" data={[{ value: 'ACCEPT_AS_WORKING_NOTE', label: 'Accept as working note' }, { value: 'MODIFY', label: 'Modify' }, { value: 'REJECT', label: 'Reject' }]} value={disposition} onChange={value => setDisposition(value || '')} /></Grid.Col><Grid.Col span={{ base: 12, md: 7 }}><Textarea label="Engineer note" placeholder="Record verification, changes or rejection reason" value={engineerNote} onChange={event => setEngineerNote(event.currentTarget.value)} minRows={3} /></Grid.Col></Grid><Group justify="space-between" mt="md"><Text size="xs" c="dimmed">This records a human disposition. It does not create an engineering approval.</Text><Button color="green" disabled={!disposition || !engineerNote.trim()} onClick={recordDisposition}>Record Human Review</Button></Group></Paper>
 
-        {actions.length > 0 && <Paper withBorder radius="lg" style={surface}><Group justify="space-between" p="lg"><Text fw={800}>Actions Created from AI Assist</Text><Badge color="orange" variant="light">{actions.filter(item => item.status === 'OPEN').length} OPEN</Badge></Group><Divider /><Table.ScrollContainer minWidth={600} type="native"><Table verticalSpacing="sm"><Table.Thead bg="#f7faf8"><Table.Tr><Table.Th>Action</Table.Th><Table.Th>Owner</Table.Th><Table.Th>Due</Table.Th><Table.Th>Priority</Table.Th><Table.Th>Source</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{actions.map(item => <Table.Tr key={item.id}><Table.Td><Text size="sm" fw={700}>{item.title}</Text><Text size="xs" c="dimmed">{item.id}</Text></Table.Td><Table.Td>{item.owner}</Table.Td><Table.Td>{item.due}</Table.Td><Table.Td><Badge color={item.priority === 'HIGH' ? 'red' : 'blue'} variant="light">{item.priority}</Badge></Table.Td><Table.Td><Text size="xs">{item.source}</Text></Table.Td></Table.Tr>)}</Table.Tbody></Table></Table.ScrollContainer></Paper>}
+        {actions.length > 0 && <Paper withBorder radius="lg" style={surface}><Group justify="space-between" p="lg"><Text fw={800}>Actions Created from AI Assist</Text><Badge color="orange" variant="light">{actions.filter(item => item.status === 'OPEN').length} OPEN</Badge></Group><Divider /><Table.ScrollContainer minWidth={600} type="native"><Table verticalSpacing="sm"><Table.Thead bg="#f7faf8"><Table.Tr><Table.Th>Action</Table.Th><Table.Th>Owner</Table.Th><Table.Th>Due</Table.Th><Table.Th>Priority</Table.Th><Table.Th>Source</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{actions.map(item => <Table.Tr key={item.id}><Table.Td><Text size="sm" fw={700}>{item.title}</Text><Text size="xs" c="dimmed">{item.id}</Text></Table.Td><Table.Td>{item.owner}</Table.Td><Table.Td>{formatDisplayValue(item.due)}</Table.Td><Table.Td><Badge color={item.priority === 'HIGH' ? 'red' : 'blue'} variant="light">{item.priority}</Badge></Table.Td><Table.Td><Text size="xs">{item.source}</Text></Table.Td></Table.Tr>)}</Table.Tbody></Table></Table.ScrollContainer></Paper>}
       </Stack></Grid.Col>
     </Grid>
 

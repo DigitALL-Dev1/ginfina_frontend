@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../../utils/dateOnly';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
@@ -33,7 +34,7 @@ export default function SIACompletionReport({ packageData, caseId, siteId, notes
       <Badge color="green" variant="light" w="fit-content">Completion package report</Badge>
       {report.counts.length > 0 && <SimpleGrid cols={{ base: 2, sm: 3, lg: 4 }}>{report.counts.map(count => <Paper key={count.key} withBorder radius="md" p="sm"><Text size="xs" c="dimmed">{count.label}</Text><Text fw={700} size="xl">{count.value}</Text></Paper>)}</SimpleGrid>}
       {report.sections.map((section, index) => <Box key={`${section.title}-${index}`}><Title order={4} mb="md">{section.title}</Title>
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">{section.fields.map((field, fieldIndex) => <Box key={`${field.label}-${fieldIndex}`} style={{ minWidth: 0 }}><Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{field.value}</Text></Box>)}</SimpleGrid>
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">{section.fields.map((field, fieldIndex) => <Box key={`${field.label}-${fieldIndex}`} style={{ minWidth: 0 }}><Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{formatDisplayValue(field.value)}</Text></Box>)}</SimpleGrid>
       </Box>)}
     </Stack>}
   </Paper>;

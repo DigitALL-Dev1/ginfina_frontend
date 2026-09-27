@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../utils/dateOnly';
 import DatePickerInput from '../components/common/DatePickerInput';
 import { useState, useEffect } from 'react';
 import {
@@ -295,7 +296,7 @@ function StepReview({ form }) {
   const Row = ({ label, value }) => (
     <Group justify="space-between" py={7} style={{ borderBottom: '1px solid #f3f4f6' }}>
       <Text size="sm" c="#6b7280">{label}</Text>
-      <Text size="sm" fw={600} c="#111827">{value || '—'}</Text>
+      <Text size="sm" fw={600} c="#111827">{formatDisplayValue(value) || '—'}</Text>
     </Group>
   );
   return (

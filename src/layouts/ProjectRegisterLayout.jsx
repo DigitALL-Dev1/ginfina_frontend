@@ -1,3 +1,4 @@
+import { formatDate } from '../utils/dateOnly';
 import { useEffect, useState } from 'react';
 import {
   Badge, Box, Group, LoadingOverlay, Paper,
@@ -91,7 +92,7 @@ export default function ProjectRegisterLayout() {
                     <Table.Td><Text size="sm" c="#6b7280">{p.gsolve_project_id}</Text></Table.Td>
                     <Table.Td>{statusBadge(p.project_status)}</Table.Td>
                     <Table.Td><Text size="xs" c="#9ca3af" style={{ fontFamily: 'monospace' }}>{p.user_id}</Text></Table.Td>
-                    <Table.Td><Text size="xs" c="#9ca3af">{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#9ca3af">{p.created_at ? formatDate(p.created_at) : '—'}</Text></Table.Td>
                   </Table.Tr>
                 ))}
                 {filtered.length === 0 && (

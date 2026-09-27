@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../../utils/dateOnly';
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Box, Button, Group, Loader, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { IconDownload, IconRefresh } from '@tabler/icons-react';
@@ -31,7 +32,7 @@ export default function SIAEvidenceAIReadinessReport({ api, caseId }) {
     {loading && <Group py="lg"><Loader size="sm" color="green" /><Text size="sm">Loading evidence, AI and readiness records…</Text></Group>}
     {report && <Stack gap="xl"><SimpleGrid cols={{ base: 2, sm: 3, lg: 5 }}>{report.counts.map(count => <Paper key={count.label} withBorder radius="md" p="sm"><Text size="xs" c="dimmed">{count.label}</Text><Text fw={700} size="xl">{count.value}</Text></Paper>)}</SimpleGrid>
       {report.sections.map((section, i) => <Box key={`${section.title}-${i}`}><Title order={4} mb="md">{section.title}</Title><SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-        {section.fields.map(field => <Box key={field.label} style={{ minWidth: 0 }}><Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{field.value}</Text></Box>)}
+        {section.fields.map(field => <Box key={field.label} style={{ minWidth: 0 }}><Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{formatDisplayValue(field.value)}</Text></Box>)}
       </SimpleGrid></Box>)}
     </Stack>}
   </Paper>;

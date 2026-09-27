@@ -1,3 +1,4 @@
+import { formatDateTime, formatDisplayValue } from '../utils/dateOnly';
 import React, { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader, Modal,
@@ -5,6 +6,7 @@ import {
   TextInput, Title, NumberInput, Switch,
 } from '@mantine/core';
 import DatePickerInput from '../components/common/DatePickerInput';
+import { getFieldOptions } from '../constants/fieldOptions';
 import SIAEngineeringAssessmentReport from '../components/common/SIAEngineeringAssessmentReport';
 import { notifications } from '@mantine/notifications';
 import {
@@ -132,7 +134,7 @@ function FI({ label, field, fv, setFv, textarea, number, select, readonly }) {
     };
     return opts[fieldName] || [];
   };
-  const autoOpts = getTypeRoleOptions(field);
+  const autoOpts = getFieldOptions(field).length ? getFieldOptions(field) : getTypeRoleOptions(field);
   
   const s = { input: { borderColor: readonly ? '#bbf7d0' : '#d1d5db', borderRadius: 6, minHeight: 44, backgroundColor: readonly ? '#f0fdf4' : undefined } };
   if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Select aria-label={label} data={select} value={val} onChange={v => onChange(v || '')} clearable styles={s} /></Box>;
@@ -142,7 +144,7 @@ function FI({ label, field, fv, setFv, textarea, number, select, readonly }) {
   if (isDateField) return <DatePickerInput label={label} value={val} onChange={onChange} styles={s} />;
   
   // Convert Type and Role fields to dropdowns
-  if (isTypeOrRoleField && autoOpts.length > 0) {
+  if (autoOpts.length > 0) {
     return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text><Select aria-label={label} data={autoOpts} value={val || null} onChange={v => onChange(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
   }
   
@@ -276,7 +278,7 @@ export default function SIAEngineeringAssessmentLayout() {
                       <Table.Td><Text size="sm">{ea.discipline}</Text></Table.Td>
                       <Table.Td><SBadge v={ea.status} /></Table.Td>
                       <Table.Td><SBadge v={ea.reliability_status} /></Table.Td>
-                      <Table.Td><Text size="xs" c="#6b7280">{ea.assessment_date || '—'}</Text></Table.Td>
+                      <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(ea.assessment_date || '—')}</Text></Table.Td>
                     </Table.Tr>
                   );
                 })}
@@ -486,7 +488,7 @@ export default function SIAEngineeringAssessmentLayout() {
                   <Table.Td><Text size="sm">{r.gap_type || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.priority} /></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.target_date || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.target_date || '—')}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.description || '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
@@ -501,7 +503,7 @@ export default function SIAEngineeringAssessmentLayout() {
                   <Table.Td><Text size="sm" style={{ fontFamily: 'monospace' }}>{r.reviewer_user_id || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.review_status} /></Table.Td>
                   <Table.Td><SBadge v={r.verification_status} /></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.reviewed_at ? formatDateTime(r.reviewed_at) : '—'}</Text></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -654,7 +656,7 @@ export default function SIAEngineeringAssessmentLayout() {
           <FI label="Priority" field="priority" fv={fv} setFv={setFv} select={['Low', 'Medium', 'High', 'Critical']} />
           <FI label="Status" field="status" fv={fv} setFv={setFv} select={STATUS_OPTS} />
         </FormRow>
-        <FI label="Target Date (YYYY-MM-DD)" field="target_date" fv={fv} setFv={setFv} />
+        <FI label="Target Date (DD/MMM/YYYY)" field="target_date" fv={fv} setFv={setFv} />
         <FI label="Description" field="description" fv={fv} setFv={setFv} textarea />
         <FI label="Impact" field="impact" fv={fv} setFv={setFv} textarea />
       </FormModal>

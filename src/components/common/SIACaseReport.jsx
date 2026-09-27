@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../../utils/dateOnly';
 import { useState } from 'react';
 import { Badge, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
@@ -22,7 +23,7 @@ export default function SIACaseReport({ project, siaCase, links, packs }) {
     <Stack gap="xl">
       {report.sections.map(section => <Box key={section.title}><Title order={4} mb="md">{section.title}</Title>
         <SimpleGrid cols={{ base: 1, sm: section.fields.length === 1 ? 1 : 2 }} spacing="lg">{section.fields.map(field => <Box key={field.label} style={{ minWidth: 0 }}>
-          <Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" fw={500} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{field.value}</Text>
+          <Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" fw={500} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{formatDisplayValue(field.value)}</Text>
         </Box>)}</SimpleGrid>
       </Box>)}
       <Box><Group gap="sm" mb="md"><Title order={4}>Linked assessment packs</Title><Badge color="green" variant="light">{report.packs.length}</Badge></Group>

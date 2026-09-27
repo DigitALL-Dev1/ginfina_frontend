@@ -1,3 +1,5 @@
+import { formatDisplayValue } from '../utils/dateOnly';
+import { formatDateTime } from '../utils/dateOnly';
 import DatePickerInput from '../components/common/DatePickerInput';
 import { useState, useEffect } from 'react';
 import {
@@ -338,7 +340,7 @@ function StepReview({ form, ewpDraftData, loadingReviewData, createdEwpId }) {
   const Row = ({ label, value }) => (
     <Group justify="space-between" py={6} style={{ borderBottom: '1px solid #f3f4f6' }}>
       <Text size="sm" c="#6b7280">{label}</Text>
-      <Text size="sm" fw={600} c="#111827">{value || '—'}</Text>
+      <Text size="sm" fw={600} c="#111827">{formatDisplayValue(value) || '—'}</Text>
     </Group>
   );
 
@@ -392,7 +394,7 @@ function StepReview({ form, ewpDraftData, loadingReviewData, createdEwpId }) {
         value={Array.isArray(displayData.input_gates) ? displayData.input_gates.join('; ') : (form.inputGates || []).join('; ')}
       />
       {displayData.updated_at && (
-        <Row label="Last server sync"  value={new Date(displayData.updated_at).toLocaleString()} />
+        <Row label="Last server sync"  value={formatDateTime(displayData.updated_at)} />
       )}
     </Box>
   );

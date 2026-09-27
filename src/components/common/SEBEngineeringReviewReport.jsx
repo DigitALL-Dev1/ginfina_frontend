@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../../utils/dateOnly';
 import { useMemo, useState } from 'react';
 import { Alert, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { IconDownload, IconRefresh } from '@tabler/icons-react';
@@ -31,7 +32,7 @@ export default function SEBEngineeringReviewReport({ baseline, revision, items, 
     {report && <Stack gap="xl">
       <Text fw={600}>{report.code}</Text>
       <SimpleGrid cols={{ base: 2, sm: 3 }}>{report.counts.map(count => <Paper key={count.label} withBorder p="sm" radius="md"><Text size="xs" c="dimmed">{count.label}</Text><Text size="xl" fw={700}>{count.value}</Text></Paper>)}</SimpleGrid>
-      {report.sections.map((section, index) => <Box key={index}><Title order={4} mb="md">{section.title}</Title><SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">{section.fields.map((field, fieldIndex) => <Box key={fieldIndex} style={{ minWidth: 0 }}><Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{field.value}</Text></Box>)}</SimpleGrid></Box>)}
+      {report.sections.map((section, index) => <Box key={index}><Title order={4} mb="md">{section.title}</Title><SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">{section.fields.map((field, fieldIndex) => <Box key={fieldIndex} style={{ minWidth: 0 }}><Text size="xs" c="dimmed" mb={4}>{field.label}</Text><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{formatDisplayValue(field.value)}</Text></Box>)}</SimpleGrid></Box>)}
     </Stack>}
   </Paper>;
 }

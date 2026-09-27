@@ -1,0 +1,7 @@
+.root { min-width:0; }
+.inputs { display:grid; grid-template-columns:minmax(110px, 0.8fr) minmax(0, 1.2fr); gap:8px; align-items:start; }
+.inputs > * { min-width:0; }
+.inputs :global(.mantine-Input-input) { min-height:44px; font-size:16px; }
+.inputs :global(.mantine-InputWrapper-label) { font-size:12px; font-weight:600; }
+.dropdown { max-width:calc(100vw - 24px); }
+.dropdown :global(.mantine-Select-option) { white-space:normal; overflow-wrap:anywhere; min-height:44px; }
