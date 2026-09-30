@@ -169,6 +169,43 @@ export default function SIAEngineeringAssessmentLayout() {
   const [modal, setModal] = useState(null);
   const [saving, setSaving] = useState(false);
   const [fv, setFv] = useState({});
+  const [sites, setSites] = useState([]);
+  const [siteId, setSiteId] = useState('');
+  const [sitesLoading, setSitesLoading] = useState(Boolean(caseId));
+  const [sitesError, setSitesError] = useState('');
+  const [sitesReload, setSitesReload] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setSites([]);
+    setSiteId('');
+    setSitesError('');
+    setSitesLoading(Boolean(caseId));
+    if (!caseId) return () => controller.abort();
+    fetch(`${API}/sia/cases/${encodeURIComponent(caseId)}/sites`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Unable to load sites. Please try Reload.');
+        const data = await response.json();
+        if (!Array.isArray(data)) throw new Error('Unable to load sites. Please try Reload.');
+        return data.filter(site => typeof site.id === 'string' && site.id.trim() && site.sia_case_id === caseId);
+      })
+      .then(rows => {
+        if (controller.signal.aborted) return;
+        const remembered = localStorage.getItem('sia_site_id');
+        const selected = rows.find(site => site.id === remembered) || (rows.length === 1 ? rows[0] : null);
+        setSites(rows);
+        setSiteId(selected?.id || '');
+        if (selected) localStorage.setItem('sia_site_id', selected.id);
+        else localStorage.removeItem('sia_site_id');
+      })
+      .catch(error => { if (!controller.signal.aborted) setSitesError(error.message); })
+      .finally(() => { if (!controller.signal.aborted) setSitesLoading(false); });
+    return () => controller.abort();
+  }, [caseId, sitesReload]);
+
+  const selectedSite = sites.find(site => site.id === siteId);
+  const canCreateAssessment = Boolean(caseId && selectedSite && !sitesLoading && !sitesError);
+  const siteLabel = site => [site.site_code, site.site_name].filter(Boolean).join(' / ') || 'Unnamed site';
 
   const loadByCaseId = (id) => {
     const cid = id || localStorage.getItem('sia_case_id') || '';
@@ -211,6 +248,10 @@ export default function SIAEngineeringAssessmentLayout() {
   const closeModal = () => { setModal(null); setFv({}); };
 
   const save = async (path, body, reload) => {
+    if (path === '/sia/engineering-assessments' && (!canCreateAssessment || body.site_id !== selectedSite.id)) {
+      notifications.show({ title: 'Site required', message: 'Select a site for the active SIA case before creating an assessment.', color: 'red' });
+      return;
+    }
     setSaving(true);
     try {
       await postApi(path, body);
@@ -243,11 +284,24 @@ export default function SIAEngineeringAssessmentLayout() {
               : <Text size="xs" c="red">No active case — create one in Start and Case Control first.</Text>}
           </Group>
           <Group className={styles.actions} gap="sm">
-            <Button size="xs" variant="subtle" color="green" onClick={() => loadByCaseId(caseId)} disabled={!caseId}>Reload</Button>
-            <Button size="xs" color="green" variant="outline" disabled={!caseId}
-              onClick={() => openModal('ea', { sia_case_id: caseId, site_id: localStorage.getItem('sia_site_id') || '' })}>+ New Assessment</Button>
+            <Button size="xs" variant="subtle" color="green" onClick={() => { loadByCaseId(caseId); setSitesReload(value => value + 1); }} disabled={!caseId}>Reload</Button>
+            <Button size="xs" color="green" variant="outline" disabled={!canCreateAssessment}
+              onClick={() => openModal('ea', { sia_case_id: caseId, site_id: siteId })}>+ New Assessment</Button>
           </Group>
         </Group>
+        {caseId && <Box mt="sm">
+          <Select label="Active site" placeholder={sitesLoading ? 'Loading sites...' : 'Select a site'} searchable
+            data={sites.map(site => ({ value: site.id, label: siteLabel(site) }))}
+            value={siteId || null} disabled={sitesLoading || !sites.length} allowDeselect={false}
+            error={sitesError || undefined}
+            onChange={value => {
+              setSiteId(value || '');
+              if (value) localStorage.setItem('sia_site_id', value);
+              else localStorage.removeItem('sia_site_id');
+            }} />
+          {!sitesLoading && !sitesError && !sites.length && <Text size="xs" c="dimmed" mt={6}>Create a site in Sites and Survey for this SIA case before adding an assessment.</Text>}
+          {!sitesLoading && !sitesError && sites.length > 1 && !siteId && <Text size="xs" c="dimmed" mt={6}>Select the site this assessment belongs to.</Text>}
+        </Box>}
       </Paper>
 
       {/* EA list */}
@@ -518,7 +572,8 @@ export default function SIAEngineeringAssessmentLayout() {
 
       {/* New Engineering Assessment */}
       <FormModal opened={modal === 'ea'} onClose={closeModal} title="New Engineering Assessment" saving={saving}
-        onSubmit={() => save('/sia/engineering-assessments', { ...fv, sia_case_id: caseId }, () => loadByCaseId())}>
+        onSubmit={() => save('/sia/engineering-assessments', { ...fv, sia_case_id: caseId, site_id: siteId }, () => loadByCaseId(caseId))}>
+        {selectedSite && <Text size="sm" c="dimmed">Site: {siteLabel(selectedSite)}</Text>}
         <FormRow>
           <FI label="Assessment Code *" field="assessment_code" fv={fv} setFv={setFv} />
           <FI label="Discipline *" field="discipline" fv={fv} setFv={setFv} select={DISCIPLINES} />
