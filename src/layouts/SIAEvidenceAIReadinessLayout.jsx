@@ -28,17 +28,22 @@ const READINESS_ST = ['NOT_ASSESSED', 'READY', 'CONDITIONAL', 'BLOCKED', 'NOT_AP
 const RECORD_TYPES = ['CONSTRAINT', 'ASSUMPTION'];
 
 // ── hooks & helpers ─────────────────────────────────────
-function useApi(url, deps = []) {
-  const [data, setData] = useState([]);
+function useApi(url, deps = [], siteId = null) {
+  const [result, setResult] = useState({ url: null, data: [] });
   const [loading, setLoading] = useState(false);
-  const reload = () => {
+  const [refresh, setRefresh] = useState(0);
+  const reload = () => setRefresh(value => value + 1);
+  useEffect(() => {
+    const controller = new AbortController();
+    setResult({ url, data: [] });
+    setLoading(Boolean(url));
     if (!url) return;
-    setLoading(true);
-    fetch(url).then(r => r.json()).then(d => setData(Array.isArray(d) ? d : []))
-      .catch(() => { }).finally(() => setLoading(false));
-  };
-  useEffect(() => { reload(); }, deps); // eslint-disable-line
-  return { data, loading, reload };
+    fetch(url, { signal: controller.signal }).then(r => r.json()).then(d => {
+      if (!controller.signal.aborted) setResult({ url, data: Array.isArray(d) ? d : [] });
+    }).catch(() => { }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [url, refresh]);
+  return { data: result.url === url ? result.data.filter(row => !siteId || row.site_id === siteId) : [], loading, reload };
 }
 
 async function postApi(path, body) {
@@ -155,6 +160,35 @@ export default function SIAEvidenceAIReadinessLayout() {
   const [caseId, setCaseId]       = useState(() => localStorage.getItem('sia_case_id') || '');
   const [loadedCaseId, setLoaded] = useState(() => localStorage.getItem('sia_case_id') || '');
   const [activeTab, setTab] = useState('evidence');
+  const [siteId, setSiteId] = useState('');
+  const [sites, setSites] = useState([]);
+  const [sitesLoading, setSitesLoading] = useState(Boolean(loadedCaseId));
+  const [sitesError, setSitesError] = useState('');
+  const [sitesReload, setSitesReload] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setSites([]); setSiteId(''); setSitesError('');
+    setSitesLoading(Boolean(loadedCaseId));
+    if (!loadedCaseId) return;
+    fetch(`${API}/sia/cases/${encodeURIComponent(loadedCaseId)}/sites`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Unable to load sites. Please try Reload.');
+        const rows = await response.json();
+        if (!Array.isArray(rows)) throw new Error('Unable to load sites. Please try Reload.');
+        return rows.filter(site => typeof site.id === 'string' && site.id.trim() && site.sia_case_id === loadedCaseId);
+      })
+      .then(rows => {
+        if (controller.signal.aborted) return;
+        setSites(rows);
+        const remembered = localStorage.getItem('sia_site_id');
+        const selected = rows.find(site => site.id === remembered) || (rows.length === 1 ? rows[0] : null);
+        selectSite(selected?.id || '');
+      })
+      .catch(error => { if (!controller.signal.aborted) setSitesError(error.message); })
+      .finally(() => { if (!controller.signal.aborted) setSitesLoading(false); });
+    return () => controller.abort();
+  }, [loadedCaseId, sitesReload]);
 
   // selected parent records for child tabs
   const [selEvidence, setSelEvidence] = useState(null);
@@ -164,14 +198,14 @@ export default function SIAEvidenceAIReadinessLayout() {
   const [selReadiness, setSelReadiness] = useState(null);
 
   // ── case-level data ──────────────────────────────────
-  const { data: evidence, loading: evL, reload: rEv } = useApi(loadedCaseId ? `${API}/sia/cases/${loadedCaseId}/evidence` : null, [loadedCaseId]);
-  const { data: sourceFacts, loading: sfL, reload: rSf } = useApi(loadedCaseId ? `${API}/sia/cases/${loadedCaseId}/source-facts` : null, [loadedCaseId]);
-  const { data: aiObs, loading: aoL, reload: rAo } = useApi(loadedCaseId ? `${API}/sia/cases/${loadedCaseId}/ai-observations` : null, [loadedCaseId]);
-  const { data: conflicts, loading: cfL, reload: rCf } = useApi(loadedCaseId ? `${API}/sia/cases/${loadedCaseId}/conflicts` : null, [loadedCaseId]);
-  const { data: dataGaps, loading: dgL, reload: rDg } = useApi(loadedCaseId ? `${API}/sia/cases/${loadedCaseId}/data-gaps` : null, [loadedCaseId]);
-  const { data: constraints, loading: cnL, reload: rCn } = useApi(loadedCaseId ? `${API}/sia/cases/${loadedCaseId}/constraints-assumptions` : null, [loadedCaseId]);
-  const { data: readinessList, loading: rlL, reload: rRl } = useApi(loadedCaseId ? `${API}/sia/cases/${loadedCaseId}/discipline-readiness` : null, [loadedCaseId]);
-  const { data: rfiActions, loading: rfL, reload: rRfi } = useApi(loadedCaseId ? `${API}/sia/cases/${loadedCaseId}/rfi-actions` : null, [loadedCaseId]);
+  const { data: evidence, loading: evL, reload: rEv } = useApi(loadedCaseId && siteId ? `${API}/sia/cases/${loadedCaseId}/evidence` : null, [loadedCaseId], siteId);
+  const { data: sourceFacts, loading: sfL, reload: rSf } = useApi(loadedCaseId && siteId ? `${API}/sia/cases/${loadedCaseId}/source-facts` : null, [loadedCaseId], siteId);
+  const { data: aiObs, loading: aoL, reload: rAo } = useApi(loadedCaseId && siteId ? `${API}/sia/cases/${loadedCaseId}/ai-observations` : null, [loadedCaseId], siteId);
+  const { data: conflicts, loading: cfL, reload: rCf } = useApi(loadedCaseId && siteId ? `${API}/sia/cases/${loadedCaseId}/conflicts` : null, [loadedCaseId], siteId);
+  const { data: dataGaps, loading: dgL, reload: rDg } = useApi(loadedCaseId && siteId ? `${API}/sia/cases/${loadedCaseId}/data-gaps` : null, [loadedCaseId], siteId);
+  const { data: constraints, loading: cnL, reload: rCn } = useApi(loadedCaseId && siteId ? `${API}/sia/cases/${loadedCaseId}/constraints-assumptions` : null, [loadedCaseId], siteId);
+  const { data: readinessList, loading: rlL, reload: rRl } = useApi(loadedCaseId && siteId ? `${API}/sia/cases/${loadedCaseId}/discipline-readiness` : null, [loadedCaseId], siteId);
+  const { data: rfiActions, loading: rfL, reload: rRfi } = useApi(loadedCaseId && siteId ? `${API}/sia/cases/${loadedCaseId}/rfi-actions` : null, [loadedCaseId], siteId);
 
   // ── child data ───────────────────────────────────────
   const sections = [
@@ -226,9 +260,13 @@ export default function SIAEvidenceAIReadinessLayout() {
   const closeModal = () => { setModal(null); setFv({}); };
 
   const save = async (path, body, reload) => {
+    if (!siteId || !sites.some(site => site.id === siteId && site.sia_case_id === loadedCaseId)) {
+      notifications.show({ title: 'Site required', message: 'Select a site for the active SIA case before saving.', color: 'red' });
+      return;
+    }
     setSaving(true);
     try {
-      await postApi(path, body);
+      await postApi(path, { ...body, sia_case_id: loadedCaseId, site_id: siteId });
       notifications.show({ title: 'Saved', message: 'Record created.', color: 'green' });
       reload(); closeModal();
     } catch (e) {
@@ -236,7 +274,19 @@ export default function SIAEvidenceAIReadinessLayout() {
     } finally { setSaving(false); }
   };
 
+  const selectSite = (id) => {
+    if (localStorage.getItem('sia_site_id') !== id) localStorage.removeItem('sia_survey_visit_id');
+    if (id) localStorage.setItem('sia_site_id', id);
+    else localStorage.removeItem('sia_site_id');
+    setSiteId(id);
+    setSelEvidence(null); setSelAIObs(null); setSelConflict(null);
+    setSelGap(null); setSelReadiness(null);
+    closeModal(); setTab('evidence');
+  };
+
   const handleLoad = () => {
+    setSitesReload(value => value + 1);
+    rEv(); rSf(); rAo(); rCf(); rDg(); rCn(); rRl(); rRfi();
     const id = localStorage.getItem('sia_case_id') || caseId;
     if (!id) return;
     setCaseId(id);
@@ -274,6 +324,12 @@ export default function SIAEvidenceAIReadinessLayout() {
           </Group>
           <Button size="xs" variant="subtle" color="green" onClick={handleLoad} disabled={!loadedCaseId}>Reload</Button>
         </Group>
+        <Select label="Select site" placeholder={sitesLoading ? 'Loading sites...' : 'Select a site to continue'}
+          mt="sm" searchable allowDeselect={false} value={siteId || null}
+          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') || site.id }))}
+          disabled={sitesLoading || saving || !sites.length} error={sitesError || undefined}
+          onChange={value => selectSite(value || '')} />
+        {loadedCaseId && !sitesLoading && !sitesError && !sites.length && <Text size="xs" c="dimmed" mt={6}>Create a site in Sites and Survey for this case to continue.</Text>}
       </Paper>
 
       {/* Context strip */}
@@ -292,9 +348,9 @@ export default function SIAEvidenceAIReadinessLayout() {
       )}
 
       {/* Tabs */}
-      {loadedCaseId && (
+      {loadedCaseId && siteId && (
         <Tabs value={activeTab} onChange={setTab} color="green">
-          <Group className={styles.actions} justify="flex-end" mb="md"><Button color="green" variant="light" leftSection={<IconFileText size={16} />} onClick={() => setTab('report')}>View case report</Button></Group>
+          <Group className={styles.actions} justify="flex-end" mb="md"><Button color="green" variant="light" leftSection={<IconFileText size={16} />} onClick={() => setTab('report')}>View site report</Button></Group>
           <Box className={styles.sectionSelect} mb="md">
             <Select label="Evidence, AI and Readiness section" value={activeTab} onChange={value => value && setTab(value)} allowDeselect={false}
               data={sections.map(({ value, label, enabled }) => ({ value, label, disabled: !enabled }))} />
@@ -577,7 +633,7 @@ export default function SIAEvidenceAIReadinessLayout() {
           </Tabs.Panel>
           {activeTab === 'r-reviews' && <Group className={styles.actions} justify="flex-end" mt="lg"><Button color="green" rightSection={<IconArrowRight size={16} />} onClick={() => setTab('report')}>Continue to Report</Button></Group>}
           <Tabs.Panel value="report">
-            {activeTab === 'report' && <SIAEvidenceAIReadinessReport api={API} caseId={loadedCaseId} />}
+            {activeTab === 'report' && <SIAEvidenceAIReadinessReport api={API} caseId={loadedCaseId} siteId={siteId} />}
           </Tabs.Panel>
         </Tabs>
       )}
@@ -680,8 +736,8 @@ export default function SIAEvidenceAIReadinessLayout() {
 
       {/* Discipline Readiness */}
       <FormModal opened={modal === 'readiness'} onClose={closeModal} title="Add Discipline Readiness" saving={saving}
-        onSubmit={() => save('/sia/discipline-readiness', { sia_case_id: loadedCaseId, site_id: fv.site_id || 'UNKNOWN', assessed_by: uid, assessment_date: new Date().toISOString(), ...fv }, rRl)}>
-        <FR><FI label="Discipline *" field="discipline" fv={fv} setFv={setFv} /><FI label="Site ID *" field="site_id" fv={fv} setFv={setFv} /></FR>
+        onSubmit={() => save('/sia/discipline-readiness', { sia_case_id: loadedCaseId, assessed_by: uid, assessment_date: new Date().toISOString(), ...fv }, rRl)}>
+        <FR><FI label="Discipline *" field="discipline" fv={fv} setFv={setFv} /><Text size="sm" c="dimmed">Site: {sites.find(site => site.id === siteId)?.site_name || siteId}</Text></FR>
         <FI label="Readiness Status" field="readiness_status" fv={fv} setFv={setFv} select={READINESS_ST} />
         <FI label="Summary" field="summary" fv={fv} setFv={setFv} textarea />
       </FormModal>

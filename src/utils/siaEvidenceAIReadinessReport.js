@@ -11,7 +11,7 @@ const fields = (row, keys) => keys.map(key => ({
     : row[key] === null || row[key] === undefined || row[key] === '' ? 'Not provided' : String(row[key]),
 }));
 
-export async function loadEvidenceAIReadinessReport(api, caseId, signal) {
+export async function loadEvidenceAIReadinessReport(api, caseId, signal, siteId) {
   if (!caseId) throw new Error('Select an active SIA case before opening the report.');
   const casePath = `/sia/cases/${encodeURIComponent(caseId)}`;
   async function get(path, list = true) {
@@ -26,7 +26,7 @@ export async function loadEvidenceAIReadinessReport(api, caseId, signal) {
   if (siaCase.id !== caseId) throw new Error('The returned SIA case does not match the active case.');
   const records = {};
   await Promise.all(evidenceReportGroups.filter(group => !group.parent).map(async group => {
-    records[group.key] = (await get(`${casePath}/${group.path}`)).filter(row => row.sia_case_id === caseId);
+    records[group.key] = (await get(`${casePath}/${group.path}`)).filter(row => row.sia_case_id === caseId && (!siteId || row.site_id === siteId));
   }));
   await Promise.all(evidenceReportGroups.filter(group => group.parent).map(async group => {
     const parentGroup = evidenceReportGroups.find(parent => parent.key === group.parent);
@@ -39,14 +39,14 @@ export async function loadEvidenceAIReadinessReport(api, caseId, signal) {
   const sections = [
     { title: 'SIA case details', fields: fields(siaCase, ['id', 'case_code', 'project_id', 'assessment_purpose', 'assessment_stage', 'owner_user_id', 'crm_reference_id', 'opportunity_id', 'created_at']) },
     { title: 'Report context', fields: [
-      ...fields({ generated_at: new Date().toISOString() }, ['generated_at']),
+      ...fields({ site_id: siteId, generated_at: new Date().toISOString() }, ['site_id', 'generated_at']),
       { label: 'AI observations', value: 'AI outputs are advisory. Reviewer dispositions and readiness decisions are shown as recorded.' },
     ] },
   ];
   const gaps = new Map(records.gaps.map(gap => [gap.id, gap.gap_code || gap.id]));
   for (const group of evidenceReportGroups) {
     const rows = records[group.key];
-    if (!rows.length) sections.push({ title: `${group.title} (0)`, fields: [{ label: 'Records', value: 'No records saved for this case.' }] });
+    if (!rows.length) sections.push({ title: `${group.title} (0)`, fields: [{ label: 'Records', value: 'No records saved for this selection.' }] });
     rows.forEach((row, index) => {
       const context = group.parent ? [{ label: group.referenceLabel, value: row.parent_reference }] : [];
       // The case RFI register already contains gap RFIs; include each action once with its gap reference.

@@ -594,7 +594,7 @@ export default function SIAEngineeringAssessmentLayout() {
         <FormRow><FI label="Supply Type" field="supply_type" fv={fv} setFv={setFv} /><FI label="Voltage" field="voltage" fv={fv} setFv={setFv} number /></FormRow>
         <FormRow><FI label="Phase" field="phase" fv={fv} setFv={setFv} /><FI label="Frequency" field="frequency" fv={fv} setFv={setFv} number /></FormRow>
         <FormRow><FI label="Connected Load (kW)" field="connected_load" fv={fv} setFv={setFv} number /><FI label="Peak Load (kW)" field="peak_load" fv={fv} setFv={setFv} number /></FormRow>
-        <FI label="Utility Condition" field="utility_condition" fv={fv} setFv={setFv} />
+        <FI label="Utility Condition" field="utility_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Unavailable', 'Not Assessed', 'Not Applicable']} />
         <FI label="Transformer Details" field="transformer_details" fv={fv} setFv={setFv} textarea />
         <FI label="Switchboard Details" field="switchboard_details" fv={fv} setFv={setFv} textarea />
         <FI label="Protection Details" field="protection_details" fv={fv} setFv={setFv} textarea />
@@ -604,8 +604,8 @@ export default function SIAEngineeringAssessmentLayout() {
       {/* Civil */}
       <FormModal opened={modal === 'civil'} onClose={closeModal} title="Civil Assessment" saving={saving}
         onSubmit={() => save('/sia/civil-assessments', { engineering_assessment_id: eid, ...fv }, rCivil)}>
-        <FormRow><FI label="Ground Condition" field="ground_condition" fv={fv} setFv={setFv} /><FI label="Foundation Condition" field="foundation_condition" fv={fv} setFv={setFv} /></FormRow>
-        <FormRow><FI label="Drainage Condition" field="drainage_condition" fv={fv} setFv={setFv} /><FI label="Road Condition" field="road_condition" fv={fv} setFv={setFv} /></FormRow>
+        <FormRow><FI label="Ground Condition" field="ground_condition" fv={fv} setFv={setFv} select={['Stable', 'Soft', 'Rocky', 'Waterlogged', 'Uneven', 'Not Assessed', 'Not Applicable']} /><FI label="Foundation Condition" field="foundation_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Damaged', 'Not Assessed', 'Not Applicable']} /></FormRow>
+        <FormRow><FI label="Drainage Condition" field="drainage_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Blocked', 'No Drainage', 'Not Assessed', 'Not Applicable']} /><FI label="Road Condition" field="road_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Under Construction', 'Impassable', 'Not Assessed', 'Not Applicable']} /></FormRow>
         <FormRow><FI label="Erosion Risk" field="erosion_risk" fv={fv} setFv={setFv} select={['Low', 'Medium', 'High', 'Critical']} /><FI label="Flood Risk" field="flood_risk" fv={fv} setFv={setFv} select={['Low', 'Medium', 'High', 'Critical']} /></FormRow>
         <FI label="Trench Requirement" field="trench_requirement" fv={fv} setFv={setFv} textarea />
         <FI label="Route Constraint" field="route_constraint" fv={fv} setFv={setFv} textarea />
@@ -616,8 +616,8 @@ export default function SIAEngineeringAssessmentLayout() {
       <FormModal opened={modal === 'structural'} onClose={closeModal} title="Structural Assessment" saving={saving}
         onSubmit={() => save('/sia/structural-assessments', { engineering_assessment_id: eid, ...fv }, rStruct)}>
         <FormRow><FI label="Structure Type" field="structure_type" fv={fv} setFv={setFv} /><FI label="Roof Type" field="roof_type" fv={fv} setFv={setFv} /></FormRow>
-        <FormRow><FI label="Material Type" field="material_type" fv={fv} setFv={setFv} /><FI label="Structural Condition" field="structural_condition" fv={fv} setFv={setFv} /></FormRow>
-        <FormRow><FI label="Roof Condition" field="roof_condition" fv={fv} setFv={setFv} /><FI label="Support Condition" field="support_condition" fv={fv} setFv={setFv} /></FormRow>
+        <FormRow><FI label="Material Type" field="material_type" fv={fv} setFv={setFv} /><FI label="Structural Condition" field="structural_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Damaged', 'Not Assessed', 'Not Applicable']} /></FormRow>
+        <FormRow><FI label="Roof Condition" field="roof_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Damaged', 'Not Assessed', 'Not Applicable']} /><FI label="Support Condition" field="support_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Damaged', 'Not Assessed', 'Not Applicable']} /></FormRow>
         <FI label="Visible Damage" field="visible_damage" fv={fv} setFv={setFv} textarea />
         <FI label="Loading Constraint" field="loading_constraint" fv={fv} setFv={setFv} textarea />
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
@@ -626,9 +626,9 @@ export default function SIAEngineeringAssessmentLayout() {
       {/* Mechanical */}
       <FormModal opened={modal === 'mechanical'} onClose={closeModal} title="Mechanical Assessment" saving={saving}
         onSubmit={() => save('/sia/mechanical-assessments', { engineering_assessment_id: eid, ...fv }, rMech)}>
-        <FormRow><FI label="Equipment Zone" field="equipment_zone" fv={fv} setFv={setFv} /><FI label="Plant Condition" field="plant_condition" fv={fv} setFv={setFv} /></FormRow>
-        <FormRow><FI label="Ventilation Condition" field="ventilation_condition" fv={fv} setFv={setFv} /><FI label="Lifting Access" field="lifting_access" fv={fv} setFv={setFv} /></FormRow>
-        <FormRow><FI label="Maintenance Access" field="maintenance_access" fv={fv} setFv={setFv} /><FI label="Pipework Condition" field="pipework_condition" fv={fv} setFv={setFv} /></FormRow>
+        <FormRow><FI label="Equipment Zone" field="equipment_zone" fv={fv} setFv={setFv} select={['Plant Room', 'Production Area', 'Utility Area', 'Rooftop', 'Basement', 'Outdoor Area', 'Other', 'Not Assessed', 'Not Applicable']} /><FI label="Plant Condition" field="plant_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Damaged', 'Not Assessed', 'Not Applicable']} /></FormRow>
+        <FormRow><FI label="Ventilation Condition" field="ventilation_condition" fv={fv} setFv={setFv} select={['Adequate', 'Limited', 'Inadequate', 'No Ventilation', 'Not Assessed', 'Not Applicable']} /><FI label="Lifting Access" field="lifting_access" fv={fv} setFv={setFv} select={['Unrestricted', 'Restricted', 'Unavailable', 'Not Assessed', 'Not Applicable']} /></FormRow>
+        <FormRow><FI label="Maintenance Access" field="maintenance_access" fv={fv} setFv={setFv} select={['Unrestricted', 'Restricted', 'Unavailable', 'Not Assessed', 'Not Applicable']} /><FI label="Pipework Condition" field="pipework_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Damaged', 'Not Assessed', 'Not Applicable']} /></FormRow>
         <FI label="Route Constraint" field="route_constraint" fv={fv} setFv={setFv} textarea />
         <FI label="Operational Constraint" field="operational_constraint" fv={fv} setFv={setFv} textarea />
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
@@ -652,7 +652,7 @@ export default function SIAEngineeringAssessmentLayout() {
       <FormModal opened={modal === 'scada'} onClose={closeModal} title="SCADA / Communication Assessment" saving={saving}
         onSubmit={() => save('/sia/scada-assessments', { engineering_assessment_id: eid, ...fv }, rScada)}>
         <FormRow><FI label="Control System Type" field="control_system_type" fv={fv} setFv={setFv} /><FI label="Communication Type" field="communication_type" fv={fv} setFv={setFv} /></FormRow>
-        <FormRow><FI label="Protocol Details" field="protocol_details" fv={fv} setFv={setFv} /><FI label="Connectivity Condition" field="connectivity_condition" fv={fv} setFv={setFv} /></FormRow>
+        <FormRow><FI label="Protocol Details" field="protocol_details" fv={fv} setFv={setFv} /><FI label="Connectivity Condition" field="connectivity_condition" fv={fv} setFv={setFv} select={['Good', 'Fair', 'Poor', 'Intermittent', 'Unavailable', 'Not Assessed', 'Not Applicable']} /></FormRow>
         <FI label="Sensor Details" field="sensor_details" fv={fv} setFv={setFv} textarea />
         <Group mt="sm" gap="xl">
           {[['scada_available', 'SCADA Available'], ['network_available', 'Network'], ['telemetry_available', 'Telemetry'], ['remote_monitoring', 'Remote Monitoring']].map(([f, l]) => (
@@ -706,7 +706,7 @@ export default function SIAEngineeringAssessmentLayout() {
       {/* Gap */}
       <FormModal opened={modal === 'gap'} onClose={closeModal} title="Engineering Gap" saving={saving}
         onSubmit={() => save('/sia/engineering-gaps', { engineering_assessment_id: eid, ...fv }, rGap)}>
-        <FormRow><FI label="Gap Code" field="gap_code" fv={fv} setFv={setFv} /><FI label="Gap Type" field="gap_type" fv={fv} setFv={setFv} /></FormRow>
+        <FormRow><FI label="Gap Code" field="gap_code" fv={fv} setFv={setFv} /><FI label="Gap Type" field="gap_type" fv={fv} setFv={setFv} select={['Missing Data', 'Missing Documentation', 'Survey Required', 'Testing Required', 'Design Clarification', 'Equipment Information', 'Compliance', 'Other']} /></FormRow>
         <FormRow>
           <FI label="Priority" field="priority" fv={fv} setFv={setFv} select={['Low', 'Medium', 'High', 'Critical']} />
           <FI label="Status" field="status" fv={fv} setFv={setFv} select={STATUS_OPTS} />

@@ -29,16 +29,21 @@ const GEOM_TYPES = ['Point', 'LineString', 'Polygon', 'MultiPolygon', 'Mixed'];
 
 // ── hooks & helpers ─────────────────────────────────────
 function useApi(url, deps = []) {
-  const [data, setData] = useState([]);
+  const [result, setResult] = useState({ url: null, data: [] });
   const [loading, setLoading] = useState(false);
-  const reload = () => {
+  const [refresh, setRefresh] = useState(0);
+  const reload = () => setRefresh(value => value + 1);
+  useEffect(() => {
+    const controller = new AbortController();
+    setResult({ url, data: [] });
+    setLoading(Boolean(url));
     if (!url) return;
-    setLoading(true);
-    fetch(url).then(r => r.json()).then(d => setData(Array.isArray(d) ? d : []))
-      .catch(() => { }).finally(() => setLoading(false));
-  };
-  useEffect(() => { reload(); }, deps); // eslint-disable-line
-  return { data, loading, reload };
+    fetch(url, { signal: controller.signal }).then(r => r.json()).then(d => {
+      if (!controller.signal.aborted) setResult({ url, data: Array.isArray(d) ? d : [] });
+    }).catch(() => { }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [url, refresh]);
+  return { data: result.url === url ? result.data : [], loading, reload };
 }
 
 async function postApi(path, body) {
@@ -151,9 +156,37 @@ function BoolBadge({ v, yes = 'Yes', no = 'No' }) {
 
 // ════════════════════════════════════════════════════════
 export default function SIADroneGISClimateLayout() {
-  const [siteId, setSiteId]         = useState(() => localStorage.getItem('sia_site_id') || '');
-  const [loadedSiteId, setLoaded]   = useState(() => localStorage.getItem('sia_site_id') || '');
+  const [caseId] = useState(() => localStorage.getItem('sia_case_id') || '');
+  const [loadedSiteId, setLoaded] = useState('');
+  const [sites, setSites] = useState([]);
+  const [sitesLoading, setSitesLoading] = useState(Boolean(caseId));
+  const [sitesError, setSitesError] = useState('');
+  const [sitesReload, setSitesReload] = useState(0);
   const [activeTab, setTab] = useState('missions');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setSitesLoading(Boolean(caseId));
+    setSitesError('');
+    if (!caseId) return;
+    fetch(`${API}/sia/cases/${encodeURIComponent(caseId)}/sites`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Unable to load sites. Please try Reload.');
+        const rows = await response.json();
+        if (!Array.isArray(rows)) throw new Error('Unable to load sites. Please try Reload.');
+        return rows.filter(site => typeof site.id === 'string' && site.id.trim() && site.sia_case_id === caseId);
+      })
+      .then(rows => {
+        if (controller.signal.aborted) return;
+        setSites(rows);
+        const remembered = localStorage.getItem('sia_site_id');
+        const selected = rows.find(site => site.id === remembered) || (rows.length === 1 ? rows[0] : null);
+        selectSite(selected?.id || '');
+      })
+      .catch(error => { if (!controller.signal.aborted) setSitesError(error.message); })
+      .finally(() => { if (!controller.signal.aborted) setSitesLoading(false); });
+    return () => controller.abort();
+  }, [caseId, sitesReload]);
 
   // selected mission / layer / geo-source
   const [mission, setMission] = useState(null);
@@ -212,7 +245,7 @@ export default function SIADroneGISClimateLayout() {
       gisfeature: { feature_code: autoCode('FEAT') },
     };
     const enriched = {
-      site_id:         localStorage.getItem('sia_site_id') || '',
+      site_id:         loadedSiteId,
       survey_visit_id: localStorage.getItem('sia_survey_visit_id') || '',
       ...(codePrefills[key] || {}),
       ...defaults,
@@ -223,6 +256,10 @@ export default function SIADroneGISClimateLayout() {
   const closeModal = () => { setModal(null); setFv({}); };
 
   const save = async (path, body, reload) => {
+    if (!loadedSiteId || !sites.some(site => site.id === loadedSiteId)) {
+      notifications.show({ title: 'Site required', message: 'Select a site before saving.', color: 'red' });
+      return;
+    }
     setSaving(true);
     try {
       await postApi(path, body);
@@ -233,13 +270,19 @@ export default function SIADroneGISClimateLayout() {
     } finally { setSaving(false); }
   };
 
-  const handleLoad = () => {
-    const id = localStorage.getItem('sia_site_id') || siteId;
-    if (!id) return;
-    setSiteId(id);
+  const selectSite = (id) => {
+    if (localStorage.getItem('sia_site_id') !== id) localStorage.removeItem('sia_survey_visit_id');
+    if (id) localStorage.setItem('sia_site_id', id);
+    else localStorage.removeItem('sia_site_id');
     setLoaded(id);
     setMission(null); setGisLayer(null); setGeoSource(null);
+    closeModal();
     setTab('missions');
+  };
+
+  const handleLoad = () => {
+    setSitesReload(value => value + 1);
+    rMiss(); rLayer(); rGeo(); rClim();
   };
 
   // ════════════════════════════════════════════════════
@@ -267,11 +310,18 @@ export default function SIADroneGISClimateLayout() {
               : <Text size="xs" c="red">No active site — add a site in Sites and Survey first.</Text>}
           </Group>
           <Group className={styles.actions} gap="sm">
-            <Button size="xs" variant="subtle" color="green" onClick={handleLoad} disabled={!loadedSiteId}>Reload</Button>
+            <Button size="xs" variant="subtle" color="green" onClick={handleLoad} disabled={!caseId || sitesLoading}>Reload</Button>
             <Button size="xs" color="green" variant="outline" disabled={!loadedSiteId}
               onClick={() => openModal('mission', { site_id: loadedSiteId, survey_visit_id: localStorage.getItem('sia_survey_visit_id') || '' })}>+ New Mission</Button>
           </Group>
         </Group>
+        <Select label="Select site" placeholder={sitesLoading ? 'Loading sites...' : 'Select a site to continue'}
+          mt="sm" searchable allowDeselect={false} value={loadedSiteId || null}
+          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') || site.id }))}
+          disabled={sitesLoading || saving || !sites.length} error={sitesError || undefined}
+          onChange={value => selectSite(value || '')} />
+        {!caseId && <Text size="xs" c="dimmed" mt={6}>Select an SIA case in Start and Case Control first.</Text>}
+        {caseId && !sitesLoading && !sitesError && !sites.length && <Text size="xs" c="dimmed" mt={6}>Create a site in Sites and Survey for this case to continue.</Text>}
       </Paper>
 
       {/* Context strip */}
@@ -551,7 +601,7 @@ export default function SIADroneGISClimateLayout() {
 
       {/* Drone Mission */}
       <FormModal opened={modal === 'mission'} onClose={closeModal} title="New Drone Mission" saving={saving}
-        onSubmit={() => save('/sia/drone-missions', { site_id: loadedSiteId, ...fv }, rMiss)}>
+        onSubmit={() => save('/sia/drone-missions', { ...fv, site_id: loadedSiteId }, rMiss)}>
         {!fv.survey_visit_id && (
           <Text size="xs" c="orange" mb="xs">⚠ No survey visit found. Create one in Sites and Survey first.</Text>
         )}
@@ -660,7 +710,7 @@ export default function SIADroneGISClimateLayout() {
 
       {/* GIS Layer */}
       <FormModal opened={modal === 'gislayer'} onClose={closeModal} title="Add GIS Layer" saving={saving}
-        onSubmit={() => save('/sia/gis-layers', { site_id: loadedSiteId, ...fv }, rLayer)}>
+        onSubmit={() => save('/sia/gis-layers', { ...fv, site_id: loadedSiteId }, rLayer)}>
         <FR><FI label="Layer Name" field="layer_name" fv={fv} setFv={setFv} /><FI label="Layer Type" field="layer_type" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Geometry Type" field="geometry_type" fv={fv} setFv={setFv} select={GEOM_TYPES} /><FI label="CRS" field="crs" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Source Name" field="source_name" fv={fv} setFv={setFv} /><FI label="Source Date" field="source_date" fv={fv} setFv={setFv} /></FR>
@@ -683,7 +733,7 @@ export default function SIADroneGISClimateLayout() {
 
       {/* External Geo Source */}
       <FormModal opened={modal === 'geosource'} onClose={closeModal} title="Add External Geo Source" saving={saving}
-        onSubmit={() => save('/sia/external-geo-sources', { site_id: loadedSiteId, ...fv }, rGeo)}>
+        onSubmit={() => save('/sia/external-geo-sources', { ...fv, site_id: loadedSiteId }, rGeo)}>
         <FR><FI label="Provider Name" field="provider_name" fv={fv} setFv={setFv} /><FI label="Dataset Name" field="dataset_name" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Source Type" field="source_type" fv={fv} setFv={setFv} /><FI label="Source Reference" field="source_reference" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Imported At" field="imported_at" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={['Confirmed', 'Estimated', 'Unverified']} /></FR>
@@ -693,7 +743,7 @@ export default function SIADroneGISClimateLayout() {
 
       {/* Climate Resource */}
       <FormModal opened={modal === 'climate'} onClose={closeModal} title="Add Climate Resource" saving={saving}
-        onSubmit={() => save('/sia/climate-resources', { site_id: loadedSiteId, ...fv }, rClim)}>
+        onSubmit={() => save('/sia/climate-resources', { ...fv, site_id: loadedSiteId }, rClim)}>
         <FR><FI label="Resource Type" field="resource_type" fv={fv} setFv={setFv} select={CLIMATE_TYPES} /><FI label="Parameter Name" field="parameter_name" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Parameter Value" field="parameter_value" fv={fv} setFv={setFv} number /><FI label="Unit" field="unit" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Period From (DD/MMM/YYYY)" field="period_from" fv={fv} setFv={setFv} /><FI label="Period To (DD/MMM/YYYY)" field="period_to" fv={fv} setFv={setFv} /></FR>

@@ -45,12 +45,25 @@ describe('Evidence, AI and Readiness report', () => {
     const fetchMock = mockApi(Object.fromEntries(['evidence', 'ai-observations', 'conflicts', 'data-gaps', 'rfi-actions', 'discipline-readiness'].map(path => [`/sia/cases/case/${path}`, []])));
     const report = await loadEvidenceAIReadinessReport('/api', 'case');
     expect(report.counts.every(count => count.value === 0)).toBe(true);
-    expect(report.sections.filter(section => section.fields[0]?.value === 'No records saved for this case.')).toHaveLength(14);
+    expect(report.sections.filter(section => section.fields[0]?.value === 'No records saved for this selection.')).toHaveLength(14);
     expect(fetchMock).toHaveBeenCalledTimes(9);
   });
   it('blocks incomplete reports when a child request fails', async () => {
     mockApi({}, '/sia/discipline-readiness/r2/reviews');
     await expect(loadEvidenceAIReadinessReport('/api', 'case')).rejects.toThrow('could not be loaded');
+  });
+  it('includes only the selected site and its child records', async () => {
+    const fetchMock = mockApi({
+      '/sia/cases/case/evidence': [
+        { id: 'e1', sia_case_id: 'case', site_id: 'site', evidence_code: 'EVD-01' },
+        { id: 'e2', sia_case_id: 'case', site_id: 'other-site', evidence_code: 'EVD-02' },
+      ],
+    });
+    const report = await loadEvidenceAIReadinessReport('/api', 'case', undefined, 'site');
+    expect(report.counts.find(c => c.label === 'Evidence').value).toBe(1);
+    expect(report.counts.find(c => c.label === 'Evidence Verifications').value).toBe(1);
+    expect(fetchMock.mock.calls.some(([url]) => url.includes('/evidence/e2/'))).toBe(false);
+    expect(report.sections.flatMap(section => section.fields)).toContainEqual({ label: 'Site ID', value: 'site' });
   });
   it('rejects invalid responses and a mismatched case', async () => {
     mockApi({ '/sia/cases/case/source-facts': { detail: 'Not a list' } });

@@ -20,6 +20,15 @@ import { autoCode } from '../utils/autoCode';
 import styles from './SIASitesSurveyLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
+const POI_CATEGORIES = [
+  'Electrical', 'Civil', 'Structural', 'Mechanical', 'Water Pumping',
+  'SCADA', 'HSE/Environment', 'Industrial', 'Other',
+];
+const FLOOR_LEVELS = [
+  'Basement 2', 'Basement 1', 'Ground Floor', 'Mezzanine',
+  ...Array.from({ length: 10 }, (_, index) => `Floor ${index + 1}`),
+  'Rooftop', 'Other',
+];
 
 // ── shared style ─────────────────────────────────────────
 const thS = {
@@ -175,7 +184,7 @@ function ResponsiveTable({ children, ...props }) {
   })}</Table></Box>;
 }
 
-function FI({ label, field, form, textarea, number, select }) {
+function FI({ label, field, form, textarea, number, select, min, digitsOnly }) {
   const val = form.values[field] ?? '';
   const onChange = (v) => form.setFieldValue(field, v);
   
@@ -220,7 +229,7 @@ function FI({ label, field, form, textarea, number, select }) {
   if (number) return (
     <Box>
       <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-      <NumberInput aria-label={label} value={val === '' ? undefined : val} onChange={v => onChange(v)} styles={inputStyle} />
+      <NumberInput aria-label={label} value={val === '' ? undefined : val} onChange={v => onChange(v)} min={min} allowNegative={min === undefined || min < 0} styles={inputStyle} />
     </Box>
   );
   
@@ -239,7 +248,9 @@ function FI({ label, field, form, textarea, number, select }) {
   return (
     <Box>
       <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
-      <TextInput aria-label={label} value={val} onChange={e => onChange(e.target.value)} styles={inputStyle} />
+      <TextInput aria-label={label} value={val} inputMode={digitsOnly ? 'numeric' : undefined}
+        pattern={digitsOnly ? '[0-9]*' : undefined}
+        onChange={e => onChange(digitsOnly ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)} styles={inputStyle} />
     </Box>
   );
 }
@@ -1014,7 +1025,7 @@ export default function SIASitesSurveyLayout() {
         </FormRow>
         <FormRow>
           <FI label="Area Type" field="area_type" form={form} />
-          <FI label="Floor Level" field="floor_level" form={form} />
+          <FI label="Floor Level" field="floor_level" form={form} select={FLOOR_LEVELS} />
         </FormRow>
         <FI label="Description" field="description" form={form} textarea />
       </FormModal>
@@ -1028,7 +1039,7 @@ export default function SIASitesSurveyLayout() {
         </FormRow>
         <FormRow>
           <FI label="POI Type" field="poi_type" form={form} />
-          <FI label="Category" field="category" form={form} />
+          <FI label="Category" field="category" form={form} select={POI_CATEGORIES} />
         </FormRow>
         <FormRow>
           <FI label="Latitude" field="latitude" form={form} number />
@@ -1061,14 +1072,14 @@ export default function SIASitesSurveyLayout() {
 
       {/* Access Modal */}
       <FormModal opened={modal === 'access'} onClose={closeModal} title="Add Site Access" saving={saving}
-        onSubmit={() => save('/sia/site-access', { site_id: selectedSite?.id, ...form.values }, reloadAccess)}>
+        onSubmit={() => save('/sia/site-access', { site_id: selectedSite?.id, ...form.values, working_hours: String(form.values.working_hours ?? '') }, reloadAccess)}>
         <FormRow>
           <FI label="Access Type" field="access_type" form={form} />
-          <FI label="Road Condition" field="road_condition" form={form} />
+          <FI label="Road Condition" field="road_condition" form={form} select={['Good', 'Fair', 'Poor', 'Under Construction', 'Impassable', 'Not Applicable']} />
         </FormRow>
         <FormRow>
-          <FI label="Transport Method" field="transport_method" form={form} />
-          <FI label="Working Hours" field="working_hours" form={form} />
+          <FI label="Transport Method" field="transport_method" form={form} select={['Car', '4WD / SUV', 'Motorcycle', 'Van / Minibus', 'Bus', 'Truck', 'Boat', 'On Foot', 'Other']} />
+          <FI label="Working Hours" field="working_hours" form={form} number min={0} />
         </FormRow>
         <FI label="Access Restriction" field="access_restriction" form={form} textarea />
         <FI label="Logistics Notes" field="logistics_notes" form={form} textarea />
@@ -1087,7 +1098,7 @@ export default function SIASitesSurveyLayout() {
         </FormRow>
         <FI label="Description" field="description" form={form} textarea />
         <FI label="PPE Required" field="ppe_required" form={form} />
-        <FI label="Emergency Contact" field="emergency_contact" form={form} />
+        <FI label="Emergency Contact" field="emergency_contact" form={form} digitsOnly />
         <FI label="Control Action" field="control_action" form={form} textarea />
         <Group mt="sm">
           <Text size="xs" fw={600} c="#374151">Restricted Area</Text>
@@ -1118,7 +1129,7 @@ export default function SIASitesSurveyLayout() {
           <FI label="Instrument Type" field="instrument_type" form={form} />
         </FormRow>
         <FormRow>
-          <FI label="Serial Number" field="serial_number" form={form} />
+          <FI label="Serial Number" field="serial_number" form={form} digitsOnly />
           <FI label="Calibration Status" field="calibration_status" form={form}
             select={['Valid', 'Expired', 'Pending', 'Unknown']} />
         </FormRow>
