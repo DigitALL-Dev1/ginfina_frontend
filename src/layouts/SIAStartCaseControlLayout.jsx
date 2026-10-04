@@ -3,10 +3,12 @@ import {
   Badge, Box, Button, Checkbox, Group, Loader,
   Paper, Select, Stack, Table, Text, Textarea,
   TextInput, Title, Stepper, SimpleGrid, Progress,
+  Modal, Switch, MultiSelect,
 } from '@mantine/core';
 import {
   IconCheck, IconArrowRight, IconArrowLeft,
-  IconFolderOpen, IconTag, IconTarget,
+  IconFolderOpen, IconTag, IconTarget, IconUsers,
+  IconTrash, IconPlus,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
@@ -45,7 +47,7 @@ function statusBadge(status) {
 export default function SIAStartCaseControlLayout() {
   const navigate = useNavigate();
 
-  // ── Stepper: 0=Select Project, 1=Create Case, 2=Assessment Packs, 3=Done
+  // ── Stepper: 0=Select Project, 1=Create Case, 2=Assign Team, 3=Assessment Packs, 4=Done
   const [active, setActive] = useState(0);
 
   // ── Step 0: Projects ─────────────────────────────────────
@@ -90,7 +92,35 @@ export default function SIAStartCaseControlLayout() {
       .finally(() => setCrmLoading(false));
   }, []);
 
-  // ── Step 2: Assessment packs ─────────────────────────────
+  // ── Step 2: Team Assignment ──────────────────────────────
+  const [consultants, setConsultants] = useState([]);
+  const [consultantsLoading, setConsultantsLoading] = useState(false);
+  const [assignedTeam, setAssignedTeam] = useState([]);
+  const [teamModal, setTeamModal] = useState(false);
+  const [teamForm, setTeamForm] = useState({
+    consultant_id: '', team_role: '', discipline: '', is_lead: false,
+  });
+  const [savingTeam, setSavingTeam] = useState(false);
+
+  useEffect(() => {
+    if (active !== 2) return;
+    setConsultantsLoading(true);
+    fetch(`${API}/consultants?refresh=false`)
+      .then((r) => r.json())
+      .then((data) => setConsultants(Array.isArray(data) ? data : []))
+      .catch(() => notifications.show({ title: 'Error', message: 'Failed to load consultants', color: 'red' }))
+      .finally(() => setConsultantsLoading(false));
+
+    // Load existing team if any
+    if (createdCase) {
+      fetch(`${API}/sia/cases/${createdCase.id}/team`)
+        .then((r) => r.json())
+        .then((data) => setAssignedTeam(Array.isArray(data) ? data : []))
+        .catch(() => {});
+    }
+  }, [active, createdCase]);
+
+  // ── Step 3: Assessment packs ─────────────────────────────
   const [packs, setPacks] = useState([]);
   const [packsLoading, setPacksLoading] = useState(false);
   const [selectedPacks, setSelectedPacks] = useState([]);
@@ -98,7 +128,7 @@ export default function SIAStartCaseControlLayout() {
   const [linkedPacks, setLinkedPacks] = useState([]);
 
   useEffect(() => {
-    if (active !== 2) return;
+    if (active !== 3) return;
     setPacksLoading(true);
     fetch(`${API}/sia/assessment-packs`)
       .then((r) => r.json())
@@ -121,6 +151,7 @@ export default function SIAStartCaseControlLayout() {
     setSelectedProject(null);
     setProjectSearch('');
     setCreatedCase(null);
+    setAssignedTeam([]);
     setSelectedPacks([]);
     setLinkedPacks([]);
     setCaseForm({ case_code: autoCode('SIA'), assessment_purpose: '', assessment_stage: '', opportunity_id: '' });
@@ -157,7 +188,7 @@ export default function SIAStartCaseControlLayout() {
       localStorage.setItem('sia_case_id', data.id);
       localStorage.setItem('sia_project_id', selectedProject.id);
       notifications.show({ title: 'SIA Case created', message: `Case ${data.case_code} saved.`, color: 'green' });
-      setActive(2);
+      setActive(2); // Move to Team Assignment
     } catch (err) {
       notifications.show({ title: 'Error', message: err.message, color: 'red' });
     } finally {
@@ -165,7 +196,55 @@ export default function SIAStartCaseControlLayout() {
     }
   };
 
-  // ── Step 2 submit ────────────────────────────────────────
+  // ── Step 2 submit (Team Assignment) ──────────────────────
+  const openTeamModal = () => {
+    setTeamForm({ consultant_id: '', team_role: 'Engineer', discipline: '', is_lead: false });
+    setTeamModal(true);
+  };
+
+  const handleAssignTeam = async () => {
+    if (!teamForm.consultant_id) {
+      notifications.show({ title: 'Validation', message: 'Please select a consultant', color: 'orange' });
+      return;
+    }
+    setSavingTeam(true);
+    try {
+      const res = await fetch(`${API}/sia/case-team`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sia_case_id: createdCase.id,
+          consultant_id: teamForm.consultant_id,
+          team_role: teamForm.team_role || null,
+          discipline: teamForm.discipline || null,
+          is_lead: teamForm.is_lead,
+          assigned_by: localStorage.getItem('user_id') || null,
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+      const member = await res.json();
+      setAssignedTeam((prev) => [...prev, member]);
+      notifications.show({ title: 'Team member added', message: 'Member assigned successfully', color: 'green' });
+      setTeamModal(false);
+    } catch (err) {
+      notifications.show({ title: 'Error', message: err.message, color: 'red' });
+    } finally {
+      setSavingTeam(false);
+    }
+  };
+
+  const handleRemoveTeamMember = async (memberId) => {
+    try {
+      const res = await fetch(`${API}/sia/case-team/${memberId}`, { method: 'DELETE' });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+      setAssignedTeam((prev) => prev.filter((m) => m.id !== memberId));
+      notifications.show({ title: 'Member removed', message: 'Team member removed', color: 'green' });
+    } catch (err) {
+      notifications.show({ title: 'Error', message: err.message, color: 'red' });
+    }
+  };
+
+  // ── Step 3 submit (Link Packs) ───────────────────────────
   const handleLinkPacks = async () => {
     if (selectedPacks.length === 0) {
       notifications.show({ title: 'None selected', message: 'Select at least one pack.', color: 'orange' });
@@ -190,7 +269,7 @@ export default function SIAStartCaseControlLayout() {
       }
       setLinkedPacks(results);
       notifications.show({ title: 'Packs linked', message: `${results.length} pack(s) linked.`, color: 'green' });
-      setActive(3);
+      setActive(4);
     } catch (err) {
       notifications.show({ title: 'Error', message: err.message, color: 'red' });
     } finally {
@@ -214,12 +293,13 @@ export default function SIAStartCaseControlLayout() {
 
       {/* Stepper */}
       <Paper className={styles.compactStepper} withBorder radius="md" p="md" mb="lg" aria-label="Case setup progress">
-        <Group justify="space-between" mb="sm"><Text size="sm" fw={700}>{['Select Project', 'Create Case', 'Assessment Packs', 'Report'][active]}</Text><Text size="xs" c="dimmed">Step {active + 1} of 4</Text></Group>
-        <Progress value={(active + 1) * 25} color="green" size="sm" aria-label={`Step ${active + 1} of 4`} />
+        <Group justify="space-between" mb="sm"><Text size="sm" fw={700}>{['Select Project', 'Create Case', 'Assign Team', 'Assessment Packs', 'Report'][active]}</Text><Text size="xs" c="dimmed">Step {active + 1} of 5</Text></Group>
+        <Progress value={(active + 1) * 20} color="green" size="sm" aria-label={`Step ${active + 1} of 5`} />
       </Paper>
       <Stepper className={styles.desktopStepper} active={active} color="green" mb="xl">
         <Stepper.Step label="Select Project" description="Choose a project" />
         <Stepper.Step label="Create Case" description="SIA case details" />
+        <Stepper.Step label="Assign Team" description="Add team members" />
         <Stepper.Step label="Assessment Packs" description="Select applicable packs" />
         <Stepper.Step label="Report" description="Review & download" completedIcon={<IconCheck size={16} />} />
       </Stepper>
@@ -377,8 +457,187 @@ export default function SIAStartCaseControlLayout() {
         </Paper>
       )}
 
-      {/* ══ STEP 2 — Assessment Packs ═══════════════════════ */}
+      {/* ══ STEP 2 — Assign Team ═════════════════════════════ */}
       {active === 2 && createdCase && (
+        <Paper p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
+
+          {/* Case summary */}
+          <Paper p="sm" mb="lg" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6 }}>
+            <Text size="xs" fw={700} c="#007336" mb={4}>Case Created</Text>
+            <Group gap="xl" wrap="wrap">
+              <Text size="xs" c="#374151">Code: <Text span fw={600}>{createdCase.case_code}</Text></Text>
+              <Text size="xs" c="#374151">Stage: <Text span fw={600}>{createdCase.assessment_stage || '—'}</Text></Text>
+              <Text size="xs" c="#374151">Opportunity: <Text span fw={600}>{createdCase.opportunity_id || '—'}</Text></Text>
+            </Group>
+          </Paper>
+
+          <Group justify="space-between" align="center" mb="md">
+            <Box>
+              <Title order={4} fw={600} c="#111827" mb="xs">Assign Team Members</Title>
+              <Text size="sm" c="#6b7280">Add consultants and team members to this case (optional)</Text>
+            </Box>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              color="green"
+              onClick={openTeamModal}
+              disabled={consultantsLoading}
+              style={{ backgroundColor: '#007336' }}
+            >
+              Add Member
+            </Button>
+          </Group>
+
+          {consultantsLoading ? (
+            <Group justify="center" py="xl"><Loader color="green" /></Group>
+          ) : (
+            <>
+              {assignedTeam.length === 0 ? (
+                <Paper withBorder p="xl" radius="md" style={{ textAlign: 'center' }}>
+                  <IconUsers size={48} color="#d1d5db" style={{ margin: '0 auto 16px' }} />
+                  <Text size="sm" c="dimmed">No team members assigned yet</Text>
+                  <Text size="xs" c="dimmed" mt={4}>Click "Add Member" to assign consultants to this case</Text>
+                </Paper>
+              ) : (
+                <Stack gap="sm">
+                  {assignedTeam.map((member) => {
+                    const consultant = consultants.find((c) => c.id === member.consultant_id);
+                    return (
+                      <Paper key={member.id} withBorder p="md" radius="md">
+                        <Group justify="space-between" align="flex-start">
+                          <Box style={{ flex: 1 }}>
+                            <Group gap="sm" mb={4}>
+                              <Text size="sm" fw={600}>{consultant?.name || 'Unknown Consultant'}</Text>
+                              {member.is_lead && (
+                                <Badge size="sm" color="green" variant="light">Lead</Badge>
+                              )}
+                            </Group>
+                            <Text size="xs" c="dimmed">{consultant?.email || '—'}</Text>
+                            <Group gap="lg" mt="xs">
+                              {member.team_role && (
+                                <Text size="xs" c="#374151">
+                                  <Text span fw={600}>Role:</Text> {member.team_role}
+                                </Text>
+                              )}
+                              {member.discipline && (
+                                <Text size="xs" c="#374151">
+                                  <Text span fw={600}>Discipline:</Text> {member.discipline}
+                                </Text>
+                              )}
+                            </Group>
+                          </Box>
+                          <Button
+                            size="compact-sm"
+                            variant="light"
+                            color="red"
+                            leftSection={<IconTrash size={14} />}
+                            onClick={() => handleRemoveTeamMember(member.id)}
+                          >
+                            Remove
+                          </Button>
+                        </Group>
+                      </Paper>
+                    );
+                  })}
+                </Stack>
+              )}
+            </>
+          )}
+
+          <Group className={styles.actions} justify="space-between" mt="lg">
+            <Button variant="default" leftSection={<IconArrowLeft size={15} />} onClick={() => setActive(1)}>
+              Back
+            </Button>
+            <Group gap="sm">
+              <Text size="xs" c="dimmed">{assignedTeam.length} member{assignedTeam.length !== 1 ? 's' : ''} assigned</Text>
+              <Button
+                color="green"
+                rightSection={<IconArrowRight size={15} />}
+                onClick={() => setActive(3)}
+                style={{ backgroundColor: '#007336' }}
+              >
+                Continue
+              </Button>
+            </Group>
+          </Group>
+        </Paper>
+      )}
+
+      {/* Team Assignment Modal */}
+      <Modal
+        opened={teamModal}
+        onClose={() => setTeamModal(false)}
+        title="Assign Team Member"
+        centered
+        size="md"
+      >
+        <Stack gap="md">
+          <Select
+            label="Consultant"
+            placeholder="Select a consultant"
+            data={consultants.map((c) => ({
+              value: c.id,
+              label: `${c.name} (${c.email})`,
+            }))}
+            value={teamForm.consultant_id}
+            onChange={(val) => setTeamForm((prev) => ({ ...prev, consultant_id: val || '' }))}
+            searchable
+            required
+            styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }}
+          />
+
+          <Select
+            label="Team Role"
+            placeholder="Select role"
+            data={[
+              'Lead Engineer',
+              'Design Engineer',
+              'Senior Engineer',
+              'Engineer',
+              'Reviewer',
+              'Consultant',
+              'Specialist',
+            ]}
+            value={teamForm.team_role}
+            onChange={(val) => setTeamForm((prev) => ({ ...prev, team_role: val || '' }))}
+            clearable
+            styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }}
+          />
+
+          <TextInput
+            label="Discipline"
+            placeholder="e.g. Civil Engineering, Electrical"
+            value={teamForm.discipline}
+            onChange={(e) => setTeamForm((prev) => ({ ...prev, discipline: e.target.value }))}
+            styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }}
+          />
+
+          <Group gap="sm" align="center">
+            <Text size="sm" fw={500}>Team Lead</Text>
+            <Switch
+              checked={Boolean(teamForm.is_lead)}
+              onChange={(e) => setTeamForm((prev) => ({ ...prev, is_lead: e.target.checked }))}
+              color="green"
+            />
+          </Group>
+
+          <Group justify="flex-end" gap="sm" mt="md">
+            <Button variant="default" onClick={() => setTeamModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              color="green"
+              loading={savingTeam}
+              onClick={handleAssignTeam}
+              style={{ backgroundColor: '#007336' }}
+            >
+              Assign Member
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* ══ STEP 3 — Assessment Packs ═══════════════════════ */}
+      {active === 3 && createdCase && (
         <Paper p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
 
           {/* Case summary */}
@@ -455,7 +714,7 @@ export default function SIAStartCaseControlLayout() {
           )}
 
           <Group className={styles.actions} justify="space-between" mt="lg">
-            <Button variant="default" leftSection={<IconArrowLeft size={15} />} onClick={() => setActive(1)}>Back</Button>
+            <Button variant="default" leftSection={<IconArrowLeft size={15} />} onClick={() => setActive(2)}>Back</Button>
             <Group gap="sm">
               <Text size="xs" c="dimmed">{selectedPacks.length} pack{selectedPacks.length !== 1 ? 's' : ''} selected</Text>
               <Button color="green"
@@ -469,8 +728,8 @@ export default function SIAStartCaseControlLayout() {
         </Paper>
       )}
 
-      {/* ══ STEP 3 — Done ═══════════════════════════════════ */}
-      {active === 3 && createdCase && selectedProject && (
+      {/* ══ STEP 4 — Done ═══════════════════════════════════ */}
+      {active === 4 && createdCase && selectedProject && (
         <Paper p={{ base: 'sm', sm: 'lg', lg: 'xl' }} style={{ border: '1px solid #bbf7d0', borderRadius: 8, backgroundColor: '#f0fdf4', textAlign: 'center' }}>
           <Stack align="center" gap="md">
             <Box style={{

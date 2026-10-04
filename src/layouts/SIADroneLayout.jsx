@@ -1,0 +1,578 @@
+import { formatDisplayValue } from '../utils/dateOnly';
+import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
+import {
+  Badge, Box, Button, Group, Loader, Modal,
+  Paper, Select, Stack, Tabs, Table, Text, Textarea,
+  TextInput, Title, NumberInput, Switch,
+} from '@mantine/core';
+import DatePickerInput from '../components/common/DatePickerInput';
+import { notifications } from '@mantine/notifications';
+import {
+  IconPlus, IconDrone, IconUsers, IconDeviceGamepad2,
+  IconMap, IconCloudRain, IconMapPin, IconDatabase,
+  IconShieldCheck, IconLayersIntersect, IconFileText,
+} from '@tabler/icons-react';
+import SIAStepFlow from '../components/common/SIAStepFlow';
+import SIADroneReport from '../components/common/SIADroneReport';
+import { autoCode } from '../utils/autoCode';
+import styles from './SIADroneGISClimateLayout.module.css';
+
+const API = import.meta.env.VITE_API_BASE_URL || '/api';
+const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
+
+const MISSION_STATUS = ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+const QA_STATUS = ['PENDING', 'PASSED', 'FAILED', 'CONDITIONAL'];
+const PRODUCT_TYPES = ['ORTHOMOSAIC', 'POINT_CLOUD', 'DSM', 'DTM', 'CONTOUR', '3D_MESH', 'THERMAL', 'MULTISPECTRAL'];
+
+// ── hooks & helpers ─────────────────────────────────────
+function useApi(url, deps = []) {
+  const [result, setResult] = useState({ url: null, data: [] });
+  const [loading, setLoading] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const reload = () => setRefresh(value => value + 1);
+  useEffect(() => {
+    const controller = new AbortController();
+    setResult({ url, data: [] });
+    setLoading(Boolean(url));
+    if (!url) return;
+    fetch(url, { signal: controller.signal }).then(r => r.json()).then(d => {
+      if (!controller.signal.aborted) setResult({ url, data: Array.isArray(d) ? d : [] });
+    }).catch(() => { }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [url, refresh]);
+  return { data: result.url === url ? result.data : [], loading, reload };
+}
+
+async function postApi(path, body) {
+  const cleaned = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, v === '' ? null : v]));
+  const res = await fetch(`${API}${path}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cleaned),
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+  return res.json();
+}
+
+function EmptyRow({ cols }) {
+  return <Table.Tr><Table.Td colSpan={cols} style={{ textAlign: 'center', padding: '28px 0' }}>
+    <Text size="sm" c="dimmed">No records found.</Text></Table.Td></Table.Tr>;
+}
+
+function ResponsiveTable({ children, ...props }) {
+  const parts = Children.toArray(children);
+  const head = parts.find(part => part.type === Table.Thead);
+  const headings = Children.toArray(Children.toArray(head?.props.children)[0]?.props.children).map(cell => cell.props.children);
+  return <Box className={styles.tableViewport}><Table {...props} className={styles.recordTable}>{parts.map(part => {
+    if (part.type !== Table.Tbody) return part;
+    return cloneElement(part, {}, Children.map(part.props.children, row => {
+      if (!isValidElement(row) || row.type !== Table.Tr) return row;
+      return cloneElement(row, {}, Children.map(row.props.children, (cell, index) => isValidElement(cell) && cell.type === Table.Td && !cell.props.colSpan
+        ? cloneElement(cell, { 'data-label': headings[index] || '' }) : cell));
+    }));
+  })}</Table></Box>;
+}
+
+function DataTable({ loading, cols, rows, render }) {
+  return (
+    <Paper style={{ border: '1px solid #e5e7eb', borderRadius: 8, position: 'relative', minHeight: 110 }}>
+      {loading && <Group justify="center" py="xl"><Loader color="green" size="sm" /></Group>}
+      {!loading && <ResponsiveTable verticalSpacing="sm" horizontalSpacing="md">
+        <Table.Thead style={{ backgroundColor: '#f9fafb' }}>
+          <Table.Tr>{cols.map(c => <Table.Th key={c} style={thS}>{c}</Table.Th>)}</Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>{rows.length === 0 ? <EmptyRow cols={cols.length} /> : rows.map(render)}</Table.Tbody>
+      </ResponsiveTable>}
+    </Paper>
+  );
+}
+
+function TabHeader({ title, onAdd, addLabel, disabled = false }) {
+  return <Group className={styles.actions} justify="space-between" mb="sm">
+    <Text fw={600} size="sm" c="#374151">{title}</Text>
+    <Button size="xs" color="green" leftSection={<IconPlus size={13} />} disabled={disabled}
+      onClick={onAdd} style={{ backgroundColor: disabled ? undefined : '#007336' }}>{addLabel}</Button>
+  </Group>;
+}
+
+function FormModal({ opened, onClose, title, saving, onSubmit, children }) {
+  return <Modal classNames={{ content: styles.modal }} opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
+    <Stack gap="sm">{children}
+      <Group className={styles.actions} justify="flex-end" mt="md">
+        <Button variant="default" onClick={onClose}>Cancel</Button>
+        <Button color="green" loading={saving} onClick={onSubmit} style={{ backgroundColor: '#007336' }}>Save</Button>
+      </Group>
+    </Stack>
+  </Modal>;
+}
+
+function FR({ children }) { return <Box className={styles.formRow}>{children}</Box>; }
+
+function FI({ label, field, fv, setFv, textarea, number, select, readonly }) {
+  const val = fv[field] ?? '';
+  const upd = v => setFv(p => ({ ...p, [field]: v }));
+  const fieldLower = field.toLowerCase();
+  const isDateField = fieldLower.includes('date') || fieldLower.includes('_at');
+  const s = { input: { borderColor: readonly ? '#bbf7d0' : '#d1d5db', borderRadius: 6, minHeight: 44, backgroundColor: readonly ? '#f0fdf4' : undefined } };
+  
+  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+    <Select aria-label={label} data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
+  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+    <Textarea aria-label={label} value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
+  if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+    <NumberInput aria-label={label} value={val === '' ? undefined : val} onChange={v => upd(v)} styles={s} /></Box>;
+  if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
+  
+  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+    <TextInput aria-label={label} value={val} onChange={e => upd(e.target.value)} readOnly={readonly} styles={s} /></Box>;
+}
+
+function SBadge({ v }) {
+  const m = {
+    completed: '#007336', pass: '#007336', passed: '#007336', active: '#007336', 
+    planned: '#1971c2', in_progress: '#1971c2',
+    pending: '#f08c00', partial: '#f08c00', conditional: '#f08c00',
+    fail: '#e03131', failed: '#e03131', cancelled: '#e03131', 'on hold': '#6b7280'
+  };
+  const col = m[(v || '').toLowerCase()] || '#6b7280';
+  return <Badge size="sm" radius="xl" style={{ backgroundColor: col + '18', color: col, border: 'none', fontWeight: 600 }}>{v || '—'}</Badge>;
+}
+
+function BoolBadge({ v, yes = 'Yes', no = 'No' }) {
+  return <Badge size="sm" color={v ? 'green' : 'gray'} variant="light">{v ? yes : no}</Badge>;
+}
+
+// ════════════════════════════════════════════════════════
+export default function SIADroneLayout() {
+  const [caseId] = useState(() => localStorage.getItem('sia_case_id') || '');
+  const [loadedSiteId, setLoaded] = useState('');
+  const [sites, setSites] = useState([]);
+  const [sitesLoading, setSitesLoading] = useState(Boolean(caseId));
+  const [sitesError, setSitesError] = useState('');
+  const [sitesReload, setSitesReload] = useState(0);
+  const [activeTab, setTab] = useState('missions');
+  const [mission, setMission] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setSitesLoading(Boolean(caseId));
+    setSitesError('');
+    if (!caseId) return;
+    fetch(`${API}/sia/cases/${encodeURIComponent(caseId)}/sites`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Unable to load sites. Please try Reload.');
+        const rows = await response.json();
+        if (!Array.isArray(rows)) throw new Error('Unable to load sites. Please try Reload.');
+        return rows.filter(site => typeof site.id === 'string' && site.id.trim() && site.sia_case_id === caseId);
+      })
+      .then(rows => {
+        if (controller.signal.aborted) return;
+        setSites(rows);
+        const remembered = localStorage.getItem('sia_site_id');
+        const selected = rows.find(site => site.id === remembered) || (rows.length === 1 ? rows[0] : null);
+        selectSite(selected?.id || '');
+      })
+      .catch(error => { if (!controller.signal.aborted) setSitesError(error.message); })
+      .finally(() => { if (!controller.signal.aborted) setSitesLoading(false); });
+    return () => controller.abort();
+  }, [caseId, sitesReload]);
+
+  const sections = [
+    { value:'missions',    label:'Missions',         icon:<IconDrone size={13}/>,          enabled:true },
+    { value:'operators',   label:'Operators',        icon:<IconUsers size={13}/>,          enabled:!!mission },
+    { value:'platforms',   label:'Platforms',        icon:<IconDeviceGamepad2 size={13}/>, enabled:!!mission },
+    { value:'capture',     label:'Capture Plan',     icon:<IconMap size={13}/>,            enabled:!!mission },
+    { value:'gcps',        label:'GCPs',             icon:<IconMapPin size={13}/>,         enabled:!!mission },
+    { value:'conditions',  label:'Field Conditions', icon:<IconCloudRain size={13}/>,      enabled:!!mission },
+    { value:'rawdata',     label:'Raw Data',         icon:<IconDatabase size={13}/>,       enabled:!!mission },
+    { value:'qa',          label:'QA Checks',        icon:<IconShieldCheck size={13}/>,    enabled:!!mission },
+    { value:'derived',     label:'Derived Products', icon:<IconLayersIntersect size={13}/>,enabled:!!mission },
+    { value:'report',      label:'Report',           icon:<IconFileText size={13}/>,       enabled:true },
+  ];
+
+  const mid = mission?.id;
+
+  const { data: missions, loading: missL, reload: rMiss } = useApi(loadedSiteId ? `${API}/sia/sites/${loadedSiteId}/drone-missions` : null, [loadedSiteId]);
+  const { data: operators, loading: opL, reload: rOp } = useApi(mid ? `${API}/sia/drone-missions/${mid}/operators` : null, [mid]);
+  const { data: platforms, loading: platL, reload: rPlat } = useApi(mid ? `${API}/sia/drone-missions/${mid}/platforms` : null, [mid]);
+  const { data: capPlans, loading: capL, reload: rCap } = useApi(mid ? `${API}/sia/drone-missions/${mid}/capture-plans` : null, [mid]);
+  const { data: gcps, loading: gcpL, reload: rGcp } = useApi(mid ? `${API}/sia/drone-missions/${mid}/ground-control-points` : null, [mid]);
+  const { data: fieldConds, loading: fcL, reload: rFc } = useApi(mid ? `${API}/sia/drone-missions/${mid}/field-conditions` : null, [mid]);
+  const { data: rawData, loading: rawL, reload: rRaw } = useApi(mid ? `${API}/sia/drone-missions/${mid}/raw-data` : null, [mid]);
+  const { data: qualChecks, loading: qaL, reload: rQa } = useApi(mid ? `${API}/sia/drone-missions/${mid}/quality-checks` : null, [mid]);
+  const { data: derived, loading: derL, reload: rDer } = useApi(mid ? `${API}/sia/drone-missions/${mid}/derived-products` : null, [mid]);
+
+  const [modal, setModal] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [fv, setFv] = useState({});
+
+  const openModal = (key, defaults = {}) => {
+    const codePrefills = {
+      mission: { mission_code: autoCode('DRN') },
+      gcp: { gcp_code: autoCode('GCP') },
+    };
+    const enriched = {
+      sia_case_id: caseId,
+      site_id: loadedSiteId,
+      survey_visit_id: localStorage.getItem('sia_survey_visit_id') || '',
+      ...(codePrefills[key] || {}),
+      ...defaults,
+    };
+    setFv(enriched);
+    setModal(key);
+  };
+
+  const closeModal = () => { setModal(null); setFv({}); };
+
+  const save = async (path, body, reload) => {
+    if (!loadedSiteId || !sites.some(site => site.id === loadedSiteId)) {
+      notifications.show({ title: 'Site required', message: 'Select a site before saving.', color: 'red' });
+      return;
+    }
+    if (!caseId) {
+      notifications.show({ title: 'Case required', message: 'Select an SIA case before saving.', color: 'red' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await postApi(path, body);
+      notifications.show({ title: 'Saved', message: 'Record created.', color: 'green' });
+      reload(); closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Error', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const selectSite = (id) => {
+    if (localStorage.getItem('sia_site_id') !== id) localStorage.removeItem('sia_survey_visit_id');
+    if (id) localStorage.setItem('sia_site_id', id);
+    else localStorage.removeItem('sia_site_id');
+    setLoaded(id);
+    setMission(null);
+    closeModal();
+    setTab('missions');
+  };
+
+  const handleLoad = () => {
+    setSitesReload(value => value + 1);
+    rMiss();
+  };
+
+  return (
+    <Box className={styles.root} p={{ base: 'sm', sm: 'lg' }}>
+      <Box mb="lg">
+        <Group gap="sm" mb={4}>
+          <Badge color="green" variant="light" size="lg" radius="sm">SIA</Badge>
+          <Text size="xs" c="dimmed" fw={500}>Module 1 · Section 4A</Text>
+        </Group>
+        <Title order={2} fw={700} c="#111827">Drone Surveys</Title>
+        <Text size="sm" c="#6b7280" mt={4}>
+          Manage drone missions, operators, platforms, capture plans, and quality assurance.
+        </Text>
+      </Box>
+
+      <Paper p="sm" mb="md" style={{ border:'1px solid #e5e7eb', borderRadius:8, backgroundColor:'#f9fafb' }}>
+        <Group className={styles.actions} justify="space-between" align="center">
+          <Group gap="xs">
+            <Text size="xs" fw={700} c="#374151">Active Site:</Text>
+            {loadedSiteId
+              ? <Text size="xs" fw={600} c="#007336" style={{ fontFamily:'monospace' }}>{loadedSiteId}</Text>
+              : <Text size="xs" c="red">No active site — add a site in Sites and Survey first.</Text>}
+          </Group>
+          <Group className={styles.actions} gap="sm">
+            <Button size="xs" variant="subtle" color="green" onClick={handleLoad} disabled={!caseId || sitesLoading}>Reload</Button>
+            <Button size="xs" color="green" variant="outline" disabled={!loadedSiteId}
+              onClick={() => openModal('mission')}>+ New Mission</Button>
+          </Group>
+        </Group>
+        <Select label="Select site" placeholder={sitesLoading ? 'Loading sites...' : 'Select a site to continue'}
+          mt="sm" searchable allowDeselect={false} value={loadedSiteId || null}
+          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') || site.id }))}
+          disabled={sitesLoading || saving || !sites.length} error={sitesError || undefined}
+          onChange={value => selectSite(value || '')} />
+        {!caseId && <Text size="xs" c="dimmed" mt={6}>Select an SIA case in Start and Case Control first.</Text>}
+        {caseId && !sitesLoading && !sitesError && !sites.length && <Text size="xs" c="dimmed" mt={6}>Create a site in Sites and Survey for this case to continue.</Text>}
+      </Paper>
+
+      {mission && (
+        <Paper p="sm" mb="md" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6 }}>
+          <Group gap="xl" wrap="wrap">
+            <Text size="xs" c="#374151">Mission: <Text span fw={700} c="#007336">{mission.mission_code}</Text></Text>
+            <Button variant="subtle" color="gray" size="xs" ml="auto"
+              onClick={() => { setMission(null); setTab('missions'); }}>Clear</Button>
+          </Group>
+        </Paper>
+      )}
+
+      {loadedSiteId && (
+        <Tabs value={activeTab} onChange={setTab} color="green">
+          <Group className={styles.actions} justify="flex-end" mb="md">
+            <Button color="green" variant="light" leftSection={<IconFileText size={16} />} onClick={() => setTab('report')}>View report</Button>
+          </Group>
+          <Box className={styles.sectionSelect} mb="md">
+            <Select label="Drone survey section" value={activeTab} onChange={value => value && setTab(value)} allowDeselect={false}
+              data={sections.map(({ value, label, enabled }) => ({ value, label, disabled: !enabled }))} />
+            <Text size="xs" c="dimmed" mt={6} aria-live="polite">Section {sections.findIndex(section => section.value === activeTab) + 1} of {sections.length}</Text>
+            {!mission && <Text size="xs" c="dimmed" mt={4}>Select a mission to open its survey records.</Text>}
+          </Box>
+          <Box className={styles.sectionStrip}>
+          <SIAStepFlow
+            activeTab={activeTab}
+            onStep={setTab}
+            steps={sections}
+          />
+          </Box>
+          <Tabs.List style={{ display:'none' }}>
+            {sections.map(s => <Tabs.Tab key={s.value} value={s.value}>{s.label}</Tabs.Tab>)}
+          </Tabs.List>
+
+          <Tabs.Panel value="missions">
+            <TabHeader title="Drone Missions" onAdd={() => openModal('mission')} addLabel="Add Mission" />
+            <DataTable loading={missL} cols={['Code', 'Purpose', 'Discipline', 'Planned', 'Actual', 'Status']}
+              rows={missions} render={r => (
+                <Table.Tr key={r.id} onClick={() => { setMission(r); setTab('operators'); }}
+                  style={{ cursor: 'pointer', backgroundColor: mission?.id === r.id ? '#f0fdf4' : 'transparent' }}
+                  onMouseEnter={e => { if (mission?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
+                  onMouseLeave={e => { if (mission?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={mission?.id === r.id}>{r.mission_code || r.id}</Button></Table.Td>
+                  <Table.Td><Text size="sm">{r.mission_purpose || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.target_discipline || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.planned_date || '—')}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.actual_date || '—')}</Text></Table.Td>
+                  <Table.Td><SBadge v={r.mission_status} /></Table.Td>
+                </Table.Tr>
+              )} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="operators">
+            <TabHeader title={`Operators — ${mission?.mission_code || ''}`} onAdd={() => openModal('operator')} addLabel="Add Operator" />
+            <DataTable loading={opL} cols={['User ID', 'Competency', 'Permission Ref', 'Regulatory Ref']}
+              rows={operators} render={r => (
+                <Table.Tr key={r.id}>
+                  <Table.Td><Text size="sm" style={{ fontFamily: 'monospace' }}>{r.user_id || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm">{r.competency_ref || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.permission_ref || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.regulatory_ref || '—'}</Text></Table.Td>
+                </Table.Tr>
+              )} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="platforms">
+            <TabHeader title="Drone Platforms" onAdd={() => openModal('platform')} addLabel="Add Platform" />
+            <DataTable loading={platL} cols={['Make', 'Model', 'Serial', 'Sensor', 'RTK/PPK', 'Thermal', 'Multispectral']}
+              rows={platforms} render={r => (
+                <Table.Tr key={r.id}>
+                  <Table.Td><Text size="sm">{r.drone_make || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm">{r.drone_model || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.serial_number || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.sensor_type || '—'}</Text></Table.Td>
+                  <Table.Td><BoolBadge v={r.rtk_ppk_capable} /></Table.Td>
+                  <Table.Td><BoolBadge v={r.thermal_capable} /></Table.Td>
+                  <Table.Td><BoolBadge v={r.multispectral_capable} /></Table.Td>
+                </Table.Tr>
+              )} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="capture">
+            <TabHeader title="Capture Plans" onAdd={() => openModal('capture')} addLabel="Add Plan" />
+            <DataTable loading={capL} cols={['CRS', 'Datum', 'GNSS Method', 'Altitude (m)', 'Front %', 'Side %', 'GSD', 'Type']}
+              rows={capPlans} render={r => (
+                <Table.Tr key={r.id}>
+                  <Table.Td><Text size="sm">{r.crs || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.datum || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.gnss_method || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.flight_altitude ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.front_overlap ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.side_overlap ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.target_gsd ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.capture_type || '—'}</Text></Table.Td>
+                </Table.Tr>
+              )} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="gcps">
+            <TabHeader title="Ground Control Points" onAdd={() => openModal('gcp')} addLabel="Add GCP" />
+            <DataTable loading={gcpL} cols={['Code', 'Type', 'Lat', 'Lng', 'Elevation', 'Method', 'Accuracy', 'Status']}
+              rows={gcps} render={r => (
+                <Table.Tr key={r.id}>
+                  <Table.Td><Text size="sm" fw={600} c="#007336">{r.gcp_code || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm">{r.point_type || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.latitude ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.longitude ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.elevation ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.survey_method || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.accuracy ?? '—'}</Text></Table.Td>
+                  <Table.Td><SBadge v={r.status} /></Table.Td>
+                </Table.Tr>
+              )} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="conditions">
+            <TabHeader title="Field Conditions" onAdd={() => openModal('fieldcond')} addLabel="Add Condition" />
+            <DataTable loading={fcL} cols={['Recorded At', 'Weather', 'Wind (m/s)', 'Temp (°C)', 'Lighting', 'Visibility', 'Rain']}
+              rows={fieldConds} render={r => (
+                <Table.Tr key={r.id}>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.recorded_at || '—')}</Text></Table.Td>
+                  <Table.Td><Text size="sm">{r.weather_condition || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.wind_speed ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.temperature ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.lighting_condition || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.visibility || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.rain_condition || '—'}</Text></Table.Td>
+                </Table.Tr>
+              )} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="rawdata">
+            <TabHeader title="Raw Data" onAdd={() => openModal('rawdata')} addLabel="Add Raw Data" />
+            <DataTable loading={rawL} cols={['File Name', 'Type', 'Size (B)', 'Captured At', 'Import Status']}
+              rows={rawData} render={r => (
+                <Table.Tr key={r.id}>
+                  <Table.Td><Text size="sm">{r.file_name || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.data_type || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.file_size ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.captured_at || '—')}</Text></Table.Td>
+                  <Table.Td><SBadge v={r.import_status} /></Table.Td>
+                </Table.Tr>
+              )} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="qa">
+            <TabHeader title="Quality Checks" onAdd={() => openModal('qa')} addLabel="Add QA Check" />
+            <DataTable loading={qaL} cols={['Coverage', 'Gap', 'Blur', 'Exposure', 'Overlap', 'GNSS', 'QA Status', 'Checked By']}
+              rows={qualChecks} render={r => (
+                <Table.Tr key={r.id}>
+                  <Table.Td><SBadge v={r.coverage_status} /></Table.Td>
+                  <Table.Td><BoolBadge v={r.gap_detected} yes="Gap" no="OK" /></Table.Td>
+                  <Table.Td><SBadge v={r.blur_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.exposure_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.overlap_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.gnss_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.qa_status} /></Table.Td>
+                  <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.checked_by || '—'}</Text></Table.Td>
+                </Table.Tr>
+              )} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="derived">
+            <TabHeader title="Derived Products" onAdd={() => openModal('derived')} addLabel="Add Product" />
+            <DataTable loading={derL} cols={['File Name', 'Type', 'CRS', 'Resolution', 'Accuracy', 'Reliability', 'Status']}
+              rows={derived} render={r => (
+                <Table.Tr key={r.id}>
+                  <Table.Td><Text size="sm">{r.file_name || '—'}</Text></Table.Td>
+                  <Table.Td><Badge size="sm" color="blue" variant="light">{r.product_type || '—'}</Badge></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.crs || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.resolution ?? '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{r.accuracy ?? '—'}</Text></Table.Td>
+                  <Table.Td><SBadge v={r.reliability_class} /></Table.Td>
+                  <Table.Td><SBadge v={r.status} /></Table.Td>
+                </Table.Tr>
+              )} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="report">
+            {activeTab === 'report' && <SIADroneReport api={API} siteId={loadedSiteId} />}
+          </Tabs.Panel>
+        </Tabs>
+      )}
+
+      {/* MODALS */}
+      <FormModal opened={modal === 'mission'} onClose={closeModal} title="New Drone Mission" saving={saving}
+        onSubmit={() => save('/sia/drone-missions', fv, rMiss)}>
+        {!fv.survey_visit_id && <Text size="xs" c="orange" mb="xs">⚠ No survey visit found. Create one in Sites and Survey first.</Text>}
+        <FR><FI label="Mission Code *" field="mission_code" fv={fv} setFv={setFv} /><FI label="Mission Status" field="mission_status" fv={fv} setFv={setFv} select={MISSION_STATUS} /></FR>
+        <FI label="Mission Purpose" field="mission_purpose" fv={fv} setFv={setFv} />
+        <FI label="Target Discipline" field="target_discipline" fv={fv} setFv={setFv} />
+        <FR><FI label="Planned Date" field="planned_date" fv={fv} setFv={setFv} /><FI label="Actual Date" field="actual_date" fv={fv} setFv={setFv} /></FR>
+        <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
+      </FormModal>
+
+      <FormModal opened={modal === 'operator'} onClose={closeModal} title="Add Drone Operator" saving={saving}
+        onSubmit={() => save('/sia/drone-operators', { drone_mission_id: mid, user_id: localStorage.getItem('user_id') || 'unknown', ...fv }, rOp)}>
+        <FR><FI label="Competency Ref" field="competency_ref" fv={fv} setFv={setFv} /><FI label="Permission Ref" field="permission_ref" fv={fv} setFv={setFv} /></FR>
+        <FI label="Regulatory Ref" field="regulatory_ref" fv={fv} setFv={setFv} />
+        <FI label="Restriction Notes" field="restriction_notes" fv={fv} setFv={setFv} textarea />
+      </FormModal>
+
+      <FormModal opened={modal === 'platform'} onClose={closeModal} title="Add Drone Platform" saving={saving}
+        onSubmit={() => save('/sia/drone-platforms', { drone_mission_id: mid, ...fv }, rPlat)}>
+        <FR><FI label="Make" field="drone_make" fv={fv} setFv={setFv} /><FI label="Model" field="drone_model" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Serial Number" field="serial_number" fv={fv} setFv={setFv} /><FI label="Sensor Type" field="sensor_type" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Camera Model" field="camera_model" fv={fv} setFv={setFv} /><FI label="Firmware" field="firmware_version" fv={fv} setFv={setFv} /></FR>
+        <Group mt="sm" gap="xl">
+          {[['rtk_ppk_capable', 'RTK/PPK'], ['thermal_capable', 'Thermal'], ['multispectral_capable', 'Multispectral']].map(([f, l]) => (
+            <Group key={f} gap="xs"><Text size="xs" fw={600} c="#374151">{l}</Text>
+              <Switch aria-label={l} checked={!!fv[f]} onChange={e => setFv(p => ({ ...p, [f]: e.currentTarget.checked }))} color="green" /></Group>
+          ))}
+        </Group>
+      </FormModal>
+
+      <FormModal opened={modal === 'capture'} onClose={closeModal} title="Add Capture Plan" saving={saving}
+        onSubmit={() => save('/sia/drone-capture-plans', { drone_mission_id: mid, ...fv }, rCap)}>
+        <FR><FI label="CRS" field="crs" fv={fv} setFv={setFv} /><FI label="Datum" field="datum" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Vertical Datum" field="vertical_datum" fv={fv} setFv={setFv} /><FI label="GNSS Method" field="gnss_method" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Flight Altitude (m)" field="flight_altitude" fv={fv} setFv={setFv} number /><FI label="Target GSD (cm)" field="target_gsd" fv={fv} setFv={setFv} number /></FR>
+        <FR><FI label="Front Overlap (%)" field="front_overlap" fv={fv} setFv={setFv} number /><FI label="Side Overlap (%)" field="side_overlap" fv={fv} setFv={setFv} number /></FR>
+        <FR><FI label="Camera Angle (°)" field="camera_angle" fv={fv} setFv={setFv} number /><FI label="Capture Type" field="capture_type" fv={fv} setFv={setFv} /></FR>
+        <FI label="Boundary Notes" field="boundary_notes" fv={fv} setFv={setFv} textarea />
+      </FormModal>
+
+      <FormModal opened={modal === 'gcp'} onClose={closeModal} title="Add Ground Control Point" saving={saving}
+        onSubmit={() => save('/sia/ground-control-points', { drone_mission_id: mid, ...fv }, rGcp)}>
+        <FR><FI label="GCP Code" field="gcp_code" fv={fv} setFv={setFv} /><FI label="Point Type" field="point_type" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Latitude" field="latitude" fv={fv} setFv={setFv} number /><FI label="Longitude" field="longitude" fv={fv} setFv={setFv} number /></FR>
+        <FR><FI label="Elevation (m)" field="elevation" fv={fv} setFv={setFv} number /><FI label="Accuracy (m)" field="accuracy" fv={fv} setFv={setFv} number /></FR>
+        <FR><FI label="Survey Method" field="survey_method" fv={fv} setFv={setFv} /><FI label="Status" field="status" fv={fv} setFv={setFv} select={['ACTIVE', 'DAMAGED', 'LOST']} /></FR>
+      </FormModal>
+
+      <FormModal opened={modal === 'fieldcond'} onClose={closeModal} title="Add Field Condition" saving={saving}
+        onSubmit={() => save('/sia/drone-field-conditions', { drone_mission_id: mid, ...fv }, rFc)}>
+        <FI label="Recorded At" field="recorded_at" fv={fv} setFv={setFv} />
+        <FR><FI label="Weather Condition" field="weather_condition" fv={fv} setFv={setFv} /><FI label="Wind Speed (m/s)" field="wind_speed" fv={fv} setFv={setFv} number /></FR>
+        <FR><FI label="Temperature (°C)" field="temperature" fv={fv} setFv={setFv} number /><FI label="Lighting Condition" field="lighting_condition" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Visibility" field="visibility" fv={fv} setFv={setFv} /><FI label="Rain Condition" field="rain_condition" fv={fv} setFv={setFv} /></FR>
+        <FI label="Restriction Notes" field="restriction_notes" fv={fv} setFv={setFv} textarea />
+      </FormModal>
+
+      <FormModal opened={modal === 'rawdata'} onClose={closeModal} title="Add Raw Data Record" saving={saving}
+        onSubmit={() => save('/sia/drone-raw-data', { drone_mission_id: mid, ...fv }, rRaw)}>
+        <FR><FI label="File Name" field="file_name" fv={fv} setFv={setFv} /><FI label="Data Type" field="data_type" fv={fv} setFv={setFv} /></FR>
+        <FI label="File Path" field="file_path" fv={fv} setFv={setFv} />
+        <FR><FI label="File Hash (SHA-256)" field="file_hash" fv={fv} setFv={setFv} /><FI label="File Size (bytes)" field="file_size" fv={fv} setFv={setFv} number /></FR>
+        <FR><FI label="Captured At" field="captured_at" fv={fv} setFv={setFv} /><FI label="Import Status" field="import_status" fv={fv} setFv={setFv} select={['PENDING', 'IMPORTED', 'VERIFIED', 'FAILED']} /></FR>
+      </FormModal>
+
+      <FormModal opened={modal === 'qa'} onClose={closeModal} title="Add QA Check" saving={saving}
+        onSubmit={() => save('/sia/drone-quality-checks', { drone_mission_id: mid, checked_by: localStorage.getItem('user_id') || 'unknown', ...fv }, rQa)}>
+        <FR>
+          <FI label="Coverage Status" field="coverage_status" fv={fv} setFv={setFv} select={QA_STATUS} />
+          <FI label="Blur Status" field="blur_status" fv={fv} setFv={setFv} select={QA_STATUS} />
+        </FR>
+        <FR>
+          <FI label="Exposure Status" field="exposure_status" fv={fv} setFv={setFv} select={QA_STATUS} />
+          <FI label="Overlap Status" field="overlap_status" fv={fv} setFv={setFv} select={QA_STATUS} />
+        </FR>
+        <FR>
+          <FI label="GNSS Status" field="gnss_status" fv={fv} setFv={setFv} select={QA_STATUS} />
+          <FI label="Control Point Status" field="control_point_status" fv={fv} setFv={setFv} select={QA_STATUS} />
+        </FR>
+        <FR>
+          <FI label="QA Status" field="qa_status" fv={fv} setFv={setFv} select={QA_STATUS} />
+          <FI label="Checked At" field="checked_at" fv={fv} setFv={setFv} />
+        </FR>
+        <Group mt="sm" gap="xs"><Text size="xs" fw={600} c="#374151">Gap Detected</Text>
+          <Switch aria-label="Gap Detected" checked={!!fv.gap_detected} onChange={e => setFv(p => ({ ...p, gap_detected: e.currentTarget.checked }))} color="red" />
+        </Group>
+        <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
+      </FormModal>
+
+      <FormModal opened={modal === 'derived'} onClose={closeModal} title="Add Derived Product" saving={saving}
+        onSubmit={() => save('/sia/drone-derived-products', { drone_mission_id: mid, ...fv }, rDer)}>
+        <FR><FI label="File Name" field="file_name" fv={fv} setFv={setFv} /><FI label="Product Type" field="product_type" fv={fv} setFv={setFv} select={PRODUCT_TYPES} /></FR>
+        <FI label="File Path" field="file_path" fv={fv} setFv={setFv} />
+        <FR><FI label="CRS" field="crs" fv={fv} setFv={setFv} /><FI label="Resolution (m)" field="resolution" fv={fv} setFv={setFv} number /></FR>
+        <FR><FI label="Accuracy (m)" field="accuracy" fv={fv} setFv={setFv} number /><FI label="Reliability Class" field="reliability_class" fv={fv} setFv={setFv} select={['VERIFIED', 'PROVISIONAL', 'PRELIMINARY']} /></FR>
+        <FR><FI label="Processing Version" field="processing_version" fv={fv} setFv={setFv} /><FI label="Status" field="status" fv={fv} setFv={setFv} select={['DRAFT', 'PROCESSING', 'READY', 'APPROVED']} /></FR>
+      </FormModal>
+    </Box>
+  );
+}

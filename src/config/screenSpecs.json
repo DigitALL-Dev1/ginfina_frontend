@@ -1011,13 +1011,31 @@
     "route": "/ginfina/sia/engineering-assessment"
   },
   {
-    "id": "GIN-UI-SIA-04",
+    "id": "GIN-UI-SIA-04A",
     "module": "SIA (Site Intelligence and Assessment)",
-    "name": "Drone, GIS and Climate",
-    "shortName": "Drone, GIS & Climate",
-    "layout": "SIADroneGISClimateLayout",
-    "brd": "SIA-04",
-    "route": "/ginfina/sia/drone-gis-climate"
+    "name": "Drone Surveys",
+    "shortName": "Drone Surveys",
+    "layout": "SIADroneLayout",
+    "brd": "SIA-04A",
+    "route": "/ginfina/sia/drone"
+  },
+  {
+    "id": "GIN-UI-SIA-04B",
+    "module": "SIA (Site Intelligence and Assessment)",
+    "name": "GIS Mapping",
+    "shortName": "GIS Mapping",
+    "layout": "SIAGISLayout",
+    "brd": "SIA-04B",
+    "route": "/ginfina/sia/gis"
+  },
+  {
+    "id": "GIN-UI-SIA-04C",
+    "module": "SIA (Site Intelligence and Assessment)",
+    "name": "Climate Data",
+    "shortName": "Climate Data",
+    "layout": "SIAClimateLayout",
+    "brd": "SIA-04C",
+    "route": "/ginfina/sia/climate"
   },
   {
     "id": "GIN-UI-SIA-05",

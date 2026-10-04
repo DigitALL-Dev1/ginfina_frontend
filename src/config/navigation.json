@@ -21,9 +21,21 @@
         ]
       },
       {
-        "label": "Drone, GIS and Climate",
+        "label": "GIS Mapping",
         "items": [
-          { "label": "Drone, GIS and Climate", "route": "/ginfina/sia/drone-gis-climate" }
+          { "label": "GIS Mapping", "route": "/ginfina/sia/gis" }
+        ]
+      },
+      {
+        "label": "Climate Data",
+        "items": [
+          { "label": "Climate Data", "route": "/ginfina/sia/climate" }
+        ]
+      },
+      {
+        "label": "Drone Surveys",
+        "items": [
+          { "label": "Drone Surveys", "route": "/ginfina/sia/drone" }
         ]
       },
       {
