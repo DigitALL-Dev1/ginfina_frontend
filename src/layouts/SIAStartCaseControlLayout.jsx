@@ -95,6 +95,8 @@ export default function SIAStartCaseControlLayout() {
   // ── Step 2: Team Assignment ──────────────────────────────
   const [consultants, setConsultants] = useState([]);
   const [consultantsLoading, setConsultantsLoading] = useState(false);
+  const [consultantsError, setConsultantsError] = useState('');
+  const [consultantsReload, setConsultantsReload] = useState(0);
   const [assignedTeam, setAssignedTeam] = useState([]);
   const [teamModal, setTeamModal] = useState(false);
   const [teamForm, setTeamForm] = useState({
@@ -103,14 +105,29 @@ export default function SIAStartCaseControlLayout() {
   const [savingTeam, setSavingTeam] = useState(false);
 
   useEffect(() => {
-    if (active !== 2) return;
+    if (active !== 2 && !teamModal) return;
+    const controller = new AbortController();
     setConsultantsLoading(true);
-    fetch(`${API}/consultants?refresh=false`)
-      .then((r) => r.json())
-      .then((data) => setConsultants(Array.isArray(data) ? data : []))
-      .catch(() => notifications.show({ title: 'Error', message: 'Failed to load consultants', color: 'red' }))
-      .finally(() => setConsultantsLoading(false));
+    setConsultantsError('');
+    fetch(`${API}/consultants?refresh=false`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Failed to load consultants (HTTP ${response.status})`);
+        const data = await response.json();
+        if (!Array.isArray(data)) throw new Error('Invalid consultant directory response');
+        return data;
+      })
+      .then((data) => { if (!controller.signal.aborted) setConsultants(data); })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setConsultants([]);
+        setConsultantsError(error.message || 'Failed to load consultants');
+      })
+      .finally(() => { if (!controller.signal.aborted) setConsultantsLoading(false); });
+    return () => controller.abort();
+  }, [active, teamModal, consultantsReload]);
 
+  useEffect(() => {
+    if (active !== 2) return;
     // Load existing team if any
     if (createdCase) {
       fetch(`${API}/sia/cases/${createdCase.id}/team`)
@@ -573,7 +590,10 @@ export default function SIAStartCaseControlLayout() {
         <Stack gap="md">
           <Select
             label="Consultant"
-            placeholder="Select a consultant"
+            placeholder={consultantsLoading ? 'Loading consultants...' : 'Select a consultant'}
+            disabled={consultantsLoading}
+            error={consultantsError || undefined}
+            nothingFoundMessage="No consultants found"
             data={consultants.map((c) => ({
               value: c.id,
               label: `${c.name} (${c.email})`,
@@ -584,6 +604,15 @@ export default function SIAStartCaseControlLayout() {
             required
             styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }}
           />
+
+          {!consultantsLoading && (consultantsError || consultants.length === 0) && (
+            <Group justify="space-between">
+              <Text size="xs" c="dimmed">
+                {consultantsError ? 'Please retry loading the directory.' : 'No saved consultants are available. Sync the consultant directory first.'}
+              </Text>
+              <Button size="xs" variant="light" onClick={() => setConsultantsReload(value => value + 1)}>Retry</Button>
+            </Group>
+          )}
 
           <Select
             label="Team Role"
@@ -627,6 +656,7 @@ export default function SIAStartCaseControlLayout() {
             <Button
               color="green"
               loading={savingTeam}
+              disabled={consultantsLoading || Boolean(consultantsError) || !teamForm.consultant_id}
               onClick={handleAssignTeam}
               style={{ backgroundColor: '#007336' }}
             >

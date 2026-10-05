@@ -1,3 +1,6 @@
+import { notifications } from '@mantine/notifications';
+import { downloadSiaReport } from '../../utils/siaCaseReport';
+import { climateCsv, climatePdfReport } from '../../utils/climateReportExport';
 import { useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader, Paper, Stack,
@@ -41,24 +44,68 @@ export default function SIAClimateReport({ api, siteId }) {
   const [summary, setSummary] = useState([]);
   const [resources, setResources] = useState([]);
 
+  const [error, setError] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+
   useEffect(() => {
-    if (!siteId) return;
+    const controller = new AbortController();
+    setError('');
+    setSummary([]);
+    setResources([]);
+    if (!siteId) { setLoading(false); return; }
+    const get = async path => {
+      const response = await fetch(`${api}/sia/sites/${encodeURIComponent(siteId)}/${path}`, { signal: controller.signal });
+      if (!response.ok) throw new Error('Unable to load climate report. Please retry.');
+      const data = await response.json();
+      if (!Array.isArray(data)) throw new Error('Invalid climate report response.');
+      return data;
+    };
     setLoading(true);
 
     Promise.all([
-      fetch(`${api}/sia/sites/${siteId}/climate-summary`).then(r => r.json()),
-      fetch(`${api}/sia/sites/${siteId}/climate-resources`).then(r => r.json()),
+      get('climate-summary'),
+      get('climate-resources'),
     ])
       .then(([summaryData, resourcesData]) => {
+        if (controller.signal.aborted) return;
         setSummary(Array.isArray(summaryData) ? summaryData : []);
         setResources(Array.isArray(resourcesData) ? resourcesData : []);
       })
-      .catch(() => {
+      .catch(reason => {
+        if (controller.signal.aborted) return;
+        setError(reason.message);
         setSummary([]);
         setResources([]);
       })
-      .finally(() => setLoading(false));
-  }, [api, siteId]);
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [api, siteId, refresh]);
+
+  const exportCsv = () => {
+    try {
+      const url = URL.createObjectURL(new Blob([climateCsv(resources)], { type: 'text/csv;charset=utf-8;' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Climate-Report-${String(siteId).replace(/[^a-zA-Z0-9_-]/g, '_')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch { notifications.show({ title: 'Export failed', message: 'Could not export CSV. Please retry.', color: 'red' }); }
+  };
+  const exportPdf = async () => {
+    setDownloading(true);
+    try {
+      await downloadSiaReport(climatePdfReport(siteId, summary, resources), {
+        title: 'Climate Data Report', filename: 'Climate-Report', reference: 'Site reference', footer: 'Saved climate resource data',
+      });
+    } catch { notifications.show({ title: 'Export failed', message: 'Could not generate PDF. Please retry.', color: 'red' }); }
+    finally { setDownloading(false); }
+  };
+
+  if (!siteId) return <Text>Select a site to view its climate report.</Text>;
+  if (error) return <Paper p="lg"><Text role="alert" c="red">{error}</Text><Button mt="sm" onClick={() => setRefresh(value => value + 1)}>Retry</Button></Paper>;
 
   if (loading) {
     return (
@@ -114,10 +161,10 @@ export default function SIAClimateReport({ api, siteId }) {
             </Text>
           </Box>
           <Group gap="sm">
-            <Button variant="light" color="green" leftSection={<IconDownload size={16} />} size="sm">
+            <Button onClick={exportCsv} disabled={!resources.length || downloading} variant="light" color="green" leftSection={<IconDownload size={16} />} size="sm">
               Export CSV
             </Button>
-            <Button variant="filled" color="green" leftSection={<IconFileTypePdf size={16} />} size="sm"
+            <Button onClick={exportPdf} loading={downloading} disabled={!resources.length} variant="filled" color="green" leftSection={<IconFileTypePdf size={16} />} size="sm"
               style={{ backgroundColor: '#007336' }}>
               Generate PDF
             </Button>
