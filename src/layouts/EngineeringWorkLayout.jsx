@@ -4,12 +4,13 @@ import EngineeringWorkReport from '../components/common/EngineeringWorkReport';
 import { Children, cloneElement, isValidElement, useEffect, useMemo, useState } from 'react';
 import {
   Alert, Badge, Box, Button, Checkbox, Divider, Grid, Group, Modal, Paper,
-  Progress, Select, SimpleGrid, Slider, Stack, Table, Text,
+  MultiSelect, Progress, Select, SimpleGrid, Slider, Stack, Table, Text,
   Textarea, TextInput, ThemeIcon, Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useMediaQuery } from '@mantine/hooks';
 import styles from './EngineeringWorkLayout.module.css';
+import useDisciplines from '../hooks/useDisciplines';
 import {
   IconAlertTriangle, IconBriefcase, IconCalendar, IconCheck, IconCircleCheck,
   IconDatabase, IconEdit, IconEye, IconFileCheck, IconLink, IconPlayerPlay,
@@ -32,7 +33,6 @@ async function request(path, options = {}) {
 }
 
 const STATUSES = ['DRAFT', 'NOT_STARTED', 'IN_PROGRESS', 'ON_HOLD', 'READY_FOR_OUTPUT', 'COMPLETED'];
-const DISCIPLINES = ['ELECTRICAL', 'CIVIL', 'STRUCTURAL', 'MECHANICAL', 'WATER / PUMPING', 'SCADA / COMMUNICATION', 'HSE / ENVIRONMENT'];
 const FLOW = [
   'Load released SEB projects', 'Select project', 'Load released SEBs',
   'Select SEB', 'Select released revision', 'Load frozen release items',
@@ -121,18 +121,17 @@ function frozenDesignBasis(releasedSeb, selectedIds) {
     readiness, conditions, constraints,
     items: sourceItems.map(item => ({
       id: releaseItemId(item),
-      fact: item.display_value || item.item_name || item.fact_id,
+      fact: item.display_value || item.item_name || item.item_code || 'Selected release item',
       discipline: item.discipline || 'UNASSIGNED',
       decision: item.review_decision || 'NOT_SET',
       readiness: readinessStatus(item),
-      evidence: item.source_reference?.collection
-        ? `${item.source_reference.collection} / ${item.source_reference.record_id}`
-        : 'Frozen source reference',
+      evidence: item.source_reference?.label || item.source_reference?.title || item.source_reference?.code || 'Frozen source reference',
     })),
   };
 }
 
 export default function EngineeringWorkLayout() {
+  const { options: disciplineOptions } = useDisciplines();
   const isMobile = useMediaQuery('(max-width: 47.99em)');
   const [projects, setProjects] = useState([]);
   const [releasedSebRecords, setReleasedSebRecords] = useState([]);
@@ -156,20 +155,22 @@ export default function EngineeringWorkLayout() {
   const [savingEwp, setSavingEwp] = useState(false);
   const [savingActivity, setSavingActivity] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
-  const [ewpForm, setEwpForm] = useState({ code: '', name: '', discipline: 'ELECTRICAL', scope: '', lead: '', start: '', end: '' });
+  const [consultants, setConsultants] = useState([]);
+  const [consultantsLoading, setConsultantsLoading] = useState(false);
+  const [ewpForm, setEwpForm] = useState({ name: '', discipline: 'ELECTRICAL', scope: '', lead: '', start: '', end: '' });
   const [activityForm, setActivityForm] = useState({ code: '', title: '', engineer: '', status: 'NOT_STARTED', progress: 0, start: '', end: '' });
 
   const project = projects.find(item => item.project_id === projectId);
   const sebOptions = useMemo(() => {
     const unique = new Map();
     releasedSebRecords.forEach(item => {
-      if (!unique.has(item.seb_id)) unique.set(item.seb_id, { value: item.seb_id, label: item.seb_code || item.seb_id });
+      if (!unique.has(item.seb_id)) unique.set(item.seb_id, { value: item.seb_id, label: item.seb_code || item.seb_name || 'Unnamed SEB' });
     });
     return [...unique.values()];
   }, [releasedSebRecords]);
   const revisionOptions = useMemo(() => releasedSebRecords
     .filter(item => item.seb_id === sebId)
-    .map(item => ({ value: item.revision_id, label: `${item.revision_no} · ${item.item_count} frozen item(s) · ${item.status}` })), [releasedSebRecords, sebId]);
+    .map(item => ({ value: item.revision_id, label: `${item.revision_no || 'Released revision'} · ${item.item_count} frozen item(s) · ${item.status}` })), [releasedSebRecords, sebId]);
   const selectedReleasedSeb = releasedSebRecords.find(item => item.seb_id === sebId && item.revision_id === revisionId);
   const releaseItems = selectedReleasedSeb?.released_seb_items || [];
   const selectedIdSet = useMemo(() => new Set(selectedItemIds), [selectedItemIds]);
@@ -210,6 +211,17 @@ export default function EngineeringWorkLayout() {
 
   useEffect(() => { loadReleasedProjects(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    let cancelled = false;
+    setConsultantsLoading(true);
+    fetch(`${API}/consultants?refresh=false`)
+      .then(response => { if (!response.ok) throw new Error('Unable to load consultants'); return response.json(); })
+      .then(data => { if (!cancelled) setConsultants(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setConsultants([]); })
+      .finally(() => { if (!cancelled) setConsultantsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   const changeProject = value => {
     const next = value || '';
     setProjectId(next); setReleasedSebRecords([]); setSebId(''); setRevisionId('');
@@ -231,10 +243,8 @@ export default function EngineeringWorkLayout() {
   const toggleAllItems = checked => setSelectedItemIds(checked ? releaseItems.map(releaseItemId).filter(Boolean) : []);
 
   const openCreateEwp = () => {
-    const projectEwpCount = ewps.filter(item => item.project_id === projectId).length;
     setEditingEwpId(null);
-    setEwpForm({
-      code: `EWP-${project?.project_code || selectedReleasedSeb?.seb_code || 'NEW'}-${String(projectEwpCount + 1).padStart(3, '0')}`,
+      setEwpForm({
       name: '', discipline: 'ELECTRICAL', scope: '', lead: '', start: '', end: '',
     });
     setEwpModal(true);
@@ -242,15 +252,33 @@ export default function EngineeringWorkLayout() {
 
   const openEditEwp = () => {
     setEditingEwpId(ewp.id);
-    setEwpForm({ code: ewp.code, name: ewp.name, discipline: ewp.discipline, scope: ewp.scope, lead: ewp.lead, start: ewp.start, end: ewp.end });
+    const leadConsultant = consultants.find(item => item.name === ewp.lead);
+    setEwpForm({ name: ewp.name, discipline: ewp.discipline, scope: ewp.scope, lead: String(leadConsultant?.id || leadConsultant?._id || leadConsultant?.name || ewp.lead || ''), start: ewp.start, end: ewp.end });
     setEwpModal(true);
   };
 
   const saveEwp = async () => {
-    if (!ewpForm.code.trim() || !ewpForm.name.trim()) return;
+    const missing = [
+      !projectId && 'Project',
+      !sebId && 'Released SEB',
+      !revisionId && 'Released revision',
+      !selectedItemIds.length && 'At least one SEB input',
+      !ewpForm.name.trim() && 'EWP Name',
+      !ewpForm.discipline && 'Discipline',
+      !ewpForm.scope.trim() && 'Scope',
+      !ewpForm.lead.trim() && 'Lead Engineer',
+      !ewpForm.start && 'Planned start',
+      !ewpForm.end && 'Planned finish',
+    ].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ color: 'orange', title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.` });
+      return;
+    }
+    const selectedLead = consultants.find(item => String(item.id || item._id || item.name) === ewpForm.lead);
+    const leadName = selectedLead?.name || ewpForm.lead;
     if (editingEwpId) {
-      setEwps(current => current.map(item => item.id === editingEwpId ? { ...item, ...ewpForm } : item));
-      notifications.show({ color: 'green', title: 'EWP updated', message: `${ewpForm.code} was updated.` });
+      setEwps(current => current.map(item => item.id === editingEwpId ? { ...item, ...ewpForm, lead: leadName } : item));
+      notifications.show({ color: 'green', title: 'EWP updated', message: `${ewp.code} was updated.` });
     } else {
       setSavingEwp(true);
       setSourceError('');
@@ -263,11 +291,10 @@ export default function EngineeringWorkLayout() {
             revision_id: revisionId,
             freeze_snapshot_id: selectedReleasedSeb.freeze_snapshot_id,
             release_item_ids: selectedItemIds,
-            ewp_code: ewpForm.code.trim(),
             ewp_name: ewpForm.name.trim(),
             discipline: ewpForm.discipline,
             scope: ewpForm.scope || null,
-            lead_engineer: ewpForm.lead || null,
+            lead_engineer: leadName || null,
             planned_start: ewpForm.start || null,
             planned_finish: ewpForm.end || null,
           }),
@@ -314,7 +341,20 @@ export default function EngineeringWorkLayout() {
   };
   const openActivity = item => { setEditingActivity(item); setActivityForm({ ...item }); setActivityModal(true); };
   const saveActivity = async () => {
-    if (!activityForm.code.trim() || !activityForm.title.trim()) return;
+    const missing = [
+      !ewpId && 'EWP',
+      !activityForm.code.trim() && 'Work order',
+      !activityForm.title.trim() && 'Activity',
+      !activityForm.engineer.trim() && 'Assigned engineer(s)',
+      !activityForm.start && 'Planned start',
+      !activityForm.end && 'Planned finish',
+      !activityForm.status && 'Work status',
+      activityForm.progress === '' || activityForm.progress === null || activityForm.progress === undefined ? 'Progress' : '',
+    ].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ color: 'orange', title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.` });
+      return;
+    }
     const normalized = { ...activityForm, progress: activityForm.status === 'COMPLETED' ? 100 : Number(activityForm.progress) };
     setSavingActivity(true);
     setSourceError('');
@@ -395,13 +435,13 @@ export default function EngineeringWorkLayout() {
             <Button variant="subtle" color="green" onClick={loadReleasedProjects} loading={sourceLoading}>Refresh released projects</Button>
           </Group>
           <Grid>
-            <Grid.Col span={{ base: 12, md: 4 }}><Select classNames={{ dropdown: styles.dropdown }} label="Project" placeholder={sourceLoading && !projects.length ? 'Loading released projects…' : 'Select project'} data={projects.map(item => ({ value: item.project_id, label: `${item.project_name}${item.project_code ? ` · ${item.project_code}` : ''}` }))} value={projectId || null} onChange={changeProject} searchable clearable disabled={sourceLoading && !projects.length} /></Grid.Col>
-            <Grid.Col span={{ base: 12, md: 4 }}><Select classNames={{ dropdown: styles.dropdown }} label="Released SEB" placeholder={!projectId ? 'Select project first' : 'Select SEB'} data={sebOptions} value={sebId || null} onChange={changeSeb} searchable clearable disabled={!projectId || sourceLoading} /></Grid.Col>
-            <Grid.Col span={{ base: 12, md: 4 }}><Select classNames={{ dropdown: styles.dropdown }} label="Released revision" placeholder={!sebId ? 'Select SEB first' : 'Select released revision'} data={revisionOptions} value={revisionId || null} onChange={changeRevision} searchable clearable disabled={!sebId || sourceLoading} /></Grid.Col>
+            <Grid.Col span={{ base: 12, md: 4 }}><Select classNames={{ dropdown: styles.dropdown }} required label="Project" placeholder={sourceLoading && !projects.length ? 'Loading released projects…' : 'Select project'} data={projects.map(item => ({ value: item.project_id, label: `${item.project_name}${item.project_code ? ` · ${item.project_code}` : ''}` }))} value={projectId || null} onChange={changeProject} searchable clearable disabled={sourceLoading && !projects.length} /></Grid.Col>
+            <Grid.Col span={{ base: 12, md: 4 }}><Select classNames={{ dropdown: styles.dropdown }} required label="Released SEB" placeholder={!projectId ? 'Select project first' : 'Select SEB'} data={sebOptions} value={sebId || null} onChange={changeSeb} searchable clearable disabled={!projectId || sourceLoading} /></Grid.Col>
+            <Grid.Col span={{ base: 12, md: 4 }}><Select classNames={{ dropdown: styles.dropdown }} required label="Released revision" placeholder={!sebId ? 'Select SEB first' : 'Select released revision'} data={revisionOptions} value={revisionId || null} onChange={changeRevision} searchable clearable disabled={!sebId || sourceLoading} /></Grid.Col>
           </Grid>
           {!sourceLoading && !projects.length && <Alert color="yellow" mt="md" icon={<IconAlertTriangle size={18} />}>No RELEASED project snapshots were found in seb_ewp_frozen_item.</Alert>}
           {projectId && !sourceLoading && !releasedSebRecords.length && <Alert color="yellow" mt="md">This project has no released SEB snapshots.</Alert>}
-          {selectedReleasedSeb && <Paper withBorder p="sm" radius="md" mt="md" bg="#f3fbf6"><SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}><Info label="Project" value={selectedReleasedSeb.project_name} /><Info label="SEB" value={selectedReleasedSeb.seb_code} /><Info label="Released revision" value={selectedReleasedSeb.revision_no} /><Info label="Freeze snapshot" value={selectedReleasedSeb.freeze_snapshot_id} /></SimpleGrid></Paper>}
+          {selectedReleasedSeb && <Paper withBorder p="sm" radius="md" mt="md" bg="#f3fbf6"><SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}><Info label="Project" value={selectedReleasedSeb.project_name} /><Info label="SEB" value={selectedReleasedSeb.seb_code} /><Info label="Released revision" value={selectedReleasedSeb.revision_no} /><Info label="Frozen release" value={selectedReleasedSeb.release_code || selectedReleasedSeb.revision_no || 'Frozen release'} /></SimpleGrid></Paper>}
         </Paper>
 
         {selectedReleasedSeb && (
@@ -411,16 +451,16 @@ export default function EngineeringWorkLayout() {
             <Box px={{ base: 'sm', sm: 'lg' }} py="xs"><Checkbox label="Select all frozen items" checked={releaseItems.length > 0 && selectedItemIds.length === releaseItems.length} indeterminate={selectedItemIds.length > 0 && selectedItemIds.length < releaseItems.length} onChange={event => toggleAllItems(event.currentTarget.checked)} /></Box>
             <ResponsiveTable label="Frozen release items" verticalSpacing="sm">
                 <Table.Thead bg="#f7faf8"><Table.Tr><Table.Th w={80}>Select</Table.Th><Table.Th>Released item</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Review decision</Table.Th><Table.Th>Readiness</Table.Th><Table.Th>Source reference</Table.Th></Table.Tr></Table.Thead>
-                <Table.Tbody>{releaseItems.map(item => { const itemId = releaseItemId(item); return <Table.Tr key={itemId} bg={selectedIdSet.has(itemId) ? '#f3fbf6' : undefined}><Table.Td><Checkbox aria-label={`Select ${item.display_value || item.item_name || itemId}`} checked={selectedIdSet.has(itemId)} onChange={event => toggleItem(itemId, event.currentTarget.checked)} /></Table.Td><Table.Td><Text fw={700} size="sm">{item.display_value || item.item_name || item.fact_id}</Text><Text size="xs" c="dimmed">{item.item_code || itemId}</Text></Table.Td><Table.Td><Text size="sm">{item.discipline || 'UNASSIGNED'}</Text></Table.Td><Table.Td><StatusBadge value={item.review_decision || 'NOT_SET'} /></Table.Td><Table.Td><StatusBadge value={readinessStatus(item)} /></Table.Td><Table.Td><Text size="xs">{item.source_reference?.collection || item.fact_collection || '—'} / {item.source_reference?.record_id || item.fact_id || '—'}</Text></Table.Td></Table.Tr>; })}</Table.Tbody>
+                <Table.Tbody>{releaseItems.map(item => { const itemId = releaseItemId(item); return <Table.Tr key={itemId} bg={selectedIdSet.has(itemId) ? '#f3fbf6' : undefined}><Table.Td><Checkbox aria-label={`Select ${item.display_value || item.item_name || 'release item'}`} checked={selectedIdSet.has(itemId)} onChange={event => toggleItem(itemId, event.currentTarget.checked)} /></Table.Td><Table.Td><Text fw={700} size="sm">{item.display_value || item.item_name || item.item_code || 'Selected release item'}</Text></Table.Td><Table.Td><Text size="sm">{item.discipline || 'UNASSIGNED'}</Text></Table.Td><Table.Td><StatusBadge value={item.review_decision || 'NOT_SET'} /></Table.Td><Table.Td><StatusBadge value={readinessStatus(item)} /></Table.Td><Table.Td><Text size="xs">{item.source_reference?.label || item.source_reference?.title || item.source_reference?.code || 'Frozen source reference'}</Text></Table.Td></Table.Tr>; })}</Table.Tbody>
               </ResponsiveTable>
             {!releaseItems.length && <Alert m="lg" color="yellow">This frozen revision contains no release items.</Alert>}
             <Divider />
-            <Group justify="space-between" p={{ base: 'sm', sm: 'lg' }} wrap="wrap"><Text size="sm" c="dimmed">The selected IDs will be linked through <Text span ff="monospace" fw={700}>ewp_seb_input</Text>.</Text><Button color="green" leftSection={<IconPlus size={16} />} disabled={!selectedItemIds.length || Boolean(ewpId)} onClick={openCreateEwp}>{ewpId ? 'EWP created' : '8. Create EWP'}</Button></Group>
+            <Group justify="space-between" p={{ base: 'sm', sm: 'lg' }} wrap="wrap"><Text size="sm" c="dimmed">The selected release items will be linked to this EWP.</Text><Button color="green" leftSection={<IconPlus size={16} />} disabled={!selectedItemIds.length || Boolean(ewpId)} onClick={openCreateEwp}>{ewpId ? 'EWP created' : '8. Create EWP'}</Button></Group>
           </Paper>
         )}
 
         {ewp && handoff && <>
-          <Alert color="green" icon={<IconDatabase size={18} />} title="9. EWP input links stored">{inputLinks.length} selected release item ID(s) are linked to <b>{ewp.code}</b> in the MongoDB <Text span ff="monospace">ewp_seb_input</Text> collection.</Alert>
+          <Alert color="green" icon={<IconDatabase size={18} />} title="9. EWP input links stored">{inputLinks.length} selected release item(s) are linked to <b>{ewp.code}</b>.</Alert>
           <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'md', md: 'lg' }} style={surface}>
             <Group justify="space-between" align="flex-start" mb="lg" wrap="wrap"><Group align="flex-start" wrap="nowrap"><ThemeIcon color="green" variant="light" radius="md" size={38}><IconShieldCheck size={20} /></ThemeIcon><Box><Text fw={800}>SEB Design Basis</Text><Text size="xs" c="dimmed">Exact frozen inputs linked to this EWP.</Text></Box></Group><Group className={styles.actions}><Button variant="default" leftSection={<IconEye size={16} />} onClick={() => setBasisModal(true)}>View selected inputs</Button><Checkbox color="green" checked={basisReviewed} onChange={event => setBasisReviewed(event.currentTarget.checked)} label="Design basis reviewed" /></Group></Group>
             <SimpleGrid cols={{ base: 2, lg: 4 }}><Info label="SEB" value={handoff.seb_code} /><Info label="Revision" value={handoff.revision} /><Info label="Readiness" value={<StatusBadge value={handoff.readiness} />} /><Info label="Linked inputs" value={inputLinks.length} /></SimpleGrid>
@@ -441,23 +481,25 @@ export default function EngineeringWorkLayout() {
       </Stack>
 
       <Modal opened={basisModal} onClose={() => setBasisModal(false)} title={<Text fw={800}>Selected SEB Design Basis Inputs</Text>} size="xl" centered radius="lg" fullScreen={isMobile} classNames={{ content: styles.modal }}>
-        {handoff && <Stack gap="lg"><Group><StatusBadge value={handoff.status} /><StatusBadge value={handoff.readiness} /><Badge variant="outline">{handoff.seb_code} / {handoff.revision}</Badge></Group><ResponsiveTable label="Selected SEB inputs" withTableBorder verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>SEB item</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Decision</Table.Th><Table.Th>Readiness</Table.Th><Table.Th>Evidence</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{handoff.items.map(item => <Table.Tr key={item.id}><Table.Td><Text fw={700} size="sm">{item.fact}</Text><Text size="xs" c="dimmed">{item.id}</Text></Table.Td><Table.Td>{item.discipline}</Table.Td><Table.Td><StatusBadge value={item.decision} /></Table.Td><Table.Td><StatusBadge value={item.readiness} /></Table.Td><Table.Td><Group gap="xs"><IconLink size={14} /><Text size="sm">{item.evidence}</Text></Group></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable><SimpleGrid cols={{ base: 1, sm: 2 }}><Paper withBorder p="md" radius="md"><Text fw={750} mb="xs">Conditions</Text>{handoff.conditions.length ? handoff.conditions.map(item => <Text key={item} size="sm" mb={6}>• {item}</Text>) : <Text size="sm" c="dimmed">None</Text>}</Paper><Paper withBorder p="md" radius="md"><Text fw={750} mb="xs">Constraints</Text>{handoff.constraints.length ? handoff.constraints.map(item => <Text key={item} size="sm" mb={6}>• {item}</Text>) : <Text size="sm" c="dimmed">None</Text>}</Paper></SimpleGrid></Stack>}
+        {handoff && <Stack gap="lg"><Group><StatusBadge value={handoff.status} /><StatusBadge value={handoff.readiness} /><Badge variant="outline">{handoff.seb_code} / {handoff.revision}</Badge></Group><ResponsiveTable label="Selected SEB inputs" withTableBorder verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>SEB item</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Decision</Table.Th><Table.Th>Readiness</Table.Th><Table.Th>Evidence</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{handoff.items.map(item => <Table.Tr key={item.id}><Table.Td><Text fw={700} size="sm">{item.fact}</Text></Table.Td><Table.Td>{item.discipline}</Table.Td><Table.Td><StatusBadge value={item.decision} /></Table.Td><Table.Td><StatusBadge value={item.readiness} /></Table.Td><Table.Td><Group gap="xs"><IconLink size={14} /><Text size="sm">{item.evidence}</Text></Group></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable><SimpleGrid cols={{ base: 1, sm: 2 }}><Paper withBorder p="md" radius="md"><Text fw={750} mb="xs">Conditions</Text>{handoff.conditions.length ? handoff.conditions.map(item => <Text key={item} size="sm" mb={6}>• {item}</Text>) : <Text size="sm" c="dimmed">None</Text>}</Paper><Paper withBorder p="md" radius="md"><Text fw={750} mb="xs">Constraints</Text>{handoff.constraints.length ? handoff.constraints.map(item => <Text key={item} size="sm" mb={6}>• {item}</Text>) : <Text size="sm" c="dimmed">None</Text>}</Paper></SimpleGrid></Stack>}
       </Modal>
 
       <Modal opened={ewpModal} onClose={() => setEwpModal(false)} title={<Text fw={800}>{editingEwpId ? 'Edit EWP' : 'Create EWP from selected release items'}</Text>} size="lg" centered radius="lg" fullScreen={isMobile} classNames={{ content: styles.modal }}>
         <Stack>
           {!editingEwpId && <Alert color="green" icon={<IconCircleCheck size={18} />}>{selectedItems.length} frozen item(s) will be stored as <Text span ff="monospace">ewp_seb_input</Text> links.</Alert>}
-          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="EWP Code" required value={ewpForm.code} onChange={event => { const value = event.currentTarget.value; setEwpForm(form => ({ ...form, code: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="EWP Name" required value={ewpForm.name} onChange={event => { const value = event.currentTarget.value; setEwpForm(form => ({ ...form, name: value })); }} /></Grid.Col></Grid>
-          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><Select classNames={{ dropdown: styles.dropdown }} label="Discipline" data={DISCIPLINES} value={ewpForm.discipline} onChange={value => setEwpForm(form => ({ ...form, discipline: value || '' }))} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="Lead Engineer" value={ewpForm.lead} onChange={event => { const value = event.currentTarget.value; setEwpForm(form => ({ ...form, lead: value })); }} /></Grid.Col></Grid>
-          <Textarea label="Scope" minRows={4} value={ewpForm.scope} onChange={event => { const value = event.currentTarget.value; setEwpForm(form => ({ ...form, scope: value })); }} />
-          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput label="Planned start" value={ewpForm.start} onChange={value => { setEwpForm(form => ({ ...form, start: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput label="Planned finish" value={ewpForm.end} onChange={value => { setEwpForm(form => ({ ...form, end: value })); }} /></Grid.Col></Grid>
-          <Group className={styles.actions} justify="flex-end" mt="md"><Button variant="default" onClick={() => setEwpModal(false)} disabled={savingEwp}>Cancel</Button><Button color="green" loading={savingEwp} disabled={!ewpForm.code.trim() || !ewpForm.name.trim()} onClick={saveEwp}>{editingEwpId ? 'Save changes' : 'Create EWP'}</Button></Group>
+          <TextInput required label="EWP Name" value={ewpForm.name} onChange={event => { const value = event.currentTarget.value; setEwpForm(form => ({ ...form, name: value })); }} />
+          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><Select classNames={{ dropdown: styles.dropdown }} required label="Discipline" data={disciplineOptions} value={ewpForm.discipline} onChange={value => setEwpForm(form => ({ ...form, discipline: value || '' }))} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><Select classNames={{ dropdown: styles.dropdown }} required label="Lead Engineer" placeholder={consultantsLoading ? 'Loading consultants...' : 'Select consultant'} data={consultants.map(item => ({ value: String(item.id || item._id || item.name), label: `${item.name || item.email || 'Unnamed consultant'}${item.consultant_company ? ` (${item.consultant_company})` : ''}` }))} value={ewpForm.lead || null} onChange={value => setEwpForm(form => ({ ...form, lead: value || '' }))} searchable clearable disabled={consultantsLoading} nothingFoundMessage="No consultants found" /></Grid.Col></Grid>
+          <Textarea required label="Scope" minRows={4} value={ewpForm.scope} onChange={event => { const value = event.currentTarget.value; setEwpForm(form => ({ ...form, scope: value })); }} />
+          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput required label="Planned start" value={ewpForm.start} onChange={value => { setEwpForm(form => ({ ...form, start: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput required label="Planned finish" value={ewpForm.end} onChange={value => { setEwpForm(form => ({ ...form, end: value })); }} /></Grid.Col></Grid>
+          <Group className={styles.actions} justify="flex-end" mt="md"><Button variant="default" onClick={() => setEwpModal(false)} disabled={savingEwp}>Cancel</Button><Button color="green" loading={savingEwp} disabled={!ewpForm.name.trim() || !ewpForm.discipline || !ewpForm.scope.trim() || !ewpForm.lead.trim() || !ewpForm.start || !ewpForm.end} onClick={saveEwp}>{editingEwpId ? 'Save changes' : 'Create EWP'}</Button></Group>
         </Stack>
       </Modal>
 
       <Modal opened={activityModal} onClose={() => setActivityModal(false)} title={<Text fw={800}>{editingActivity ? 'Update Engineering Work' : 'Add Engineering Work'}</Text>} size="lg" centered radius="lg" fullScreen={isMobile} classNames={{ content: styles.modal }}>
-        <Stack><Grid><Grid.Col span={{ base: 12, sm: 4 }}><TextInput label="Work order" required value={activityForm.code} onChange={event => { const value = event.currentTarget.value; setActivityForm(form => ({ ...form, code: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 8 }}><TextInput label="Activity" required value={activityForm.title} onChange={event => { const value = event.currentTarget.value; setActivityForm(form => ({ ...form, title: value })); }} /></Grid.Col></Grid><TextInput label="Assigned engineer(s)" description="Separate multiple engineers with commas" value={activityForm.engineer} onChange={event => { const value = event.currentTarget.value; setActivityForm(form => ({ ...form, engineer: value })); }} /><Grid><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput label="Planned start" value={activityForm.start} onChange={value => { setActivityForm(form => ({ ...form, start: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput label="Planned finish" value={activityForm.end} onChange={value => { setActivityForm(form => ({ ...form, end: value })); }} /></Grid.Col></Grid><Select classNames={{ dropdown: styles.dropdown }} label="Work status" data={STATUSES.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={activityForm.status} onChange={value => setActivityForm(form => ({ ...form, status: value || 'NOT_STARTED', progress: value === 'COMPLETED' ? 100 : form.progress }))} /><Box><Group justify="space-between" mb="xs"><Text size="sm" fw={600}>Progress</Text><Text size="sm" fw={750}>{activityForm.progress}%</Text></Group><Slider thumbLabel="Work progress" color="green" value={Number(activityForm.progress)} onChange={value => setActivityForm(form => ({ ...form, progress: value, status: value === 100 ? 'COMPLETED' : value > 0 && form.status === 'NOT_STARTED' ? 'IN_PROGRESS' : form.status }))} marks={[{ value: 0, label: '0%' }, { value: 50, label: '50%' }, { value: 100, label: '100%' }]} mb="xl" /></Box><Group className={styles.actions} justify="flex-end" mt="md"><Button variant="default" onClick={() => setActivityModal(false)} disabled={savingActivity}>Cancel</Button><Button color="green" loading={savingActivity} onClick={saveActivity}>{editingActivity ? 'Update work' : 'Add work'}</Button></Group></Stack>
+        <Stack><Grid><Grid.Col span={{ base: 12, sm: 4 }}><TextInput label="Work order" required value={activityForm.code} onChange={event => { const value = event.currentTarget.value; setActivityForm(form => ({ ...form, code: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 8 }}><TextInput label="Activity" required value={activityForm.title} onChange={event => { const value = event.currentTarget.value; setActivityForm(form => ({ ...form, title: value })); }} /></Grid.Col></Grid><MultiSelect required label="Assigned engineer(s)" placeholder={consultantsLoading ? 'Loading consultants...' : 'Select consultant(s)'} data={consultants.map(item => ({ value: item.name || item.email || String(item.id || item._id), label: `${item.name || item.email || 'Unnamed consultant'}${item.consultant_company ? ` (${item.consultant_company})` : ''}` }))} value={activityForm.engineer ? activityForm.engineer.split(',').map(value => value.trim()).filter(Boolean) : []} onChange={values => setActivityForm(form => ({ ...form, engineer: values.join(', ') }))} searchable clearable disabled={consultantsLoading} nothingFoundMessage="No consultants found" /><Grid><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput required label="Planned start" value={activityForm.start} onChange={value => { setActivityForm(form => ({ ...form, start: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput required label="Planned finish" value={activityForm.end} onChange={value => { setActivityForm(form => ({ ...form, end: value })); }} /></Grid.Col></Grid><Select classNames={{ dropdown: styles.dropdown }} required label="Work status" data={STATUSES.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={activityForm.status} onChange={value => setActivityForm(form => ({ ...form, status: value || 'NOT_STARTED', progress: value === 'COMPLETED' ? 100 : form.progress }))} /><Box><Group justify="space-between" mb="xs"><Text size="sm" fw={600}>Progress</Text><Text size="sm" fw={750}>{activityForm.progress}%</Text></Group><Slider thumbLabel="Work progress" color="green" value={Number(activityForm.progress)} onChange={value => setActivityForm(form => ({ ...form, progress: value, status: value === 100 ? 'COMPLETED' : value > 0 && form.status === 'NOT_STARTED' ? 'IN_PROGRESS' : form.status }))} marks={[{ value: 0, label: '0%' }, { value: 50, label: '50%' }, { value: 100, label: '100%' }]} mb="xl" /></Box><Group className={styles.actions} justify="flex-end" mt="md"><Button variant="default" onClick={() => setActivityModal(false)} disabled={savingActivity}>Cancel</Button><Button color="green" loading={savingActivity} disabled={!activityForm.code.trim() || !activityForm.title.trim() || !activityForm.engineer.trim() || !activityForm.start || !activityForm.end || !activityForm.status} onClick={saveActivity}>{editingActivity ? 'Update work' : 'Add work'}</Button></Group></Stack>
       </Modal>
     </Box>
   );
 }
+
+

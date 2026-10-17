@@ -213,7 +213,7 @@ export default function MyWorkLayout() {
                         style={{ backgroundColor: isSel ? '#ebfbee' : 'transparent', cursor: 'pointer', transition: 'background-color 150ms ease' }}
                       >
                         <Table.Td style={{ padding: '12px 14px' }}>
-                          <Text size="sm" fw={isSel ? 700 : 500} c={isSel ? '#007336' : '#374151'}>{row.id}</Text>
+                          <Text size="sm" fw={isSel ? 700 : 500} c={isSel ? '#007336' : '#374151'}>{row.code || row.reference || 'Reference'}</Text>
                         </Table.Td>
                         <Table.Td style={{ padding: '12px 14px' }}>
                           <Text size="sm" c="#4b5563">{row.record}</Text>
@@ -253,3 +253,4 @@ export default function MyWorkLayout() {
     </Box>
   );
 }
+

@@ -1,4 +1,5 @@
 import { recordFields } from './siaCompletionReport';
+import { displayRecord } from './siaRecordDisplay';
 
 export function buildSebPreparationReport({ baseline, revision, siaCase, site, items, reviewed, submitted }) {
   if (!baseline?.id || !revision?.id || revision.seb_id !== baseline.id ||
@@ -18,18 +19,18 @@ export function buildSebPreparationReport({ baseline, revision, siaCase, site, i
       saved_seb_items: items.length,
       report_generated_at_utc: new Date().toISOString(),
     }) },
-    { title: 'SEB details', fields: recordFields(baseline) },
-    { title: 'Revision details', fields: recordFields(revision) },
-    { title: 'SIA case / project reference', fields: recordFields(caseDetails) },
-    { title: 'Site details', fields: recordFields(site) },
+    { title: 'SEB details', fields: recordFields(displayRecord(baseline)) },
+    { title: 'Revision details', fields: recordFields(displayRecord(revision)) },
+    { title: 'SIA case / project reference', fields: recordFields(displayRecord(caseDetails)) },
+    { title: 'Site details', fields: recordFields(displayRecord(site)) },
   ];
   if (!items.length) sections.push({ title: 'SEB items', fields: [{ label: 'Items', value: 'No saved review items were returned for this revision.' }] });
   for (const [index, item] of items.entries()) {
     const { fact_data, ...details } = item;
-    sections.push({ title: `SEB item ${index + 1} of ${items.length}`, fields: recordFields(details) });
+    sections.push({ title: `SEB item ${index + 1} of ${items.length}`, fields: recordFields(displayRecord(details)) });
     sections.push({ title: `Source fact ${index + 1}`, fields: fact_data && typeof fact_data === 'object' && !Array.isArray(fact_data) && Object.keys(fact_data).length
-      ? recordFields(fact_data)
-      : [{ label: 'Source data', value: 'Fact details unavailable. Use the fact ID and collection reference above.' }] });
+      ? recordFields(displayRecord(fact_data))
+      : [{ label: 'Source data', value: 'Fact details unavailable.' }] });
   }
   return { code: `${baseline.seb_code || baseline.id}-${revision.revision_no || revision.id}`, sections, itemCount: items.length };
 }

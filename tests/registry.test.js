@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
 import screenSpecs from '../src/config/screenSpecs.json';
 import branches from '../src/config/branches.json';
-describe('GINFINA controlled UI registry',()=>{
- it('contains exactly 39 controlled screens',()=>expect(screenSpecs).toHaveLength(39));
- it('contains every GIN-UI-001 through GIN-UI-039',()=>{ const ids=new Set(screenSpecs.map((s)=>s.id)); for(let i=1;i<=39;i++) expect(ids.has(`GIN-UI-${String(i).padStart(3,'0')}`)).toBe(true); });
- it('gives every screen a primary action branch',()=>{ for(const screen of screenSpecs) expect(branches.some((b)=>b.screenId===screen.id&&b.kind==='primary')).toBe(true); });
+import navigation from '../src/config/navigation.json';
+import { validateRegistry, dedicatedScreenIds } from '../scripts/registry-validation.mjs';
+const source = fs.readFileSync(new URL('../src/screens/GinfinaScreen.jsx', import.meta.url), 'utf8');
+const dedicated = dedicatedScreenIds(source);
+const validate = (specs = screenSpecs, nav = navigation, actions = branches) => validateRegistry(specs, actions, nav, dedicated);
+
+describe('GINFINA controlled UI registry', () => {
+  it('validates original and dedicated module screens against nested navigation', () => expect(validate()).toEqual([]));
+  it('rejects duplicate screen IDs and routes', () => {
+    expect(validate([...screenSpecs, screenSpecs[0]])).toContain(`Duplicate screen ID ${screenSpecs[0].id}`);
+    expect(validate([...screenSpecs, screenSpecs[0]])).toContain(`Duplicate screen route ${screenSpecs[0].route}`);
+  });
+  it('rejects broken nested navigation routes', () => {
+    expect(validate(screenSpecs, { group: { sections: [{ items: [{ route: '/ginfina/missing' }] }] } })).toContain('Unknown navigation route /ginfina/missing');
+  });
+  it('still requires primary branches for generic screens', () => {
+    expect(validate(screenSpecs, navigation, branches.filter(b => b.screenId !== 'GIN-UI-001'))).toContain('Primary action branch missing GIN-UI-001');
+  });
 });

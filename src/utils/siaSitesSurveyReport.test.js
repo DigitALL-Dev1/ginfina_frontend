@@ -21,7 +21,8 @@ describe('Sites & Survey report', () => {
     expect(report.counts.find(c => c.label === 'Buildings').value).toBe(2);
     expect(report.counts.find(c => c.label === 'Room / Areas').value).toBe(1);
     expect(report.sections.find(s => s.title.startsWith('Room / Areas')).fields).toContainEqual({ label: 'Building reference', value: 'B02' });
-    expect(report.sections.find(s => s.title.startsWith('Survey Team')).fields).toContainEqual({ label: 'Team lead', value: 'No' });
+    expect(report.sections.some(s => s.title.startsWith('Survey Team'))).toBe(false);
+    expect(fetch.mock.calls.some(([url]) => url.endsWith('/team'))).toBe(false);
     expect(report.sections[1].fields).toContainEqual({ label: 'Latitude', value: '0' });
     expect(fetcher.mock.calls.some(([url]) => url.includes('foreign'))).toBe(false);
   });

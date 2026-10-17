@@ -4,6 +4,7 @@ import {
   Text, TextInput, Title, Stack, Divider, Badge, Tabs,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import useDisciplines from '../hooks/useDisciplines';
 
 /* ─── Controlled Output Row Helper ───────────────────────────────── */
 function OutputRow({ label, sub }) {
@@ -114,7 +115,7 @@ function OverviewTab() {
                   Engineering disciplines <Text span c="red">*</Text>
                 </Text>
                 <MultiSelect
-                  data={['Electrical', 'Structural', 'Civil', 'Mechanical', 'Solar PV']}
+                  data={disciplineNames}
                   value={disciplines}
                   onChange={setDisciplines}
                   styles={{ input: { borderColor: '#d1d5db', borderRadius: 6, minHeight: 38 } }}
@@ -236,6 +237,7 @@ function PlaceholderTab({ label }) {
 
 /* ─── Main Layout ────────────────────────────────────────────────── */
 export default function ConsultantProfileLayout() {
+  const { names: disciplineNames } = useDisciplines();
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabStyle = (key) =>
@@ -294,3 +296,5 @@ export default function ConsultantProfileLayout() {
     </Box>
   );
 }
+
+

@@ -16,6 +16,8 @@ import styles from './SIADroneGISClimateLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
+const REQUIRED_FIELDS = ['resource_type', 'parameter_name', 'parameter_value', 'parameter_text', 'unit', 'temporal_granularity', 'period_from', 'period_to', 'source_name', 'spatial_reference', 'source_reference', 'reliability_status'];
+const DISPLAY_REQUIRED_FIELDS = new Set(REQUIRED_FIELDS);
 
 // ── hooks & helpers ─────────────────────────────────────
 function useApi(url, deps = []) {
@@ -103,19 +105,20 @@ function FR({ children }) { return <Box className={styles.formRow}>{children}</B
 function FI({ label, field, fv, setFv, textarea, select, readonly, number }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
+  const displayLabel = DISPLAY_REQUIRED_FIELDS.has(field) ? `${label.replace(/\s*\*$/, '')} *` : label;
   const fieldLower = field.toLowerCase();
   const isDateField = fieldLower.includes('date') || fieldLower.includes('_at') || fieldLower.includes('_from') || fieldLower.includes('_to');
   const s = { input: { borderColor: readonly ? '#bbf7d0' : '#d1d5db', borderRadius: 6, minHeight: 44, backgroundColor: readonly ? '#f0fdf4' : undefined } };
   
-  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Select aria-label={label} data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
-  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Textarea aria-label={label} value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
-  if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <NumberInput aria-label={label} value={val === '' ? undefined : Number(val)} onChange={v => upd(v === undefined ? '' : v)} styles={s} /></Box>;
-  if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
+  if (isDateField) return <DatePickerInput label={displayLabel} value={val} onChange={upd} styles={s} />;
   
-  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <TextInput aria-label={label} value={val} onChange={e => upd(e.target.value)} readOnly={readonly} styles={s} /></Box>;
 }
 
@@ -215,6 +218,18 @@ export default function SIAClimateLayout() {
       notifications.show({ title: 'Site required', message: 'Select a site before saving.', color: 'red' });
       return;
     }
+    const missing = REQUIRED_FIELDS.filter(field => {
+      const value = body[field];
+      if (field === 'parameter_value' || field === 'parameter_text') return false;
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    const hasValue = body.parameter_value !== undefined && body.parameter_value !== null && body.parameter_value !== ''
+      || typeof body.parameter_text === 'string' && body.parameter_text.trim();
+    if (!hasValue) missing.push('numeric value or text value');
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
     if (!caseId) {
       notifications.show({ title: 'Case required', message: 'Select an SIA case before saving.', color: 'red' });
       return;
@@ -272,7 +287,7 @@ export default function SIAClimateLayout() {
         </Group>
         <Select label="Select site" placeholder={sitesLoading ? 'Loading sites...' : 'Select a site to continue'}
           mt="sm" searchable allowDeselect={false} value={loadedSiteId || null}
-          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') || site.id }))}
+          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') }))}
           disabled={sitesLoading || saving || !sites.length} error={sitesError || undefined}
           onChange={value => selectSite(value || '')} />
         {!caseId && <Text size="xs" c="dimmed" mt={6}>Select an SIA case in Start and Case Control first.</Text>}
@@ -339,8 +354,8 @@ export default function SIAClimateLayout() {
       <FormModal opened={modal === 'resource'} onClose={closeModal} title="Add Climate Resource" saving={saving}
         onSubmit={() => save('/sia/climate-resources', fv, rRes)}>
         <FR>
-          <FI label="Resource Type *" field="resource_type" fv={fv} setFv={setFv} select={resourceTypes} />
-          <FI label="Parameter Name *" field="parameter_name" fv={fv} setFv={setFv} />
+          <FI label="Resource Type" field="resource_type" fv={fv} setFv={setFv} select={resourceTypes} />
+          <FI label="Parameter Name" field="parameter_name" fv={fv} setFv={setFv} />
         </FR>
         <FR>
           <FI label="Numeric Value" field="parameter_value" fv={fv} setFv={setFv} number />
@@ -364,7 +379,7 @@ export default function SIAClimateLayout() {
         </FR>
         <FR>
           <FI label="Source Reference" field="source_reference" fv={fv} setFv={setFv} />
-          <FI label="Reliability Status *" field="reliability_status" fv={fv} setFv={setFv} select={reliabilityLevels} />
+          <FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={reliabilityLevels} />
         </FR>
         <FR>
           <FI label="Confidence Level" field="confidence_level" fv={fv} setFv={setFv} select={['HIGH', 'MEDIUM', 'LOW']} />
@@ -375,3 +390,4 @@ export default function SIAClimateLayout() {
     </Box>
   );
 }
+

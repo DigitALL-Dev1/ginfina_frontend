@@ -1,4 +1,5 @@
 import { recordFields } from './siaCompletionReport';
+import { displayRecord } from './siaRecordDisplay';
 
 export const REVIEW_DECISIONS = ['ACCEPT', 'ACCEPT_WITH_CONDITION', 'CHANGE_REQUIRED', 'REJECT'];
 
@@ -17,8 +18,8 @@ export function buildSebEngineeringReviewReport({ baseline, revision, items, ses
       { label: 'Report generated at (UTC)', value: new Date().toISOString() },
       ...counts.map(count => ({ label: count.label, value: String(count.value) })),
     ] },
-    { title: 'SEB details', fields: recordFields(baseline) },
-    { title: 'Revision details', fields: recordFields(revision) },
+    { title: 'SEB details', fields: recordFields(displayRecord(baseline)) },
+    { title: 'Revision details', fields: recordFields(displayRecord(revision)) },
   ];
   if (!items.length) sections.push({ title: 'Review items', fields: [{ label: 'Items', value: 'No review items returned for this revision.' }] });
   for (const [index, item] of items.entries()) {
@@ -27,14 +28,15 @@ export function buildSebEngineeringReviewReport({ baseline, revision, items, ses
     const { fact_data, ...details } = item;
     const reviewer = item.reviewer !== undefined ? item.reviewer : saved?.reviewer;
     const comment = item.review_comment !== undefined ? item.review_comment : saved?.comment;
-    sections.push({ title: `Item ${index + 1}: ${item.fact_name || item.fact_id}`, fields: [
-      ...recordFields(details),
+    sections.push({ title: `Item ${index + 1}: ${item.fact_name || 'Source fact'}`, fields: [
+      ...recordFields(displayRecord(details)),
       { label: 'Reviewer', value: reviewer === undefined ? 'Not returned by the API' : reviewer || 'Not provided' },
       { label: 'Review comment', value: comment === undefined ? 'Not returned by the API' : comment || 'No comment recorded' },
       ...(saved ? [{ label: 'Review detail source', value: 'Reviewer and comment retained from a successful save in this session.' }] : []),
     ] });
     sections.push({ title: `Source fact ${index + 1}`, fields: fact_data && typeof fact_data === 'object' && !Array.isArray(fact_data) && Object.keys(fact_data).length
-      ? recordFields(fact_data) : [{ label: 'Source data', value: 'Fact details unavailable. Refer to the fact ID and collection above.' }] });
+      ? recordFields(displayRecord(fact_data)) : [{ label: 'Source data', value: 'Fact details unavailable.' }] });
   }
-  return { code: `${baseline.seb_code || baseline.id}-${revision.revision_no || revision.id}`, counts, sections };
+  return { code: `${baseline.seb_code || 'SEB'}-${revision.revision_no || 'Revision'}`, counts, sections };
 }
+

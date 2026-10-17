@@ -2,7 +2,7 @@ import { formatDisplayValue } from './dateOnly';
 
 const display = value => value === null || value === undefined || value === '' ? 'Not provided' : String(value);
 
-export function buildSiaCaseReport(project, siaCase, links, packs) {
+export function buildSiaCaseReport(project, siaCase, links, packs, team = []) {
   const fields = pairs => pairs.map(([label, value]) => ({ label, value: display(value) }));
   return {
     code: siaCase.case_code || siaCase.id,
@@ -17,6 +17,13 @@ export function buildSiaCaseReport(project, siaCase, links, packs) {
       ]) },
       { title: 'Assessment purpose', fields: fields([['Purpose', siaCase.assessment_purpose]]) },
     ],
+    team: team.map(member => ({
+      id: member.id,
+      name: member.consultant_name || member.name || member.consultant_id || member.user_id || 'Assigned member',
+      role: member.team_role || 'Team member',
+      discipline: member.discipline || '—',
+      lead: member.is_lead ? 'Lead' : 'Member',
+    })),
     // Only confirmed links belong in the report, not unchecked or failed selections.
     packs: links.filter(link => link.sia_case_id === siaCase.id).map(link => {
       const pack = packs.find(p => p.id === link.assessment_pack_id);

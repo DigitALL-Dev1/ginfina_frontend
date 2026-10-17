@@ -1,16 +1,26 @@
-const schemas = {
+﻿const schemas = {
   site: ['site_code', 'site_name', 'site_type', 'address', 'contact_name', 'contact_phone', 'latitude', 'longitude', 'status'],
   buildings: ['building_code', 'building_name', 'building_type', 'floor_count', 'description'],
   rooms: ['building_reference', 'area_code', 'area_name', 'area_type', 'floor_level', 'description'],
   pois: ['poi_code', 'poi_name', 'poi_type', 'category', 'room_area_id', 'latitude', 'longitude', 'description'],
   visits: ['visit_code', 'visit_type', 'purpose', 'planned_date', 'planned_start_time', 'planned_end_time', 'actual_start', 'actual_end', 'status'],
-  team: ['visit_reference', 'user_id', 'team_role', 'is_lead'],
   access: ['access_type', 'road_condition', 'transport_method', 'entry_permission', 'working_hours', 'access_restriction', 'logistics_notes'],
   safety: ['hazard_type', 'risk_level', 'description', 'ppe_required', 'restricted_area', 'emergency_contact', 'control_action'],
   requirements: ['visit_reference', 'assessment_pack_id', 'requirement_name', 'requirement_type', 'is_mandatory', 'status', 'notes'],
   instruments: ['visit_reference', 'instrument_name', 'instrument_type', 'serial_number', 'calibration_status', 'required'],
 };
-const groups = [['buildings', 'Buildings'], ['rooms', 'Room / Areas'], ['pois', 'Points of Interest'], ['visits', 'Survey Visits'], ['team', 'Survey Team'], ['access', 'Site Access'], ['safety', 'Site Safety'], ['requirements', 'Survey Requirements'], ['instruments', 'Survey Instruments']];
+const groups = [['buildings', 'Buildings'], ['rooms', 'Room / Areas'], ['pois', 'Points of Interest'], ['visits', 'Survey Visits'], ['access', 'Site Access'], ['safety', 'Site Safety'], ['requirements', 'Survey Requirements'], ['instruments', 'Survey Instruments']];
+export const SITE_SURVEY_EDITABLE_FIELDS = {
+  site: ['site_name', 'site_type', 'address', 'contact_name', 'contact_phone', 'latitude', 'longitude', 'status'],
+  buildings: ['building_name', 'building_type', 'floor_count', 'description'],
+  rooms: ['area_name', 'area_type', 'floor_level', 'description'],
+  pois: ['poi_name', 'poi_type', 'category', 'latitude', 'longitude', 'description'],
+  visits: ['visit_type', 'purpose', 'planned_date', 'planned_start_time', 'planned_end_time', 'actual_start', 'actual_end'],
+  access: ['access_type', 'road_condition', 'transport_method', 'entry_permission', 'working_hours', 'access_restriction', 'logistics_notes'],
+  safety: ['hazard_type', 'risk_level', 'description', 'ppe_required', 'restricted_area', 'emergency_contact', 'control_action'],
+  requirements: ['requirement_name', 'requirement_type', 'is_mandatory', 'status', 'notes'],
+  instruments: ['instrument_name', 'instrument_type', 'serial_number', 'calibration_status', 'required'],
+};
 const labels = { id: 'Record ID', sia_case_id: 'SIA case ID', project_id: 'Project ID', user_id: 'User ID', poi_code: 'POI code', poi_name: 'POI name', poi_type: 'POI type', ppe_required: 'PPE required', is_lead: 'Team lead', is_mandatory: 'Mandatory', room_area_id: 'Room / area ID', assessment_pack_id: 'Assessment pack ID' };
 const fields = (row, keys) => keys.map(key => ({ label: labels[key] || key.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase()),
   value: typeof row[key] === 'boolean' ? row[key] ? 'Yes' : 'No' : row[key] === null || row[key] === undefined || row[key] === '' ? 'Not provided' : String(row[key]) }));
@@ -34,7 +44,7 @@ export async function loadSitesSurveyReport(api, siaCase, siteId, signal) {
       .filter(row => row.building_id === building.id && row.site_id === siteId)
       .map(row => ({ ...row, building_reference: building.building_code || building.building_name || building.id }))));
   data.rooms = rooms.flat();
-  await Promise.all(['team', 'requirements', 'instruments'].map(async key => {
+  await Promise.all(['requirements', 'instruments'].map(async key => {
     data[key] = (await Promise.all(data.visits.map(async visit =>
       (await get(`/sia/survey-visits/${encodeURIComponent(visit.id)}/${key}`))
         .filter(row => row.survey_visit_id === visit.id)
@@ -42,12 +52,14 @@ export async function loadSitesSurveyReport(api, siaCase, siteId, signal) {
   }));
   const sections = [
     { title: 'Report context', fields: fields({ ...siaCase, generated_at: new Date().toISOString() }, ['case_code', 'id', 'project_id', 'assessment_stage', 'assessment_purpose', 'generated_at']) },
-    { title: 'Site details', fields: fields(site, ['id', ...schemas.site]) },
+    { title: 'Site details', resource: 'site', recordId: site.id, values: site, fieldKeys: ['id', ...schemas.site], fields: fields(site, ['id', ...schemas.site]) },
   ];
   for (const [key, title] of groups) {
     if (!data[key].length) sections.push({ title: `${title} (0)`, fields: [{ label: 'Records', value: 'No records saved for this site.' }] });
-    else data[key].forEach((row, i) => sections.push({ title: `${title} — ${i + 1} of ${data[key].length}`, fields: fields(row, ['id', ...schemas[key]]) }));
+    else data[key].forEach((row, i) => sections.push({ title: `${title} — ${i + 1} of ${data[key].length}`, resource: key, recordId: row.id, values: row, fieldKeys: ['id', ...schemas[key]], fields: fields(row, ['id', ...schemas[key]]) }));
   }
   return { code: `${siaCase.case_code || siaCase.id}-${site.site_code || site.id}`, sections,
     counts: groups.map(([key, label]) => ({ label, value: data[key].length })) };
 }
+
+

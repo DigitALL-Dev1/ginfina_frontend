@@ -279,7 +279,7 @@ export default function ManagementDashboardLayout() {
             <Table.ScrollContainer minWidth={560} type="native"><Table verticalSpacing="xs" horizontalSpacing="sm" style={{ minWidth: 400 }}>
               <Table.Thead>
                 <Table.Tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>EWP ID</Table.Th>
+                  <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>EWP Code</Table.Th>
                   <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>Discipline</Table.Th>
                   <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>Status</Table.Th>
                   <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>Owner</Table.Th>
@@ -301,7 +301,7 @@ export default function ManagementDashboardLayout() {
                       }}
                     >
                       <Table.Td style={{ padding: '8px 10px' }}>
-                        <Text size="xs" fw={isSel ? 700 : 500} c={isSel ? '#007336' : '#374151'}>{row.id}</Text>
+                        <Text size="xs" fw={isSel ? 700 : 500} c={isSel ? '#007336' : '#374151'}>{row.code || row.reference || 'Reference'}</Text>
                       </Table.Td>
                       <Table.Td style={{ padding: '8px 10px' }}>
                         <Text size="xs" c="#4b5563">{row.discipline}</Text>
@@ -364,3 +364,4 @@ export default function ManagementDashboardLayout() {
     </Box>
   );
 }
+

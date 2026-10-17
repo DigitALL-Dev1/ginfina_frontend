@@ -11,7 +11,7 @@ import {
   IconPlus, IconDrone, IconUsers, IconDeviceGamepad2,
   IconMap, IconCloudRain, IconMapPin, IconDatabase,
   IconShieldCheck, IconLayersIntersect, IconWorld,
-  IconSun, IconBug, IconFileText, IconArrowRight,
+  IconSun, IconBug, IconFileText, IconArrowRight, IconEdit,
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
 import SIADroneGISClimateReport from '../components/common/SIADroneGISClimateReport';
@@ -56,6 +56,13 @@ async function postApi(path, body) {
   return res.json();
 }
 
+async function patchApi(path, body) {
+  const cleaned = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, v === '' ? null : v]));
+  const res = await fetch(`${API}${path}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cleaned) });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+  return res.json();
+}
+
 function EmptyRow({ cols }) {
   return <Table.Tr><Table.Td colSpan={cols} style={{ textAlign: 'center', padding: '28px 0' }}>
     <Text size="sm" c="dimmed">No records found.</Text></Table.Td></Table.Tr>;
@@ -93,6 +100,9 @@ function TabHeader({ title, onAdd, addLabel, disabled = false }) {
     <Button size="xs" color="green" leftSection={<IconPlus size={13} />} disabled={disabled}
       onClick={onAdd} style={{ backgroundColor: disabled ? undefined : '#007336' }}>{addLabel}</Button>
   </Group>;
+}
+function EditButton({ onClick }) {
+  return <Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={13} />} onClick={event => { event.stopPropagation(); onClick(); }}>Edit</Button>;
 }
 function FormModal({ opened, onClose, title, saving, onSubmit, children }) {
   return <Modal classNames={{ content: styles.modal }} opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
@@ -242,7 +252,6 @@ export default function SIADroneGISClimateLayout() {
     const codePrefills = {
       mission:    { mission_code: autoCode('DRN') },
       gcp:        { gcp_code: autoCode('GCP') },
-      gisfeature: { feature_code: autoCode('FEAT') },
     };
     const enriched = {
       site_id:         loadedSiteId,
@@ -268,6 +277,32 @@ export default function SIADroneGISClimateLayout() {
     } catch (e) {
       notifications.show({ title: 'Error', message: e.message, color: 'red' });
     } finally { setSaving(false); }
+  };
+
+  const EDIT_RESOURCE = {
+    mission: ['/sia/drone-missions', rMiss], operator: ['/sia/drone-operators', rOp], platform: ['/sia/drone-platforms', rPlat],
+    capture: ['/sia/drone-capture-plans', rCap], gcp: ['/sia/ground-control-points', rGcp], fieldcond: ['/sia/drone-field-conditions', rFc],
+    rawdata: ['/sia/drone-raw-data', rRaw], qa: ['/sia/drone-quality-checks', rQa], derived: ['/sia/drone-derived-products', rDer],
+    climate: ['/sia/climate-resources', rClim],
+  };
+  const openEdit = (type, record) => {
+    const ignored = new Set(['id', 'created_at', 'updated_at', 'mission_code', 'gcp_code', 'feature_code', 'sia_case_id', 'site_id', 'drone_mission_id']);
+    setFv(Object.fromEntries(Object.entries(record).filter(([key]) => !ignored.has(key))));
+    setFv(current => ({ ...current, id: record.id }));
+    setModal(`edit-${type}`);
+  };
+  const updateRecord = async () => {
+    const type = String(modal || '').replace(/^edit-/, '');
+    const resource = EDIT_RESOURCE[type];
+    if (!resource || !fv.id) return;
+    setSaving(true);
+    try {
+      const body = Object.fromEntries(Object.entries(fv).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      await patchApi(`${resource[0]}/${encodeURIComponent(fv.id)}`, body);
+      notifications.show({ title: 'Record updated', message: 'The record was saved successfully.', color: 'green' });
+      resource[1](); closeModal();
+    } catch (e) { notifications.show({ title: 'Unable to update record', message: e.message, color: 'red' }); }
+    finally { setSaving(false); }
   };
 
   const selectSite = (id) => {
@@ -317,7 +352,7 @@ export default function SIADroneGISClimateLayout() {
         </Group>
         <Select label="Select site" placeholder={sitesLoading ? 'Loading sites...' : 'Select a site to continue'}
           mt="sm" searchable allowDeselect={false} value={loadedSiteId || null}
-          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') || site.id }))}
+          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') }))}
           disabled={sitesLoading || saving || !sites.length} error={sitesError || undefined}
           onChange={value => selectSite(value || '')} />
         {!caseId && <Text size="xs" c="dimmed" mt={6}>Select an SIA case in Start and Case Control first.</Text>}
@@ -374,18 +409,18 @@ export default function SIADroneGISClimateLayout() {
           {/* MISSIONS */}
           <Tabs.Panel value="missions">
             <TabHeader title="Drone Missions" onAdd={() => openModal('mission', { site_id: loadedSiteId, survey_visit_id: localStorage.getItem('sia_survey_visit_id') || '' })} addLabel="Add Mission" />
-            <DataTable loading={missL} cols={['Code', 'Purpose', 'Discipline', 'Planned', 'Actual', 'Status']}
+            <DataTable loading={missL} cols={['Code', 'Purpose', 'Discipline', 'Planned', 'Actual', 'Status', '']}
               rows={missions} render={r => (
                 <Table.Tr key={r.id} onClick={() => { setMission(r); setTab('operators'); }}
                   style={{ cursor: 'pointer', backgroundColor: mission?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (mission?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (mission?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={mission?.id === r.id} onClick={event => { event.stopPropagation(); setMission(r); setTab('operators'); }}>{r.mission_code || r.id}</Button></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={mission?.id === r.id} onClick={event => { event.stopPropagation(); setMission(r); setTab('operators'); }}>{r.mission_code || 'Reference'}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.mission_purpose || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.target_discipline || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.planned_date || '—')}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.actual_date || '—')}</Text></Table.Td>
-                  <Table.Td><SBadge v={r.mission_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.mission_status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('mission', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -393,13 +428,13 @@ export default function SIADroneGISClimateLayout() {
           {/* OPERATORS */}
           <Tabs.Panel value="operators">
             <TabHeader title={`Operators — ${mission?.mission_code || ''}`} onAdd={() => openModal('operator')} addLabel="Add Operator" />
-            <DataTable loading={opL} cols={['User ID', 'Competency', 'Permission Ref', 'Regulatory Ref']}
+            <DataTable loading={opL} cols={['User ID', 'Competency', 'Permission Ref', 'Regulatory Ref', '']}
               rows={operators} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" style={{ fontFamily: 'monospace' }}>{r.user_id || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm">{r.competency_ref || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.permission_ref || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280">{r.regulatory_ref || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.regulatory_ref || '—'}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('operator', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -407,7 +442,7 @@ export default function SIADroneGISClimateLayout() {
           {/* PLATFORMS */}
           <Tabs.Panel value="platforms">
             <TabHeader title="Drone Platforms" onAdd={() => openModal('platform')} addLabel="Add Platform" />
-            <DataTable loading={platL} cols={['Make', 'Model', 'Serial', 'Sensor', 'RTK/PPK', 'Thermal', 'Multispectral']}
+            <DataTable loading={platL} cols={['Make', 'Model', 'Serial', 'Sensor', 'RTK/PPK', 'Thermal', 'Multispectral', '']}
               rows={platforms} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm">{r.drone_make || '—'}</Text></Table.Td>
@@ -416,7 +451,7 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><Text size="sm" c="#6b7280">{r.sensor_type || '—'}</Text></Table.Td>
                   <Table.Td><BoolBadge v={r.rtk_ppk_capable} /></Table.Td>
                   <Table.Td><BoolBadge v={r.thermal_capable} /></Table.Td>
-                  <Table.Td><BoolBadge v={r.multispectral_capable} /></Table.Td>
+                  <Table.Td><BoolBadge v={r.multispectral_capable} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('platform', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -424,7 +459,7 @@ export default function SIADroneGISClimateLayout() {
           {/* CAPTURE PLAN */}
           <Tabs.Panel value="capture">
             <TabHeader title="Capture Plans" onAdd={() => openModal('capture')} addLabel="Add Plan" />
-            <DataTable loading={capL} cols={['CRS', 'Datum', 'GNSS Method', 'Altitude (m)', 'Front %', 'Side %', 'GSD', 'Type']}
+            <DataTable loading={capL} cols={['CRS', 'Datum', 'GNSS Method', 'Altitude (m)', 'Front %', 'Side %', 'GSD', 'Type', '']}
               rows={capPlans} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm">{r.crs || '—'}</Text></Table.Td>
@@ -434,7 +469,7 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><Text size="sm" c="#6b7280">{r.front_overlap ?? '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.side_overlap ?? '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.target_gsd ?? '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280">{r.capture_type || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.capture_type || '—'}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('capture', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -442,7 +477,7 @@ export default function SIADroneGISClimateLayout() {
           {/* GCPs */}
           <Tabs.Panel value="gcps">
             <TabHeader title="Ground Control Points" onAdd={() => openModal('gcp')} addLabel="Add GCP" />
-            <DataTable loading={gcpL} cols={['Code', 'Type', 'Lat', 'Lng', 'Elevation', 'Method', 'Accuracy', 'Status']}
+            <DataTable loading={gcpL} cols={['Code', 'Type', 'Lat', 'Lng', 'Elevation', 'Method', 'Accuracy', 'Status', '']}
               rows={gcps} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" fw={600} c="#007336">{r.gcp_code || '—'}</Text></Table.Td>
@@ -452,7 +487,7 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><Text size="xs" c="#6b7280">{r.elevation ?? '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.survey_method || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.accuracy ?? '—'}</Text></Table.Td>
-                  <Table.Td><SBadge v={r.status} /></Table.Td>
+                  <Table.Td><SBadge v={r.status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('gcp', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -460,7 +495,7 @@ export default function SIADroneGISClimateLayout() {
           {/* FIELD CONDITIONS */}
           <Tabs.Panel value="conditions">
             <TabHeader title="Field Conditions" onAdd={() => openModal('fieldcond')} addLabel="Add Condition" />
-            <DataTable loading={fcL} cols={['Recorded At', 'Weather', 'Wind (m/s)', 'Temp (°C)', 'Lighting', 'Visibility', 'Rain']}
+            <DataTable loading={fcL} cols={['Recorded At', 'Weather', 'Wind (m/s)', 'Temp (°C)', 'Lighting', 'Visibility', 'Rain', '']}
               rows={fieldConds} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.recorded_at || '—')}</Text></Table.Td>
@@ -469,7 +504,7 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><Text size="sm" c="#6b7280">{r.temperature ?? '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.lighting_condition || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.visibility || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280">{r.rain_condition || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280">{r.rain_condition || '—'}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('fieldcond', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -477,14 +512,14 @@ export default function SIADroneGISClimateLayout() {
           {/* RAW DATA */}
           <Tabs.Panel value="rawdata">
             <TabHeader title="Raw Data" onAdd={() => openModal('rawdata')} addLabel="Add Raw Data" />
-            <DataTable loading={rawL} cols={['File Name', 'Type', 'Size (B)', 'Captured At', 'Import Status']}
+            <DataTable loading={rawL} cols={['File Name', 'Type', 'Size (B)', 'Captured At', 'Import Status', '']}
               rows={rawData} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm">{r.file_name || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.data_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.file_size ?? '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.captured_at || '—')}</Text></Table.Td>
-                  <Table.Td><SBadge v={r.import_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.import_status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('rawdata', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -492,7 +527,7 @@ export default function SIADroneGISClimateLayout() {
           {/* QA CHECKS */}
           <Tabs.Panel value="qa">
             <TabHeader title="Quality Checks" onAdd={() => openModal('qa')} addLabel="Add QA Check" />
-            <DataTable loading={qaL} cols={['Coverage', 'Gap', 'Blur', 'Exposure', 'Overlap', 'GNSS', 'QA Status', 'Checked By']}
+            <DataTable loading={qaL} cols={['Coverage', 'Gap', 'Blur', 'Exposure', 'Overlap', 'GNSS', 'QA Status', 'Checked By', '']}
               rows={qualChecks} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><SBadge v={r.coverage_status} /></Table.Td>
@@ -502,7 +537,7 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><SBadge v={r.overlap_status} /></Table.Td>
                   <Table.Td><SBadge v={r.gnss_status} /></Table.Td>
                   <Table.Td><SBadge v={r.qa_status} /></Table.Td>
-                  <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.checked_by || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.checked_by || '—'}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('qa', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -510,7 +545,7 @@ export default function SIADroneGISClimateLayout() {
           {/* DERIVED PRODUCTS */}
           <Tabs.Panel value="derived">
             <TabHeader title="Derived Products" onAdd={() => openModal('derived')} addLabel="Add Product" />
-            <DataTable loading={derL} cols={['File Name', 'Type', 'CRS', 'Resolution', 'Accuracy', 'Reliability', 'Status']}
+            <DataTable loading={derL} cols={['File Name', 'Type', 'CRS', 'Resolution', 'Accuracy', 'Reliability', 'Status', '']}
               rows={derived} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm">{r.file_name || '—'}</Text></Table.Td>
@@ -519,7 +554,7 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><Text size="xs" c="#6b7280">{r.resolution ?? '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{r.accuracy ?? '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_class} /></Table.Td>
-                  <Table.Td><SBadge v={r.status} /></Table.Td>
+                  <Table.Td><SBadge v={r.status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('derived', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -533,7 +568,7 @@ export default function SIADroneGISClimateLayout() {
                   style={{ cursor: 'pointer', backgroundColor: gisLayer?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (gisLayer?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (gisLayer?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={gisLayer?.id === r.id} onClick={event => { event.stopPropagation(); setGisLayer(r); setTab('gisfeatures'); }}>{r.layer_name || r.id}</Button></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={gisLayer?.id === r.id} onClick={event => { event.stopPropagation(); setGisLayer(r); setTab('gisfeatures'); }}>{r.layer_name || 'Reference'}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.layer_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.geometry_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.crs || '—'}</Text></Table.Td>
@@ -577,7 +612,7 @@ export default function SIADroneGISClimateLayout() {
           {/* CLIMATE RESOURCES */}
           <Tabs.Panel value="climate">
             <TabHeader title="Climate Resources" onAdd={() => openModal('climate')} addLabel="Add Resource" />
-            <DataTable loading={climL} cols={['Type', 'Parameter', 'Value', 'Unit', 'Period From', 'Period To', 'Reliability']}
+            <DataTable loading={climL} cols={['Type', 'Parameter', 'Value', 'Unit', 'Period From', 'Period To', 'Reliability', '']}
               rows={climate} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Badge size="sm" color="blue" variant="light">{r.resource_type || '—'}</Badge></Table.Td>
@@ -586,7 +621,7 @@ export default function SIADroneGISClimateLayout() {
                   <Table.Td><Text size="sm" c="#6b7280">{r.unit || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.period_from || '—')}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.period_to || '—')}</Text></Table.Td>
-                  <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.reliability_status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('climate', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -724,9 +759,9 @@ export default function SIADroneGISClimateLayout() {
       {/* GIS Feature */}
       <FormModal opened={modal === 'gisfeature'} onClose={closeModal} title="Add GIS Feature" saving={saving}
         onSubmit={() => save('/sia/gis-features', { gis_layer_id: lid, ...fv }, rFeat)}>
-        <FR><FI label="Feature Code" field="feature_code" fv={fv} setFv={setFv} /><FI label="Feature Name" field="feature_name" fv={fv} setFv={setFv} /></FR>
+        <FI label="Feature Name" field="feature_name" fv={fv} setFv={setFv} />
         <FR><FI label="Feature Type" field="feature_type" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={['Confirmed', 'Estimated', 'Unverified']} /></FR>
-        <FI label="POI ID (optional)" field="poi_id" fv={fv} setFv={setFv} />
+        
         <FI label="Geometry Data (GeoJSON/WKT)" field="geometry_data" fv={fv} setFv={setFv} textarea />
         <FI label="Description" field="description" fv={fv} setFv={setFv} textarea />
       </FormModal>
@@ -750,6 +785,20 @@ export default function SIADroneGISClimateLayout() {
         <FR><FI label="Source Name" field="source_name" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={['Confirmed', 'Estimated', 'Unverified']} /></FR>
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
       </FormModal>
+
+      <FormModal opened={Boolean(modal && String(modal).startsWith('edit-'))} onClose={closeModal}
+        title={`Edit ${String(modal || '').replace(/^edit-/, '').replace(/([a-z])([A-Z])/g, '$1 $2')}`} saving={saving} onSubmit={updateRecord}>
+        {Object.entries(fv).filter(([field]) => field !== 'id').map(([field, value]) => {
+          const label = field.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+          if (typeof value === 'boolean') return <Group key={field} mt="sm" gap="xs"><Text size="xs" fw={600} c="#374151">{label}</Text><Switch aria-label={label} checked={value} onChange={event => setFv(p => ({ ...p, [field]: event.currentTarget.checked }))} color="green" /></Group>;
+          const number = typeof value === 'number';
+          const textarea = /remarks|notes|comment|description|condition|boundary|restriction|parameters|reference/.test(field);
+          return <FI key={field} label={label} field={field} fv={fv} setFv={setFv} number={number} textarea={textarea} readonly={field.endsWith('_id') || field === 'user_id' || field === 'checked_by'} />;
+        })}
+      </FormModal>
     </Box>
   );
 }
+
+
+

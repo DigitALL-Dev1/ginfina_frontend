@@ -68,6 +68,18 @@ export default function CompletionGovernanceLayout() {
     setSelected(obligation); setForm({ actor: '', comment: '', title: '', status: 'CLOSED' }); setError(''); setModal(action);
   };
   const save = async () => {
+    const missing = [
+      !ewpId && 'Engineering Work Package',
+      !form.actor.trim() && (modal === 'close' ? 'Closure approver' : modal === 'governance' ? 'Governance reviewer' : 'Recorded by'),
+      !form.comment.trim() && 'Comment / evidence reference',
+      modal === 'actions' && !form.title.trim() && 'Action',
+      modal === 'resolutions' && !selected?.id && 'Selected obligation',
+      modal === 'resolutions' && !form.status && 'Resolution',
+    ].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ color: 'orange', title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.` });
+      return;
+    }
     setSaving(true); setError('');
     const payload = { version: summary.control.version, actor: form.actor.trim(), comment: form.comment.trim() };
     if (modal === 'governance') payload.summary_hash = summary.summary_hash;
@@ -96,8 +108,8 @@ export default function CompletionGovernanceLayout() {
       <ThemeIcon color="green" variant="light" size={46} radius="lg"><IconShieldCheck size={24} /></ThemeIcon></Group>
     <Stack gap="lg">
       <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}><Group className={styles.actions} align="flex-end">
-        <Select classNames={{ dropdown: styles.dropdown }} style={{ flex: 1 }} label="Engineering Work Package" placeholder={listLoading ? 'Loading EWPs...' : 'Select EWP'} searchable clearable
-          data={ewps.map(e => ({ value: e.id, label: `${e.code || e.id} / ${e.name || ''}` }))} value={ewpId}
+        <Select classNames={{ dropdown: styles.dropdown }} style={{ flex: 1 }} required label="Engineering Work Package" placeholder={listLoading ? 'Loading EWPs...' : 'Select EWP'} searchable clearable
+          data={ewps.map(e => ({ value: e.id, label: `${e.code || e.name || 'Unnamed EWP'} / ${e.name || ''}` }))} value={ewpId}
           disabled={saving || listLoading} onChange={value => { setSummary(null); setEwpId(value); setModal(''); }} />
         <Button variant="light" color="green" leftSection={<IconRefresh size={16} />} disabled={loading || saving} onClick={() => setRefresh(v => v + 1)}>Refresh</Button>
       </Group>{!listLoading && !ewps.length && <Text size="sm" c="dimmed" mt="sm">No engineering work packages are available.</Text>}</Paper>
@@ -139,7 +151,7 @@ export default function CompletionGovernanceLayout() {
     <Modal fullScreen={isMobile} classNames={{ content: styles.modal }} closeButtonProps={{ "aria-label": "Close dialog" }} opened={Boolean(modal)} onClose={() => { if (!saving) { setModal(''); setError(''); } }} title={actionLabels[modal]} centered closeOnClickOutside={!saving} closeOnEscape={!saving} withCloseButton={!saving}>
       <Stack>{error && <Alert color="red">{error}</Alert>}
         {modal === 'close' && <Alert color="orange">Approval closes this EWP and saves its completion checklist and governance record.</Alert>}
-        {modal === 'resolutions' && <><Text size="sm" fw={600}>{selected?.title}</Text><Select classNames={{ dropdown: styles.dropdown }} label="Resolution" data={selected?.kind === 'CONDITION' ? [{ value: 'CLOSED', label: 'Closed' }, { value: 'ACCEPTED', label: 'Formally accepted' }] : [{ value: 'CLOSED', label: 'Closed' }]} value={form.status} onChange={value => setForm(f => ({ ...f, status: value || 'CLOSED' }))} /></>}
+        {modal === 'resolutions' && <><Text size="sm" fw={600}>{selected?.title}</Text><Select classNames={{ dropdown: styles.dropdown }} required label="Resolution" data={selected?.kind === 'CONDITION' ? [{ value: 'CLOSED', label: 'Closed' }, { value: 'ACCEPTED', label: 'Formally accepted' }] : [{ value: 'CLOSED', label: 'Closed' }]} value={form.status} onChange={value => setForm(f => ({ ...f, status: value || '' }))} /></>}
         {modal === 'actions' && <TextInput label="Action" required value={form.title} onChange={e => { const title = e.currentTarget.value; setForm(f => ({ ...f, title })); }} />}
         <TextInput label={modal === 'close' ? 'Closure approver' : modal === 'governance' ? 'Governance reviewer' : 'Recorded by'} required value={form.actor} onChange={e => { const actor = e.currentTarget.value; setForm(f => ({ ...f, actor })); }} />
         <Textarea label="Comment / evidence reference" required minRows={3} value={form.comment} onChange={e => { const comment = e.currentTarget.value; setForm(f => ({ ...f, comment })); }} />

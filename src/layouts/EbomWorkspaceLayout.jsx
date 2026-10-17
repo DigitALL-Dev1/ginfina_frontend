@@ -4,6 +4,7 @@ import {
   Table, Text, TextInput, Title, Badge, ScrollArea, Stack, LoadingOverlay,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import useDisciplines from '../hooks/useDisciplines';
 
 /* ─── Pilot EBOM Fallback Data ───────────────────────────────────── */
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -16,6 +17,7 @@ const PILOT_EBOM = [
 ];
 
 export default function EbomWorkspaceLayout() {
+  const { names: disciplineNames } = useDisciplines();
   const [ebomItems, setEbomItems]       = useState([]);
   const [pageTitle, setPageTitle]       = useState('Engineering Bill of Materials (EBOM) Workspace');
   const [pageStatus, setPageStatus]     = useState('Current');
@@ -202,7 +204,7 @@ export default function EbomWorkspaceLayout() {
                 <Box>
                   <Text size="xs" fw={600} c="#374151" mb={4}>Discipline</Text>
                   <Select
-                    data={['Electrical', 'Civil', 'Structural', 'Mechanical']}
+                    data={disciplineNames}
                     value={discipline}
                     onChange={(v) => setDiscipline(v || 'Electrical')}
                     styles={inputSt}

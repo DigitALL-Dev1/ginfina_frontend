@@ -4,6 +4,7 @@ import {
   Table, Text, TextInput, Title, Badge, ScrollArea, Stack,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import useDisciplines from '../hooks/useDisciplines';
 
 /* ─── Pilot Authority Matrix Data ────────────────────────────────── */
 const PILOT_AUTHORITIES = [
@@ -14,6 +15,7 @@ const PILOT_AUTHORITIES = [
 ];
 
 export default function AuthorityMatrixLayout() {
+  const { names: disciplineNames } = useDisciplines();
   const [topSearch, setTopSearch]       = useState('');
   const [topStatus, setTopStatus]       = useState('Active / Open');
   const [savedView, setSavedView]       = useState('My Priority Work');
@@ -148,7 +150,7 @@ export default function AuthorityMatrixLayout() {
                 <Box>
                   <Text size="xs" fw={600} c="#374151" mb={4}>Discipline <Text span c="red">*</Text></Text>
                   <Select
-                    data={['Electrical', 'Civil', 'Structural', 'Mechanical', 'All']}
+                    data={[...disciplineNames, 'All']}
                     value={discipline}
                     onChange={(v) => setDiscipline(v || 'Electrical')}
                     styles={inputSt}

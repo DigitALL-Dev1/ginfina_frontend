@@ -13,6 +13,7 @@ import {
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
 import { autoCode } from '../utils/autoCode';
+import useDisciplines from '../hooks/useDisciplines';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -22,7 +23,6 @@ const MATERIALITY = ['EDITORIAL', 'NON_MATERIAL', 'MATERIAL'];
 const IMPACT_LEVELS = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const ASSESSMENT_STATUS = ['DRAFT', 'IN_PROGRESS', 'UNDER_REVIEW', 'COMPLETED', 'CANCELLED'];
 const CHANGE_TYPES = ['ADDED', 'REMOVED', 'MODIFIED', 'SUPERSEDED'];
-const DISCIPLINES = ['ELECTRICAL', 'CIVIL', 'STRUCTURAL', 'MECHANICAL', 'WATER_PUMPING', 'SCADA', 'HSE', 'CLIMATE_ENVIRONMENT', 'LOGISTICS'];
 const DOWNSTREAM_TYPES = ['EWP', 'EWB_INPUT', 'DESIGN_DOCUMENT', 'DESIGN_RELEASE', 'EBOM', 'BOQ', 'PROCUREMENT_REFERENCE'];
 const ACTION_TYPES = ['REVIEW_EWP', 'UPDATE_DESIGN', 'RECALCULATE', 'REASSESS_DISCIPLINE', 'REVIEW_BOQ', 'REVIEW_EBOM', 'PROCUREMENT_REVIEW', 'NO_ACTION_REQUIRED'];
 const PRIORITIES = ['P0', 'P1', 'P2', 'P3'];
@@ -155,6 +155,7 @@ function SBadge({ v }) {
 
 // ════════════════════════════════════════════════════════
 export default function SEBImpactAssessmentLayout() {
+  const { values: disciplineValues } = useDisciplines();
   // ── State management ──────────────────────────────────
   const [selectedAssessment, setAssessment] = useState(null);
   const [modal, setModal] = useState(null);
@@ -583,7 +584,7 @@ export default function SEBImpactAssessmentLayout() {
         </FormRow>
         <FormRow>
           <FI label="Change Type" field="change_type" fv={fv} setFv={setFv} select={CHANGE_TYPES} />
-          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={DISCIPLINES} />
+          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={disciplineValues} />
         </FormRow>
         <FI label="Old Value" field="old_value" fv={fv} setFv={setFv} textarea />
         <FI label="New Value" field="new_value" fv={fv} setFv={setFv} textarea />
@@ -602,7 +603,7 @@ export default function SEBImpactAssessmentLayout() {
         onSubmit={() => save('/impact-disciplines', fv, reloadDisciplines)}
       >
         <FormRow>
-          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={DISCIPLINES} />
+          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={disciplineValues} />
           <FI label="Impact Level" field="impact_level" fv={fv} setFv={setFv} select={IMPACT_LEVELS} />
         </FormRow>
         <FormRow>
@@ -668,7 +669,7 @@ export default function SEBImpactAssessmentLayout() {
       >
         <FormRow>
           <FI label="Reviewer User ID" field="reviewer_user_id" fv={fv} setFv={setFv} select={REVIEWER_USERS} />
-          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={DISCIPLINES} />
+          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={disciplineValues} />
         </FormRow>
         <FI label="Review Decision" field="review_decision" fv={fv} setFv={setFv} select={REVIEW_DECISIONS} />
         <FI label="Review Comment" field="review_comment" fv={fv} setFv={setFv} textarea />

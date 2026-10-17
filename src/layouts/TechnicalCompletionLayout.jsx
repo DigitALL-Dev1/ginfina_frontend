@@ -131,7 +131,7 @@ export default function TechnicalCompletionLayout() {
                         }}
                       >
                         <Table.Td style={{ padding: '10px 8px' }}>
-                          <Text size="xs" fw={isSel ? 700 : 500} c={isSel ? '#007336' : '#374151'}>{row.id}</Text>
+                          <Text size="xs" fw={isSel ? 700 : 500} c={isSel ? '#007336' : '#374151'}>{row.code || row.reference || 'Reference'}</Text>
                         </Table.Td>
                         <Table.Td style={{ padding: '10px 8px' }}>
                           <Text size="xs" c="#4b5563">{row.title}</Text>
@@ -254,3 +254,4 @@ export default function TechnicalCompletionLayout() {
     </Box>
   );
 }
+

@@ -20,6 +20,7 @@ import {
 } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
+import useDisciplines from '../hooks/useDisciplines';
 
 /* ─── Step definitions ───────────────────────────────────────────── */
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -183,7 +184,7 @@ function StepContext({ form, onChange, projectsList = [], loadingProjects = fals
           <Box>
             <Text size="xs" fw={600} c="#374151" mb={4}>Discipline <Text span c="red">*</Text></Text>
             <Select
-              data={['Electrical', 'Civil', 'Structural', 'Mechanical', 'Instrumentation']}
+              data={disciplineNames}
               value={form.discipline}
               onChange={(v) => onChange('discipline', v || '')}
               styles={inputStyles}
@@ -371,13 +372,13 @@ function StepReview({ form, ewpDraftData, loadingReviewData, createdEwpId }) {
           <Group justify="space-between" align="center">
             <Text size="xs" c="#64748b">Server Draft Record:</Text>
             <Text size="xs" fw={700} c="#007336" style={{ fontFamily: 'monospace' }}>
-              {displayData.id || createdEwpId}
+              {displayData.code || displayData.ewp_code || displayData.name || 'Draft saved'}
             </Text>
           </Group>
         </Box>
       )}
 
-      <Row label="Project / site"    value={form.project || `Project #${displayData.project_id}`} />
+      <Row label="Project / site"    value={form.project || displayData.project_code || displayData.project_name || 'Selected project'} />
       <Row label="EWP title"         value={displayData.ewp_title || form.ewpTitle} />
       <Row label="Discipline"        value={displayData.discipline || form.discipline} />
       <Row label="Design stage"      value={displayData.design_stage || form.designStage} />
@@ -466,6 +467,7 @@ function GatePanel({ step }) {
 
 /* ─── Main layout ────────────────────────────────────────────────── */
 export default function CreateEwpLayout() {
+  const { names: disciplineNames } = useDisciplines();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [projectsList, setProjectsList] = useState([]);
@@ -618,7 +620,7 @@ export default function CreateEwpLayout() {
         if (showToast) {
           notifications.show({
             title: 'EWP Draft Saved',
-            message: `Draft created successfully with ID: ${json.data.id} (${json.data.status})`,
+            message: `Draft created successfully${json.data.code || json.data.ewp_code ? ` (${json.data.code || json.data.ewp_code})` : ''} (${json.data.status})`,
             color: 'green',
           });
         }

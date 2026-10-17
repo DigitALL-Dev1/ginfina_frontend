@@ -1,4 +1,5 @@
 import { recordFields } from './siaCompletionReport';
+import { displayRecord } from './siaRecordDisplay';
 
 export function buildSebEwpHandoffReport({ handoff, snapshot, acceptance, items, sebId, revisionId }) {
   const link = handoff?.permanent_link;
@@ -21,7 +22,7 @@ export function buildSebEwpHandoffReport({ handoff, snapshot, acceptance, items,
     { label: 'Report generated at (UTC)', value: new Date().toISOString() },
     { label: 'Scope', value: 'Selected handoff items from the frozen released SEB revision' },
   ] }];
-  const add = (title, record) => sections.push({ title, fields: recordFields(record) });
+  const add = (title, record) => sections.push({ title, fields: recordFields(displayRecord(record)) });
   const { released_seb_items, ...snapshotDetails } = snapshot;
   const { permanent_link, ...handoffDetails } = handoff;
   add('Project, SIA case and frozen release', snapshotDetails);
@@ -36,14 +37,15 @@ export function buildSebEwpHandoffReport({ handoff, snapshot, acceptance, items,
       try { context = JSON.parse(context); }
       catch { throw new Error('A saved handoff item has unreadable context. Reload the report.'); }
     }
-    add(`Selected item ${index + 1} - ${fact.item_name || fact.item_code || fact.seb_item_id}`, fact);
+    add(`Selected item ${index + 1} - ${fact.item_name || fact.item_code || 'Selected item'}`, fact);
     add(`Item ${index + 1} handoff record`, itemDetails);
     if (context && typeof context === 'object' && !Array.isArray(context))
       add(`Item ${index + 1} saved conditions, blockers and evidence`, context);
     else add(`Item ${index + 1} saved context`, { details: 'No additional context recorded' });
   }
   return {
-    code: handoff.handoff_code || handoff.id, sections,
+    code: handoff.handoff_code || 'EWP Handoff', sections,
     counts: [{ label: 'Selected handoff items', value: items.length }, { label: 'Items in frozen release', value: frozen.length }],
   };
 }
+

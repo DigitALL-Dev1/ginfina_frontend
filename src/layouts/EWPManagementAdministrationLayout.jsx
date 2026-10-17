@@ -1,6 +1,7 @@
 import { formatDateTime, formatDisplayValue } from '../utils/dateOnly';
 import { Children, cloneElement, useEffect, useState } from 'react';
 import { Alert, Badge, Box, Button, Checkbox, Divider, Group, Loader, Modal, MultiSelect, Paper, Progress, Select, SimpleGrid, Stack, Table, Tabs, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useMediaQuery } from '@mantine/hooks';
 import styles from './EWPManagementAdministrationLayout.module.css';
 import { IconPlus, IconRefresh, IconSettings } from '@tabler/icons-react';
@@ -64,7 +65,29 @@ export default function EWPManagementAdministrationLayout() {
   const selectField = (key, label, options) => <Select classNames={{ dropdown: styles.dropdown }} label={label} required data={options} value={form[key] || null} onChange={value => change(key, value || '')} searchable />;
   const close = () => { if (!saving) { setModal(null); setError(''); } };
   async function save(event) {
-    event.preventDefault(); setSaving(true); setError('');
+    event.preventDefault();
+    const required = ['actor', 'comment'];
+    if (modal.type === 'team') required.push('user_id', 'role', 'discipline', 'organization', 'assignment');
+    if (modal.type === 'access') required.push('user_id', 'permissions');
+    if (modal.type === 'milestones') required.push('name', 'owner', 'target_date', 'status', 'note');
+    if (['issues', 'risks', 'actions'].includes(modal.type)) {
+      required.push('title', 'description', 'owner', 'due_date', 'priority', 'status');
+      if (form.status === 'CLOSED') required.push('resolution');
+    }
+    if (modal.type === 'settings') {
+      required.push('discipline', 'planned_start', 'planned_finish');
+      if (data.ewp.status !== 'COMPLETION_REVIEW') required.push('status');
+    }
+    const missing = required.filter(field => {
+      const value = field === 'actor' ? actor : field === 'comment' ? comment : form[field];
+      return value === undefined || value === null || (Array.isArray(value) ? value.length === 0 : typeof value === 'string' && !value.trim());
+    }).map(field => field.replaceAll('_', ' '));
+    if (!ewpId) missing.unshift('Engineering Work Package');
+    if (missing.length) {
+      notifications.show({ color: 'orange', title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.` });
+      return;
+    }
+    setSaving(true); setError('');
     const settings = modal.type === 'settings';
     const payload = { ...form };
     if (settings) { payload.planned_start ||= null; payload.planned_finish ||= null; if (data.ewp.status === 'COMPLETION_REVIEW') delete payload.status; }
@@ -88,8 +111,8 @@ export default function EWPManagementAdministrationLayout() {
     <Group justify="space-between" mb="xl"><Box className={styles.headingText}><Badge variant="light" color="green" mb="xs">Engineering Workbench</Badge><Title order={2}>Management & Administration</Title><Text c="dimmed" size="sm" mt={6}>Coordinate people, dates and obligations across the engineering work package.</Text></Box><Button variant="light" leftSection={<IconRefresh size={16} />} disabled={saving || loading} onClick={() => setRefresh(v => v + 1)}>Refresh</Button></Group>
     <Stack gap={{ base: 'sm', sm: 'lg' }}>
       <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }}><SimpleGrid cols={{ base: 1, sm: 2 }}>
-        <Select classNames={{ dropdown: styles.dropdown }} label="Project" placeholder={listLoading ? 'Loading projects…' : 'Select project'} searchable clearable disabled={saving || listLoading} data={projects.map(p => ({ value: p.id, label: `${p.code || ''} ${p.name || p.id}`.trim() }))} value={projectId} onChange={value => { setProjectId(value); setEwpId(null); setData(null); }} />
-        <Select classNames={{ dropdown: styles.dropdown }} label="Engineering Work Package" placeholder="Select EWP" searchable clearable disabled={!projectId || saving} data={ewps.map(e => ({ value: e.id, label: `${e.code || e.id} / ${e.name || ''}` }))} value={ewpId} onChange={value => { setData(null); setEwpId(value); }} />
+        <Select classNames={{ dropdown: styles.dropdown }} required label="Project" placeholder={listLoading ? 'Loading projects…' : 'Select project'} searchable clearable disabled={saving || listLoading} data={projects.map(p => ({ value: p.id, label: `${p.code || ''} ${p.name || p.id}`.trim() }))} value={projectId} onChange={value => { setProjectId(value); setEwpId(null); setData(null); }} />
+        <Select classNames={{ dropdown: styles.dropdown }} required label="Engineering Work Package" placeholder="Select EWP" searchable clearable disabled={!projectId || saving} data={ewps.map(e => ({ value: e.id, label: `${e.code || e.name || 'Unnamed EWP'} / ${e.name || ''}` }))} value={ewpId} onChange={value => { setData(null); setEwpId(value); }} />
       </SimpleGrid>{projectId && !ewps.length && <Text size="xs" c="dimmed" mt="sm">No work packages loaded for this project.</Text>}</Paper>
       {error && !modal && <Alert color="red" title="Unable to complete request">{error}</Alert>}
       {loading && <Group><Loader size="sm" /><Text size="sm">Loading management records…</Text></Group>}
@@ -118,14 +141,15 @@ export default function EWPManagementAdministrationLayout() {
     <Modal fullScreen={isMobile} classNames={{ content: styles.modal }} closeButtonProps={{ "aria-label": "Close dialog" }} opened={Boolean(modal)} onClose={close} title={modal ? `${modal.id ? 'Edit' : modal.type === 'settings' ? 'Update' : 'Add'} ${readable(modal.type)}` : ''} centered size="lg" closeOnClickOutside={!saving} closeOnEscape={!saving} withCloseButton={!saving}>
       <form onSubmit={save}><Stack>{error && <Alert color="red">{error}</Alert>}
         {['team', 'access'].includes(modal?.type) && <>{selectField('user_id', 'User', userOptions)}<Checkbox label="Active assignment" checked={Boolean(form.active)} onChange={e => change('active', e.currentTarget.checked)} /></>}
-        {modal?.type === 'team' && <>{selectField('role', 'Role', roles)}{textField('discipline', 'Discipline')}{textField('organization', 'Organization', false)}{textField('assignment', 'Assignment', false, true)}</>}
+        {modal?.type === 'team' && <>{selectField('role', 'Role', roles)}{textField('discipline', 'Discipline')}{textField('organization', 'Organization')}{textField('assignment', 'Assignment', true, true)}</>}
         {modal?.type === 'access' && <MultiSelect classNames={{ dropdown: styles.dropdown }} label="Permissions" required data={['VIEW', 'EDIT', 'REVIEW', 'APPROVE', 'ADMIN']} value={form.permissions || []} onChange={v => change('permissions', v)} />}
-        {modal?.type === 'milestones' && <>{textField('name', 'Milestone name')}{textField('owner', 'Owner')}<DatePickerInput label="Target date" required value={form.target_date} onChange={v => change('target_date', v)} />{selectField('status', 'Status', ['UPCOMING', 'IN_PROGRESS', 'COMPLETE'])}{textField('note', 'Note', false, true)}</>}
-        {['issues', 'risks', 'actions'].includes(modal?.type) && <>{textField('title', 'Title')}{textField('description', 'Description', false, true)}{textField('owner', 'Owner')}<DatePickerInput label="Due date" required value={form.due_date} onChange={v => change('due_date', v)} />{selectField('priority', 'Priority', ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])}{selectField('status', 'Status', ['OPEN', 'IN_PROGRESS', 'CLOSED'])}{modal.type !== 'actions' && <Checkbox label="Blocks EWP closure" checked={Boolean(form.blocking)} onChange={e => change('blocking', e.currentTarget.checked)} />}{textField('resolution', 'Resolution / evidence reference', form.status === 'CLOSED', true)}</>}
-        {modal?.type === 'settings' && <>{textField('discipline', 'Discipline')}<SimpleGrid cols={{ base: 1, sm: 2 }}><DatePickerInput label="Planned start" value={form.planned_start} onChange={v => change('planned_start', v)} /><DatePickerInput label="Planned finish" value={form.planned_finish} onChange={v => change('planned_finish', v)} /></SimpleGrid>{data?.ewp.status === 'COMPLETION_REVIEW' ? <Alert>Status is controlled by Completion & Governance.</Alert> : selectField('status', 'Status', statuses)}</>}
+        {modal?.type === 'milestones' && <>{textField('name', 'Milestone name')}{textField('owner', 'Owner')}<DatePickerInput label="Target date" required value={form.target_date} onChange={v => change('target_date', v)} />{selectField('status', 'Status', ['UPCOMING', 'IN_PROGRESS', 'COMPLETE'])}{textField('note', 'Note', true, true)}</>}
+        {['issues', 'risks', 'actions'].includes(modal?.type) && <>{textField('title', 'Title')}{textField('description', 'Description', true, true)}{textField('owner', 'Owner')}<DatePickerInput label="Due date" required value={form.due_date} onChange={v => change('due_date', v)} />{selectField('priority', 'Priority', ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])}{selectField('status', 'Status', ['OPEN', 'IN_PROGRESS', 'CLOSED'])}{modal.type !== 'actions' && <Checkbox label="Blocks EWP closure" checked={Boolean(form.blocking)} onChange={e => change('blocking', e.currentTarget.checked)} />}{textField('resolution', 'Resolution / evidence reference', form.status === 'CLOSED', true)}</>}
+        {modal?.type === 'settings' && <>{textField('discipline', 'Discipline')}<SimpleGrid cols={{ base: 1, sm: 2 }}><DatePickerInput required label="Planned start" value={form.planned_start} onChange={v => change('planned_start', v)} /><DatePickerInput required label="Planned finish" value={form.planned_finish} onChange={v => change('planned_finish', v)} /></SimpleGrid>{data?.ewp.status === 'COMPLETION_REVIEW' ? <Alert>Status is controlled by Completion & Governance.</Alert> : selectField('status', 'Status', statuses)}</>}
         <Divider /><TextInput label="Recorded by" required value={actor} onChange={e => setActor(e.currentTarget.value)} /><Textarea label="Change note" required value={comment} onChange={e => setComment(e.currentTarget.value)} />
         <Group className={styles.actions} justify="flex-end"><Button variant="default" disabled={saving} onClick={close}>Cancel</Button><Button type="submit" loading={saving} disabled={!actor.trim() || !comment.trim()}>Save changes</Button></Group>
       </Stack></form>
     </Modal>
   </Box>;
 }
+

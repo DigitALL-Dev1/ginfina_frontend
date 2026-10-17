@@ -13,6 +13,7 @@ import {
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
 import { autoCode } from '../utils/autoCode';
+import useDisciplines from '../hooks/useDisciplines';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -26,7 +27,6 @@ const SOURCE_TYPES = ['NEW_FIELD_EVIDENCE', 'CLIENT_DOCUMENT', 'ENGINEERING_REVI
 const SUPERSESSION_STATUS = ['ACTIVE', 'SUPERSEDED', 'ARCHIVED'];
 const REVIEW_STATUS = ['PENDING', 'IN_PROGRESS', 'COMPLETED'];
 const REVIEW_DECISIONS = ['ACCEPT_CHANGE', 'REJECT_CHANGE', 'CHANGE_REQUIRED', 'REASSESSMENT_REQUIRED'];
-const DISCIPLINES = ['ELECTRICAL', 'CIVIL', 'STRUCTURAL', 'MECHANICAL', 'WATER_PUMPING', 'SCADA', 'HSE', 'CLIMATE_ENVIRONMENT', 'LOGISTICS'];
 const REVIEWER_USERS = ['user-1', 'user-2', 'user-3', 'user-4', 'user-5', 'user-6', 'user-7', 'user-8', 'user-9', 'user-10'];
 
 // ── Utility hooks ────────────────────────────────────────
@@ -142,6 +142,7 @@ function SBadge({ v }) {
 
 // ════════════════════════════════════════════════════════
 export default function SEBRevisionChangeLayout() {
+  const { values: disciplineValues } = useDisciplines();
   // ── State management ──────────────────────────────────
   const [selectedChange, setChange] = useState(null);
   const [activeTab, setTab] = useState('changes');
@@ -570,7 +571,7 @@ export default function SEBRevisionChangeLayout() {
         <FI label="Revision Change ID" field="revision_change_id" fv={fv} setFv={setFv} readonly />
         <FormRow>
           <FI label="Change Action" field="change_action" fv={fv} setFv={setFv} select={CHANGE_ACTIONS} />
-          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={DISCIPLINES} />
+          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={disciplineValues} />
         </FormRow>
         <FormRow>
           <FI label="Old SEB Item ID" field="old_seb_item_id" fv={fv} setFv={setFv} />
@@ -654,7 +655,7 @@ export default function SEBRevisionChangeLayout() {
         <FI label="Revision Change ID" field="revision_change_id" fv={fv} setFv={setFv} readonly />
         <FormRow>
           <FI label="Reviewer User ID" field="reviewer_user_id" fv={fv} setFv={setFv} select={REVIEWER_USERS} />
-          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={DISCIPLINES} />
+          <FI label="Discipline" field="discipline" fv={fv} setFv={setFv} select={disciplineValues} />
         </FormRow>
         <FormRow>
           <FI label="Review Status" field="review_status" fv={fv} setFv={setFv} select={REVIEW_STATUS} />

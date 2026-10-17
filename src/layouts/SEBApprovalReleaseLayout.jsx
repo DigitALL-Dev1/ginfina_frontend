@@ -116,7 +116,7 @@ function FactListCard({ title, icon: Icon, color, items, type }) {
         <Stack gap="xs">
           {items.slice(0, 3).map((item, index) => (
             <Box key={`${item.item_id || type}-${index}`} p="sm" style={{ borderRadius: 8, background: color === 'red' ? '#fff5f5' : '#fff9ed' }}>
-              <Text size="xs" fw={750}>{item.discipline} · {item.fact_name}</Text>
+              <Text size="xs" fw={750}>{item.discipline} Â· {item.fact_name}</Text>
               <Text size="xs" c="dimmed" mt={3} lineClamp={2}>{type === 'condition' ? item.condition : item.blocker}</Text>
             </Box>
           ))}
@@ -161,7 +161,9 @@ export default function SEBApprovalReleaseLayout() {
   const [decision, setDecision] = useState('');
   const [comment, setComment] = useState('');
   const [approvalSaving, setApprovalSaving] = useState(false);
-  const [releasedBy, setReleasedBy] = useState(() => localStorage.getItem('user_id') || '');
+  const [consultants, setConsultants] = useState([]);
+  const [consultantsLoading, setConsultantsLoading] = useState(false);
+  const [releasedBy, setReleasedBy] = useState('');
   const [releaseComment, setReleaseComment] = useState('');
   const [releaseSaving, setReleaseSaving] = useState(false);
 
@@ -200,6 +202,16 @@ export default function SEBApprovalReleaseLayout() {
   };
 
   useEffect(() => { loadBaselines(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let cancelled = false;
+    setConsultantsLoading(true);
+    fetch(`${API}/consultants?refresh=false`)
+      .then(response => { if (!response.ok) throw new Error('Unable to load consultants'); return response.json(); })
+      .then(data => { if (!cancelled) setConsultants(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setConsultants([]); })
+      .finally(() => { if (!cancelled) setConsultantsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => { loadRevisions(); }, [sebId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { loadSummary(); }, [sebId, revisionId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -211,11 +223,23 @@ export default function SEBApprovalReleaseLayout() {
 
   const selectedBaseline = useMemo(() => baselines.find(item => item.id === sebId) || summary?.seb, [baselines, sebId, summary?.seb]);
   const selectedRevision = summary?.revision || revisions.find(item => item.id === revisionId);
+  const selectedConsultant = consultants.find(item => item.id === approver);
+  const selectedReleasedConsultant = consultants.find(item => item.id === releasedBy);
   const revisionStatus = selectedRevision?.revision_status;
   const review = summary?.engineering_review || {};
 
   const submitApproval = async () => {
-    if (!sebId || !revisionId || !approver || !decision) return;
+    const missing = [
+      !sebId && 'SEB baseline',
+      !revisionId && 'Eligible revision',
+      !approver && 'Engineering Approver',
+      !decision && 'Decision',
+      (decision && decision !== 'APPROVE' && !comment.trim()) && 'Approval comment',
+    ].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.`, color: 'orange' });
+      return;
+    }
     setApprovalSaving(true); setError('');
     try {
       const data = await request(`/seb/revisions/${encodeURIComponent(revisionId)}/approval-decision`, {
@@ -229,12 +253,16 @@ export default function SEBApprovalReleaseLayout() {
   };
 
   const releaseRevision = async () => {
-    if (!sebId || !revisionId || !releasedBy) return;
+    const missing = [!sebId && 'SEB baseline', !revisionId && 'Eligible revision', !selectedReleasedConsultant && 'Released by'].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.`, color: 'orange' });
+      return;
+    }
     setReleaseSaving(true); setError('');
     try {
       const data = await request(`/seb/revisions/${encodeURIComponent(revisionId)}/release`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seb_id: sebId, released_by: releasedBy, release_comment: releaseComment }),
+        body: JSON.stringify({ seb_id: sebId, released_by: selectedReleasedConsultant.name, release_comment: releaseComment }),
       });
       if (data.revision?.revision_status !== 'RELEASED') throw new Error('Revision status was not updated to RELEASED.');
       setSummary(data);
@@ -261,23 +289,23 @@ export default function SEBApprovalReleaseLayout() {
       <WorkflowProgress revisionId={revisionId} status={revisionStatus} />
 
       <Paper withBorder p={{ base: 'md', sm: 'lg' }} radius="lg" mt="md" style={surface}>
-        <SectionHeading icon={IconHistory} title="Select approval context" description={`Active SIA case: ${caseId || 'Not selected'}`} action={<Button size="xs" variant="subtle" color="green" leftSection={<IconRefresh size={14} />} loading={contextLoading} onClick={() => { loadBaselines(); loadRevisions(); }}>Refresh</Button>} />
+        <SectionHeading icon={IconHistory} title="Select approval context" description="Active SIA case" action={<Button size="xs" variant="subtle" color="green" leftSection={<IconRefresh size={14} />} loading={contextLoading} onClick={() => { loadBaselines(); loadRevisions(); }}>Refresh</Button>} />
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
-          <Select label="1. SEB baseline" placeholder={caseId ? 'Choose an SEB' : 'Select an SIA case first'} data={baselines.map(item => ({ value: item.id, label: `${item.seb_code || item.id} · ${item.status}` }))} value={sebId || null} onChange={value => { const next = value || ''; setSebId(next); setRevisionId(''); setSummary(null); setRevisions([]); if (next) localStorage.setItem('seb_id', next); else localStorage.removeItem('seb_id'); localStorage.removeItem('seb_revision_id'); }} searchable clearable disabled={!caseId || contextLoading} styles={{ input: { minHeight: 44 } }} />
-          <Select label="2. Eligible revision" description="Only readiness-completed revisions can enter approval." placeholder={sebId ? 'Choose a revision' : 'Choose an SEB first'} data={revisions.map(item => ({ value: item.id, label: `${item.revision_no} · ${item.revision_status.replaceAll('_', ' ')}` }))} value={revisionId || null} onChange={value => { const next = value || ''; setRevisionId(next); setSummary(null); if (next) localStorage.setItem('seb_revision_id', next); else localStorage.removeItem('seb_revision_id'); }} searchable clearable disabled={!sebId || contextLoading} styles={{ input: { minHeight: 44 } }} />
+          <Select required label="1. SEB baseline" placeholder={caseId ? 'Choose an SEB' : 'Select an SIA case first'} data={baselines.map(item => ({ value: item.id, label: `${item.seb_code || 'SEB'} Â· ${item.status}` }))} value={sebId || null} onChange={value => { const next = value || ''; setSebId(next); setRevisionId(''); setSummary(null); setRevisions([]); if (next) localStorage.setItem('seb_id', next); else localStorage.removeItem('seb_id'); localStorage.removeItem('seb_revision_id'); }} searchable clearable disabled={!caseId || contextLoading} styles={{ input: { minHeight: 44 } }} />
+          <Select required label="2. Eligible revision" description="Only readiness-completed revisions can enter approval." placeholder={sebId ? 'Choose a revision' : 'Choose an SEB first'} data={revisions.map(item => ({ value: item.id, label: `${item.revision_no} Â· ${item.revision_status.replaceAll('_', ' ')}` }))} value={revisionId || null} onChange={value => { const next = value || ''; setRevisionId(next); setSummary(null); if (next) localStorage.setItem('seb_revision_id', next); else localStorage.removeItem('seb_revision_id'); }} searchable clearable disabled={!sebId || contextLoading} styles={{ input: { minHeight: 44 } }} />
         </SimpleGrid>
         {!contextLoading && sebId && revisions.length === 0 && !error && <Alert color="yellow" variant="light" mt="md" icon={<IconAlertTriangle size={17} />}>No readiness-completed revision is available for this SEB.</Alert>}
       </Paper>
 
       {error && <Alert color="red" icon={<IconAlertCircle size={17} />} mt="md" radius="lg" withCloseButton onClose={() => setError('')}>{error}</Alert>}
       {!revisionId && <Paper withBorder p={{ base: 'md', sm: 48 }} mt="md" radius="lg" style={{ ...surface, borderStyle: 'dashed' }}><Center><Stack align="center" gap="xs"><ThemeIcon size={48} radius="xl" color="gray" variant="light"><IconClipboardCheck size={25} /></ThemeIcon><Text fw={700}>Select a revision to begin</Text><Text size="sm" c="dimmed" ta="center">The approval summary and decision controls will appear here.</Text></Stack></Center></Paper>}
-      {summaryLoading && <Paper withBorder mt="md" p={{ base: 'md', sm: 55 }} radius="lg" style={surface}><Center><Stack align="center" gap="sm"><Loader color="green" /><Text size="sm" c="dimmed">Building approval summary…</Text></Stack></Center></Paper>}
+      {summaryLoading && <Paper withBorder mt="md" p={{ base: 'md', sm: 55 }} radius="lg" style={surface}><Center><Stack align="center" gap="sm"><Loader color="green" /><Text size="sm" c="dimmed">Building approval summaryâ€¦</Text></Stack></Center></Paper>}
 
       {summary && !summaryLoading && (
         <Stack mt="md" gap="md">
           <Paper radius="lg" p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #cce6d7', background: 'linear-gradient(100deg, #f1fbf5, #fbfefd)' }}>
             <Group className={styles.actions} justify="space-between" align="center" wrap="wrap">
-              <Group gap="md"><ThemeIcon size={44} radius="lg" color="green" variant="filled"><IconFileText size={22} /></ThemeIcon><Box><Text size="xs" c="dimmed" fw={700}>SELECTED CONTROLLED BASELINE</Text><Title order={3}>{selectedBaseline?.seb_code || sebId} <Text span c="dimmed" fw={500}>/</Text> {selectedRevision?.revision_no || revisionId}</Title><Text size="xs" c="dimmed">Site {selectedBaseline?.site_id || '—'} · Project {selectedBaseline?.project_id || '—'}</Text></Box></Group>
+              <Group gap="md"><ThemeIcon size={44} radius="lg" color="green" variant="filled"><IconFileText size={22} /></ThemeIcon><Box><Text size="xs" c="dimmed" fw={700}>SELECTED CONTROLLED BASELINE</Text><Title order={3}>{selectedBaseline?.seb_code || 'Selected SEB'} <Text span c="dimmed" fw={500}>/</Text> {selectedRevision?.revision_no || 'Selected revision'}</Title><Text size="xs" c="dimmed">Site {selectedBaseline?.site_name || selectedBaseline?.site_code || 'Selected site'} ï¿½ Project {selectedBaseline?.project_name || selectedBaseline?.project_code || 'Selected project'}</Text></Box></Group>
               <StatusBadge value={revisionStatus} size="lg" />
             </Group>
           </Paper>
@@ -300,9 +328,9 @@ export default function SEBApprovalReleaseLayout() {
 
                 <Divider my="xl" />
                 <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-                  <Button variant="light" color="green" leftSection={<IconFileText size={16} />} onClick={() => setModal('items')}>SEB Items · {summary.items.length}</Button>
-                  <Button variant="light" color="blue" leftSection={<IconShieldCheck size={16} />} onClick={() => setModal('evidence')}>Evidence · {summary.evidence_references.length}</Button>
-                  <Button variant="light" color="gray" leftSection={<IconMessage size={16} />} onClick={() => setModal('comments')}>Comments · {summary.review_comments.length}</Button>
+                  <Button variant="light" color="green" leftSection={<IconFileText size={16} />} onClick={() => setModal('items')}>SEB Items Â· {summary.items.length}</Button>
+                  <Button variant="light" color="blue" leftSection={<IconShieldCheck size={16} />} onClick={() => setModal('evidence')}>Evidence Â· {summary.evidence_references.length}</Button>
+                  <Button variant="light" color="gray" leftSection={<IconMessage size={16} />} onClick={() => setModal('comments')}>Comments Â· {summary.review_comments.length}</Button>
                 </SimpleGrid>
               </Paper>
             </Grid.Col>
@@ -313,7 +341,7 @@ export default function SEBApprovalReleaseLayout() {
                 <FactListCard title="Blockers" icon={IconBan} color="red" items={summary.blockers} type="blocker" />
                 <Paper withBorder p="md" radius="lg" style={{ borderColor: '#e7ebe9', background: '#fbfcfb' }}>
                   <Text size="xs" fw={800} c="dimmed" mb="sm">REVISION DETAILS</Text>
-                  {[['Issue date', selectedRevision?.issue_date], ['Prepared by', selectedRevision?.prepared_by], ['Reason', selectedRevision?.revision_reason]].map(([label, value]) => <Box key={label} className={styles.revisionField}><Text size="xs" c="dimmed">{label}</Text><Text size="xs" fw={650} className={styles.revisionValue}>{value || '—'}</Text></Box>)}
+                  {[['Issue date', selectedRevision?.issue_date], ['Prepared by', selectedRevision?.prepared_by], ['Reason', selectedRevision?.revision_reason]].map(([label, value]) => <Box key={label} className={styles.revisionField}><Text size="xs" c="dimmed">{label}</Text><Text size="xs" fw={650} className={styles.revisionValue}>{value || 'â€”'}</Text></Box>)}
                 </Paper>
               </Stack>
             </Grid.Col>
@@ -325,12 +353,12 @@ export default function SEBApprovalReleaseLayout() {
                 <SectionHeading icon={IconUsers} title="4-7. Engineering approval" description="Assign the authorized approver and record the formal decision" />
                 {revisionStatus === 'READINESS_COMPLETED' ? (
                   <Stack gap="md">
-                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md"><Select label="Engineering Approver" placeholder="Select user" data={APPROVERS} value={approver || null} onChange={value => setApprover(value || '')} searchable required styles={{ input: { minHeight: 44 } }} /><Select label="Decision" placeholder="Select decision" data={DECISIONS} value={decision || null} onChange={value => setDecision(value || '')} required styles={{ input: { minHeight: 44 } }} /></SimpleGrid>
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md"><Select label="Engineering Approver" placeholder={consultantsLoading ? 'Loading consultants...' : 'Select consultant'} data={consultants.map(item => ({ value: item.id, label: `${item.name}${item.consultant_company ? ` (${item.consultant_company})` : ''}` }))} value={approver || null} onChange={value => setApprover(value || '')} searchable clearable required disabled={consultantsLoading} nothingFoundMessage="No consultants found" styles={{ input: { minHeight: 44 } }} /><Select label="Decision" placeholder="Select decision" data={DECISIONS} value={decision || null} onChange={value => setDecision(value || '')} required styles={{ input: { minHeight: 44 } }} /></SimpleGrid>
                     <Textarea label="Approval comment" placeholder="Record the basis for this decision" value={comment} onChange={event => setComment(event.currentTarget.value)} autosize minRows={4} required={Boolean(requiresComment)} description={requiresComment ? 'Required for conditional approval, change required, and reject.' : 'Optional for a standard approval.'} />
                     <Group className={styles.actions} justify="space-between" align="center" wrap="wrap"><Text size="xs" c="dimmed">Submitting an approval moves this revision to <strong>APPROVED FOR RELEASE</strong>.</Text><Button size="md" color="green" leftSection={<IconCheck size={17} />} onClick={submitApproval} loading={approvalSaving} disabled={!canSubmitApproval}>Submit Approval</Button></Group>
                   </Stack>
                 ) : (
-                  <Alert color="green" variant="light" icon={<IconShieldCheck size={19} />} title="Engineering approval recorded" radius="md"><SimpleGrid cols={{ base: 1, sm: 2 }}><Box><Text size="xs" c="dimmed">Approver</Text><Text size="sm" fw={700}>{summary.approval?.engineering_approver_id || '—'}</Text></Box><Box><Text size="xs" c="dimmed">Decision</Text><StatusBadge value={summary.approval?.decision || 'APPROVE'} /></Box></SimpleGrid>{summary.approval?.comment && <Text size="sm" mt="sm">{summary.approval.comment}</Text>}</Alert>
+                  <Alert color="green" variant="light" icon={<IconShieldCheck size={19} />} title="Engineering approval recorded" radius="md"><SimpleGrid cols={{ base: 1, sm: 2 }}><Box><Text size="xs" c="dimmed">Approver</Text><Text size="sm" fw={700}>{selectedConsultant?.name || summary.approval?.engineering_approver || 'Assigned consultant'}</Text></Box><Box><Text size="xs" c="dimmed">Decision</Text><StatusBadge value={summary.approval?.decision || 'APPROVE'} /></Box></SimpleGrid>{summary.approval?.comment && <Text size="sm" mt="sm">{summary.approval.comment}</Text>}</Alert>
                 )}
               </Paper>
             </Grid.Col>
@@ -339,8 +367,8 @@ export default function SEBApprovalReleaseLayout() {
               <Paper withBorder p={{ base: 'md', sm: 'xl' }} radius="lg" h="100%" style={{ ...surface, borderTop: `4px solid ${revisionStatus === 'RELEASED' ? '#16834f' : '#d97706'}` }}>
                 <SectionHeading icon={IconRocket} title="8-10. Controlled release" description="Freeze the approved baseline and issue the release" />
                 {revisionStatus === 'READINESS_COMPLETED' && <Box p="lg" style={{ borderRadius: 12, background: '#f8fafc', border: '1px dashed #cbd5e1' }}><Center><Stack align="center" gap="xs"><ThemeIcon color="gray" variant="light" radius="xl"><IconLock size={17} /></ThemeIcon><Text size="sm" fw={700}>Waiting for approval</Text><Text size="xs" c="dimmed" ta="center">Release unlocks after an approving decision.</Text></Stack></Center></Box>}
-                {revisionStatus === 'APPROVED_FOR_RELEASE' && <Stack><Alert color="orange" variant="light" icon={<IconLock size={17} />} radius="md">This creates a SHA-256 verified immutable snapshot.</Alert><Select label="Released by" placeholder="Select authorized user" data={APPROVERS} value={releasedBy || null} onChange={value => setReleasedBy(value || '')} searchable required /><Textarea label="Release note" placeholder="Optional controlled-release note" value={releaseComment} onChange={event => setReleaseComment(event.currentTarget.value)} autosize minRows={3} /><Button color="green" size="md" fullWidth leftSection={<IconRocket size={17} />} onClick={releaseRevision} loading={releaseSaving} disabled={!releasedBy}>Release SEB Revision</Button></Stack>}
-                {revisionStatus === 'RELEASED' && <Stack><Alert color="green" variant="light" icon={<IconLock size={18} />} title="Controlled baseline released" radius="md">This revision is frozen and immutable.</Alert><Box p="md" style={{ borderRadius: 10, background: '#f0faf4' }}><Text size="xs" c="dimmed">Release</Text><Text fw={800}>{summary.release?.release_code || '—'}</Text><Divider my="sm" /><Text size="xs" c="dimmed">SHA-256</Text><Text size="10px" ff="monospace" style={{ overflowWrap: 'anywhere' }}>{summary.release?.release_hash || '—'}</Text><Group className={styles.actions} justify="space-between" mt="sm"><Text size="xs" c="dimmed">Frozen items</Text><Text size="xs" fw={700}>{summary.release?.frozen_snapshot?.item_ids?.length || summary.items.length}</Text></Group><Group className={styles.actions} justify="space-between" mt={5}><Text size="xs" c="dimmed">Released by</Text><Text size="xs" fw={700}>{summary.release?.released_by || '—'}</Text></Group></Box></Stack>}
+                {revisionStatus === 'APPROVED_FOR_RELEASE' && <Stack><Alert color="orange" variant="light" icon={<IconLock size={17} />} radius="md">This creates a SHA-256 verified immutable snapshot.</Alert><Select label="Released by" placeholder={consultantsLoading ? 'Loading consultants...' : 'Select consultant'} data={consultants.map(item => ({ value: item.id, label: `${item.name}${item.consultant_company ? ` (${item.consultant_company})` : ''}` }))} value={releasedBy || null} onChange={value => setReleasedBy(value || '')} searchable clearable required disabled={consultantsLoading} nothingFoundMessage="No consultants found" /><Textarea label="Release note" placeholder="Optional controlled-release note" value={releaseComment} onChange={event => setReleaseComment(event.currentTarget.value)} autosize minRows={3} /><Button color="green" size="md" fullWidth leftSection={<IconRocket size={17} />} onClick={releaseRevision} loading={releaseSaving} disabled={!selectedReleasedConsultant}>Release SEB Revision</Button></Stack>}
+                {revisionStatus === 'RELEASED' && <Stack><Alert color="green" variant="light" icon={<IconLock size={18} />} title="Controlled baseline released" radius="md">This revision is frozen and immutable.</Alert><Box p="md" style={{ borderRadius: 10, background: '#f0faf4' }}><Text size="xs" c="dimmed">Release</Text><Text fw={800}>{summary.release?.release_code || 'â€”'}</Text><Divider my="sm" /><Text size="xs" c="dimmed">SHA-256</Text><Text size="10px" ff="monospace" style={{ overflowWrap: 'anywhere' }}>{summary.release?.release_hash || 'â€”'}</Text><Group className={styles.actions} justify="space-between" mt="sm"><Text size="xs" c="dimmed">Frozen items</Text><Text size="xs" fw={700}>{summary.release?.frozen_snapshot?.item_ids?.length || summary.items.length}</Text></Group><Group className={styles.actions} justify="space-between" mt={5}><Text size="xs" c="dimmed">Released by</Text><Text size="xs" fw={700}>{summary.release?.released_by || 'â€”'}</Text></Group></Box></Stack>}
               </Paper>
             </Grid.Col>
           </Grid>
@@ -349,9 +377,13 @@ export default function SEBApprovalReleaseLayout() {
 
       {sebId && revisionId && <SEBApprovalReleaseReport summary={summary} sebId={sebId} revisionId={revisionId} busy={summaryLoading || contextLoading || approvalSaving || releaseSaving} loadError={error} onReload={loadSummary} />}
 
-      <DetailModal opened={modal === 'items'} onClose={() => setModal('')} title="SEB Items"><ResponsiveTable label="SEB item details" withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Fact</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Review Decision</Table.Th><Table.Th>Readiness</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(summary?.items || []).map(item => <Table.Tr key={item.id}><Table.Td><Text size="sm" fw={650}>{item.fact_name}</Text><Text size="10px" c="dimmed">{item.fact_collection}</Text></Table.Td><Table.Td>{item.discipline}</Table.Td><Table.Td><StatusBadge value={item.review_decision} /></Table.Td><Table.Td><StatusBadge value={item.readiness} /></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable></DetailModal>
-      <DetailModal opened={modal === 'evidence'} onClose={() => setModal('')} title="Evidence References">{(summary?.evidence_references || []).length ? <ResponsiveTable label="Evidence details" withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Type</Table.Th><Table.Th>Evidence ID</Table.Th><Table.Th>SEB Item</Table.Th><Table.Th>Evidence Hash</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{summary.evidence_references.map(item => <Table.Tr key={item.id}><Table.Td>{item.evidence_type || '—'}</Table.Td><Table.Td>{item.sia_evidence_id || '—'}</Table.Td><Table.Td>{item.seb_item_id || '—'}</Table.Td><Table.Td><Text size="xs" ff="monospace">{item.evidence_hash || '—'}</Text></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable> : <Center py="xl"><Text c="dimmed">No evidence references.</Text></Center>}</DetailModal>
+      <DetailModal opened={modal === 'items'} onClose={() => setModal('')} title="SEB Items"><ResponsiveTable label="SEB item details" withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Fact</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Review Decision</Table.Th><Table.Th>Readiness</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(summary?.items || []).map(item => <Table.Tr key={item.id}><Table.Td><Text size="sm" fw={650}>{item.fact_name}</Text></Table.Td><Table.Td>{item.discipline}</Table.Td><Table.Td><StatusBadge value={item.review_decision} /></Table.Td><Table.Td><StatusBadge value={item.readiness} /></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable></DetailModal>
+      <DetailModal opened={modal === 'evidence'} onClose={() => setModal('')} title="Evidence References">{(summary?.evidence_references || []).length ? <ResponsiveTable label="Evidence details" withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Type</Table.Th><Table.Th>Evidence reference</Table.Th><Table.Th>Related item</Table.Th><Table.Th>Evidence Hash</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{summary.evidence_references.map(item => <Table.Tr key={item.id}><Table.Td>{item.evidence_type || 'â€”'}</Table.Td><Table.Td>{item.evidence_reference || item.evidence_type || 'Evidence record'}</Table.Td><Table.Td>{item.fact_name || 'Selected SEB item'}</Table.Td><Table.Td><Text size="xs" ff="monospace">{item.evidence_hash || 'â€”'}</Text></Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable> : <Center py="xl"><Text c="dimmed">No evidence references.</Text></Center>}</DetailModal>
       <DetailModal opened={modal === 'comments'} onClose={() => setModal('')} title="Engineering Review Comments">{(summary?.review_comments || []).length ? <ResponsiveTable label="Review comment details" withTableBorder highlightOnHover verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>Fact</Table.Th><Table.Th>Discipline</Table.Th><Table.Th>Comment</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{summary.review_comments.map(item => <Table.Tr key={item.item_id}><Table.Td>{item.fact_name}</Table.Td><Table.Td>{item.discipline}</Table.Td><Table.Td>{item.comment}</Table.Td></Table.Tr>)}</Table.Tbody></ResponsiveTable> : <Center py="xl"><Text c="dimmed">No review comments.</Text></Center>}</DetailModal>
     </Box>
   );
 }
+
+
+
+

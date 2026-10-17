@@ -2,13 +2,13 @@ import { formatDisplayValue } from '../utils/dateOnly';
 import DatePickerInput from '../components/common/DatePickerInput';
 import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
-  Accordion, Alert, Badge, Box, Button, Checkbox, Group, Loader, Paper, Progress, Select, SimpleGrid,
+  Accordion, Alert, Badge, Box, Button, Checkbox, Group, Loader, Modal, Paper, Progress, Select, SimpleGrid,
   Stack, Table, Text, TextInput, Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft, IconArrowRight, IconCheck, IconDatabaseImport, IconFilePlus, IconGitBranch,
-  IconMapPin, IconRefresh, IconSend, IconShieldCheck,
+  IconMapPin, IconRefresh, IconSend, IconShieldCheck, IconEdit,
 } from '@tabler/icons-react';
 import { autoCode } from '../utils/autoCode';
 import SEBPreparationReport from '../components/common/SEBPreparationReport';
@@ -18,6 +18,7 @@ const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const ASSESSMENT_STAGES = ['INITIAL_ASSESSMENT', 'DETAILED_ASSESSMENT', 'REASSESSMENT', 'COMPLETION_REVIEW'];
 const BASELINE_STATUSES = ['DRAFT', 'IN_PREPARATION', 'READY_FOR_REVIEW', 'RELEASED', 'SUPERSEDED'];
 const REVISION_STATUSES = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'RELEASED'];
+const EDITABLE_REVISION_STATUSES = REVISION_STATUSES.filter(status => status !== 'RELEASED');
 const STEPS = [
   { label: 'Select Verified SIA Case', icon: IconShieldCheck },
   { label: 'Select Site', icon: IconMapPin },
@@ -119,7 +120,6 @@ export default function SEBPreparationLayout() {
   }));
   const [revisionForm, setRevisionForm] = useState({
     revision_no: 'R01',
-    previous_revision_id: '',
     revision_reason: '',
     revision_status: 'DRAFT',
     issue_date: '',
@@ -143,6 +143,10 @@ export default function SEBPreparationLayout() {
   const [reviewItemsLoading, setReviewItemsLoading] = useState(false);
   const [submittedForReview, setSubmittedForReview] = useState(false);
   const [submittingForReview, setSubmittingForReview] = useState(false);
+  const [editingSeb, setEditingSeb] = useState(null);
+  const [editingSebForm, setEditingSebForm] = useState({ assessment_stage: '', current_revision_no: '', status: '' });
+  const [editingRevision, setEditingRevision] = useState(null);
+  const [editingRevisionForm, setEditingRevisionForm] = useState({ revision_no: '', revision_reason: '', revision_status: '', issue_date: '' });
 
   const loadBaselines = async selectedCaseId => {
     if (!selectedCaseId) {
@@ -226,6 +230,17 @@ export default function SEBPreparationLayout() {
   };
 
   const createSeb = async () => {
+    const missing = [
+      !caseId && 'Verified SIA case',
+      !siteId && 'Site',
+      !sebForm.seb_code?.trim() && 'SEB Code',
+      !sebForm.assessment_stage && 'Assessment Stage',
+      !sebForm.status && 'Status',
+    ].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.`, color: 'orange' });
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -262,8 +277,55 @@ export default function SEBPreparationLayout() {
     }
   };
 
+  const openEditSeb = item => {
+    setEditingSeb(item);
+    setEditingSebForm({ assessment_stage: item.assessment_stage || '', current_revision_no: item.current_revision_no || '', status: item.status || '' });
+  };
+  const updateSeb = async () => {
+    if (!editingSeb || !editingSebForm.assessment_stage || !editingSebForm.status) {
+      notifications.show({ title: 'Required fields missing', message: 'Complete Assessment Stage and Status.', color: 'orange' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const updated = await request(`/seb/baselines/${encodeURIComponent(editingSeb.id)}`, { method: 'PATCH', body: JSON.stringify(editingSebForm) });
+      setBaselines(current => current.map(item => item.id === updated.id ? updated : item));
+      if (baseline?.id === updated.id) setBaseline(updated);
+      setEditingSeb(null);
+      notifications.show({ title: 'SEB updated', message: `${updated.seb_code} was saved successfully.`, color: 'green' });
+    } catch (updateError) { setError(updateError.message); }
+    finally { setLoading(false); }
+  };
+
+  const openEditRevision = item => {
+    setEditingRevision(item);
+    setEditingRevisionForm({ revision_no: item.revision_no || '', revision_reason: item.revision_reason || '', revision_status: item.revision_status || 'DRAFT', issue_date: item.issue_date || '' });
+  };
+  const updateRevision = async () => {
+    if (!editingRevision || !editingRevisionForm.revision_no.trim() || !editingRevisionForm.revision_status) {
+      notifications.show({ title: 'Required fields missing', message: 'Complete Revision No and Revision Status.', color: 'orange' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const updated = await request(`/seb/revisions/${encodeURIComponent(editingRevision.id)}`, { method: 'PATCH', body: JSON.stringify(editingRevisionForm) });
+      setRevisions(current => current.map(item => item.id === updated.id ? updated : item));
+      if (revision?.id === updated.id) setRevision(updated);
+      setEditingRevision(null);
+      notifications.show({ title: 'Revision updated', message: `${updated.revision_no} was saved successfully.`, color: 'green' });
+    } catch (updateError) { setError(updateError.message); }
+    finally { setLoading(false); }
+  };
+
   const createRevision = async () => {
-    if (!baseline) return;
+    const missing = [
+      !baseline && 'SEB',
+      !revisionForm.revision_no?.trim() && 'Revision No',
+    ].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.`, color: 'orange' });
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -272,7 +334,6 @@ export default function SEBPreparationLayout() {
         body: JSON.stringify({
           seb_id: baseline.id,
           revision_no: revisionForm.revision_no,
-          previous_revision_id: revisionForm.previous_revision_id || null,
           revision_reason: revisionForm.revision_reason || null,
           revision_status: 'DRAFT',
           issue_date: revisionForm.issue_date || null,
@@ -312,6 +373,10 @@ export default function SEBPreparationLayout() {
   };
 
   const loadSourceData = async () => {
+    if (!revision || revision.revision_status === 'RELEASED') {
+      setError('Select a draft revision before loading SIA source data. Released SEB revisions are read-only.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -333,6 +398,10 @@ export default function SEBPreparationLayout() {
 
   const addFactToSeb = async (name, record) => {
     if (!revision || !baseline) return;
+    if (revision.revision_status === 'RELEASED') {
+      setError('Released SEB revisions are read-only. Select a draft revision to add engineering facts.');
+      return;
+    }
     if (revision.revision_no !== 'R01') {
       setError('Engineering facts can only be created under the initial R01 revision from this workflow.');
       return;
@@ -357,6 +426,10 @@ export default function SEBPreparationLayout() {
 
   const loadReviewItems = async () => {
     if (!baseline || !revision) return;
+    if (revision.revision_status === 'RELEASED') {
+      setError('Released SEB revisions are read-only. Select a draft revision for review.');
+      return;
+    }
     setReviewItemsLoading(true);
     setError('');
     try {
@@ -393,7 +466,7 @@ export default function SEBPreparationLayout() {
   const sourceSections = Object.entries(sourcePackage?.modules || {}).filter(([name]) => !['sia_case', 'sia_site'].includes(name));
 
   const selectedSite = sites.find(item => item.id === siteId);
-  const canContinue = [Boolean(selectedCase), Boolean(selectedSite), Boolean(baseline), Boolean(revision), Boolean(sourcePackage), reviewed, reviewItems.length > 0][activeStep];
+  const canContinue = [Boolean(selectedCase), Boolean(selectedSite), Boolean(baseline), Boolean(revision && revision.revision_status !== 'RELEASED'), Boolean(sourcePackage), reviewed, reviewItems.length > 0][activeStep];
   const busy = loading || contextLoading || baselineLoading || revisionLoading || reviewItemsLoading || submittingForReview;
   const descriptions = [
     'Choose a verified SIA case as the source for your engineering baseline.',
@@ -428,21 +501,21 @@ export default function SEBPreparationLayout() {
       <Text size="sm" c="dimmed" mt={6} mb="xl">{descriptions[activeStep]}</Text>
       <Box component="fieldset" disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         {activeStep === 0 && <Stack>
-          <Select label="Verified SIA case" placeholder={contextLoading ? 'Loading verified cases...' : 'Select a case'} data={cases.map(item => ({ value: item.id, label: item.case_code || item.id }))} value={caseId || null} onChange={handleCaseChange} searchable clearable disabled={contextLoading} />
+          <Select required label="Verified SIA case" placeholder={contextLoading ? 'Loading verified cases...' : 'Select a case'} data={cases.map(item => ({ value: item.id, label: item.case_code || item.name || 'Reference' }))} value={caseId || null} onChange={handleCaseChange} searchable clearable disabled={contextLoading} />
           {!contextLoading && !cases.length && <Alert color="yellow">No verified cases available. Complete and verify a case in SIA Completion / SEB Input first.</Alert>}
         </Stack>}
         {activeStep === 1 && <Stack>
-          <Select label="Site" placeholder="Select a site" data={sites.map(item => ({ value: item.id, label: `${item.site_code || item.id} / ${item.site_name || 'Unnamed site'}` }))} value={siteId || null} onChange={handleSiteChange} searchable clearable />
+          <Select required label="Site" placeholder="Select a site" data={sites.map(item => ({ value: item.id, label: `${item.site_code || item.name || 'Reference'} / ${item.site_name || 'Unnamed site'}` }))} value={siteId || null} onChange={handleSiteChange} searchable clearable />
           {!sites.length && <Alert color="yellow">No sites are available for this case. Go back and select another case.</Alert>}
         </Stack>}
         {activeStep === 2 && <Box>
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
-        <TextInput label="SEB Code" value={sebForm.seb_code} onChange={event => { const value = event.currentTarget.value; setSebForm(current => ({ ...current, seb_code: value })); }} />
-        <Select label="Assessment Stage" data={ASSESSMENT_STAGES} value={sebForm.assessment_stage} onChange={value => setSebForm(current => ({ ...current, assessment_stage: value || '' }))} />
+        <TextInput required label="SEB Code" value={sebForm.seb_code} onChange={event => { const value = event.currentTarget.value; setSebForm(current => ({ ...current, seb_code: value })); }} />
+        <Select required label="Assessment Stage" data={ASSESSMENT_STAGES} value={sebForm.assessment_stage} onChange={value => setSebForm(current => ({ ...current, assessment_stage: value || '' }))} />
         <TextInput label="Current Revision No" placeholder="Optional" value={sebForm.current_revision_no} onChange={event => { const value = event.currentTarget.value; setSebForm(current => ({ ...current, current_revision_no: value })); }} />
-        <Select label="Status" data={BASELINE_STATUSES} value={sebForm.status} onChange={value => setSebForm(current => ({ ...current, status: value || 'DRAFT' }))} />
+        <Select required label="Status" data={BASELINE_STATUSES} value={sebForm.status} onChange={value => setSebForm(current => ({ ...current, status: value || '' }))} />
       </SimpleGrid>
-      <Button mt="md" color="green" leftSection={<IconFilePlus size={15} />} onClick={createSeb} disabled={!sebForm.seb_code.trim()} loading={loading}>Create SEB</Button>
+      <Button mt="md" color="green" leftSection={<IconFilePlus size={15} />} onClick={createSeb} disabled={!caseId || !siteId || !sebForm.seb_code.trim() || !sebForm.assessment_stage || !sebForm.status} loading={loading}>Create SEB</Button>
 
       <Group className={styles.actions} justify="space-between" mt="xl" mb="sm">
         <Box><Text size="xs" fw={700} c="#007336" tt="uppercase">Select SEB</Text><Text size="sm" c="dimmed">Existing SEBs for the selected site</Text></Box>
@@ -450,19 +523,18 @@ export default function SEBPreparationLayout() {
       </Group>
       {baselineLoading ? <Loader size="sm" color="green" /> : baselines.filter(item => item.site_id === siteId).length === 0 ? <Text size="sm" c="dimmed">No SEBs for this site yet. Create one above to continue.</Text> : (
         <ResponsiveTable label="Existing SEBs" highlightOnHover withTableBorder>
-          <Table.Thead><Table.Tr><Table.Th>Select</Table.Th><Table.Th>SEB Code</Table.Th><Table.Th>Site ID</Table.Th><Table.Th>Assessment Stage</Table.Th><Table.Th>Revision</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead>
+          <Table.Thead><Table.Tr><Table.Th>Select</Table.Th><Table.Th>SEB Code</Table.Th><Table.Th>Site</Table.Th><Table.Th>Assessment Stage</Table.Th><Table.Th>Revision</Table.Th><Table.Th>Status</Table.Th><Table.Th /></Table.Tr></Table.Thead>
           <Table.Tbody>{baselines.filter(item => item.site_id === siteId).map(item => <Table.Tr key={item.id} style={{ cursor: 'pointer', backgroundColor: baseline?.id === item.id ? '#f0fdf4' : undefined }}>
-            <Table.Td><Button size="xs" variant="light" color="green" onClick={() => { setBaseline(item); setRevision(null); setRevisions([]); setSourcePackage(null); setReviewed(false); setReviewItems([]); setSubmittedForReview(false); setCreatedFactKeys(new Set()); localStorage.setItem('seb_id', item.id); localStorage.removeItem('seb_revision_id'); loadRevisions(item.id); }}>{baseline?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.seb_code}</Text></Table.Td><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{item.site_id || '—'}</Text></Table.Td><Table.Td>{item.assessment_stage || '—'}</Table.Td><Table.Td>{item.current_revision_no || '—'}</Table.Td><Table.Td><Badge color={item.status === 'DRAFT' ? 'gray' : 'green'} variant="light">{item.status || '—'}</Badge></Table.Td>
+            <Table.Td><Button size="xs" variant="light" color="green" onClick={() => { setBaseline(item); setRevision(null); setRevisions([]); setSourcePackage(null); setReviewed(false); setReviewItems([]); setSubmittedForReview(false); setCreatedFactKeys(new Set()); localStorage.setItem('seb_id', item.id); localStorage.removeItem('seb_revision_id'); loadRevisions(item.id); }}>{baseline?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.seb_code}</Text></Table.Td><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{selectedSite?.site_code || selectedSite?.site_name || 'Selected site'}</Text></Table.Td><Table.Td>{item.assessment_stage || '—'}</Table.Td><Table.Td>{item.current_revision_no || '—'}</Table.Td><Table.Td><Badge color={item.status === 'DRAFT' ? 'gray' : 'green'} variant="light">{item.status || '—'}</Badge></Table.Td><Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={13} />} onClick={() => openEditSeb(item)}>Edit</Button></Table.Td>
           </Table.Tr>)}</Table.Tbody>
         </ResponsiveTable>
       )}
         </Box>}
         {activeStep === 3 && baseline && <Box>
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
-          <TextInput label="Revision No" value={revisionForm.revision_no} onChange={event => { const value = event.currentTarget.value; setRevisionForm(current => ({ ...current, revision_no: value })); }} />
+          <TextInput required label="Revision No" value={revisionForm.revision_no} onChange={event => { const value = event.currentTarget.value; setRevisionForm(current => ({ ...current, revision_no: value })); }} />
           <Select label="Revision Status" data={['DRAFT']} value="DRAFT" disabled description="Initial revisions are always created as drafts." />
           <DatePickerInput label="Issue Date" value={revisionForm.issue_date} onChange={value => setRevisionForm(current => ({ ...current, issue_date: value }))} />
-          <TextInput label="Previous Revision ID" placeholder="Optional" value={revisionForm.previous_revision_id} onChange={event => { const value = event.currentTarget.value; setRevisionForm(current => ({ ...current, previous_revision_id: value })); }} />
         </SimpleGrid>
         <TextInput mt="md" label="Revision Reason" placeholder="Optional" value={revisionForm.revision_reason} onChange={event => { const value = event.currentTarget.value; setRevisionForm(current => ({ ...current, revision_reason: value })); }} />
         <Button mt="md" size="sm" color="green" leftSection={<IconGitBranch size={15} />} onClick={createRevision} disabled={Boolean(revision) || !revisionForm.revision_no} loading={loading}>Create Initial Revision R01</Button>
@@ -471,16 +543,16 @@ export default function SEBPreparationLayout() {
           <Button size="xs" variant="subtle" color="green" leftSection={<IconRefresh size={14} />} onClick={() => loadRevisions(baseline.id)} loading={revisionLoading}>Reload Revisions</Button>
         </Group>
         {revisionLoading ? <Loader size="sm" color="green" /> : revisions.length > 0 && <ResponsiveTable label="SEB revisions" highlightOnHover withTableBorder>
-          <Table.Thead><Table.Tr><Table.Th>Select</Table.Th><Table.Th>Revision No</Table.Th><Table.Th>Status</Table.Th><Table.Th>Issue Date</Table.Th><Table.Th>Prepared By</Table.Th></Table.Tr></Table.Thead>
+          <Table.Thead><Table.Tr><Table.Th>Select</Table.Th><Table.Th>Revision No</Table.Th><Table.Th>Status</Table.Th><Table.Th>Issue Date</Table.Th><Table.Th>Prepared By</Table.Th><Table.Th /></Table.Tr></Table.Thead>
           <Table.Tbody>{revisions.map(item => <Table.Tr key={item.id} style={{ cursor: 'pointer', backgroundColor: revision?.id === item.id ? '#f0fdf4' : undefined }}>
-            <Table.Td><Button size="xs" variant="light" color="green" onClick={() => { setRevision(item); setSourcePackage(null); setReviewed(false); setReviewItems([]); setSubmittedForReview(false); setCreatedFactKeys(new Set()); localStorage.setItem('seb_revision_id', item.id); }}>{revision?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.revision_no}</Text></Table.Td><Table.Td>{item.revision_status || '—'}</Table.Td><Table.Td>{formatDisplayValue(item.issue_date || '—')}</Table.Td><Table.Td>{item.prepared_by || '—'}</Table.Td>
+            <Table.Td><Button size="xs" variant="light" color="green" disabled={item.revision_status === 'RELEASED'} onClick={() => { if (item.revision_status === 'RELEASED') return; setRevision(item); setSourcePackage(null); setReviewed(false); setReviewItems([]); setSubmittedForReview(false); setCreatedFactKeys(new Set()); localStorage.setItem('seb_revision_id', item.id); }}>{revision?.id === item.id ? 'Selected' : 'Select'}</Button></Table.Td><Table.Td><Text size="sm" fw={700} c="#007336">{item.revision_no}</Text></Table.Td><Table.Td>{item.revision_status || '—'}</Table.Td><Table.Td>{formatDisplayValue(item.issue_date || '—')}</Table.Td><Table.Td>{item.prepared_by || '—'}</Table.Td><Table.Td><Button size="xs" variant="subtle" color="green" disabled={item.revision_status === 'RELEASED'} leftSection={<IconEdit size={13} />} onClick={() => openEditRevision(item)}>Edit</Button></Table.Td>
           </Table.Tr>)}</Table.Tbody>
         </ResponsiveTable>}
         </Box>}
         {activeStep === 4 && <Paper p={{ base: 'sm', sm: 'xl' }} radius="md" bg="gray.0" ta="center">
           <IconDatabaseImport size={36} color="#007336" />
           <Text fw={600} mt="sm">Your revision is ready for source review</Text>
-          <Text size="sm" c="dimmed" mt={6} mb="lg">Load the SIA records for {selectedSite?.site_name || selectedSite?.site_code || siteId}.</Text>
+          <Text size="sm" c="dimmed" mt={6} mb="lg">Load the SIA records for {selectedSite?.site_name || selectedSite?.site_code || 'the selected site'}.</Text>
           <Button color="green" leftSection={<IconDatabaseImport size={16} />} onClick={loadSourceData} loading={loading}>Load SIA source data</Button>
         </Paper>}
         {activeStep === 5 && sourcePackage && <Stack>
@@ -499,8 +571,8 @@ export default function SEBPreparationLayout() {
         {activeStep === 6 && <Stack>
           <Group className={styles.actions} justify="space-between"><Box><Text fw={600}>Review-status SEB items</Text><Text size="sm" c="dimmed">Items for {baseline?.seb_code} / {revision?.revision_no}</Text></Box><Button size="sm" variant="light" color="green" leftSection={<IconRefresh size={15} />} onClick={loadReviewItems} loading={reviewItemsLoading}>Reload items</Button></Group>
           {reviewItemsLoading ? <Group justify="center" py="xl"><Loader size="sm" color="green" /><Text size="sm" c="dimmed">Loading review items…</Text></Group> : reviewItems.length === 0 ? <Alert color="yellow">No items with status review were found for this SEB revision. Return to Step 6 and add at least one fact.</Alert> : <ResponsiveTable label="Review SEB items" withTableBorder highlightOnHover>
-            <Table.Thead><Table.Tr><Table.Th>Fact ID</Table.Th><Table.Th>SEB ID</Table.Th><Table.Th>Revision ID</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead>
-            <Table.Tbody>{reviewItems.map(item => <Table.Tr key={item.id}><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{item.fact_id}</Text></Table.Td><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{item.seb_id}</Text></Table.Td><Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{item.seb_revision_id}</Text></Table.Td><Table.Td><Badge color="blue" variant="light">{item.status}</Badge></Table.Td></Table.Tr>)}</Table.Tbody>
+            <Table.Thead><Table.Tr><Table.Th>Source fact</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead>
+            <Table.Tbody>{reviewItems.map(item => <Table.Tr key={item.id}><Table.Td><Text size="sm" fw={600}>{item.fact_name || 'Source fact'}</Text>{item.fact_collection && <Text size="xs" c="dimmed">{item.fact_collection.replace(/^sia_/, '').replaceAll('_', ' ')}</Text>}</Table.Td><Table.Td><Badge color="blue" variant="light">{item.status}</Badge></Table.Td></Table.Tr>)}</Table.Tbody>
           </ResponsiveTable>}
         </Stack>}
         {activeStep === 7 && <Paper p={{ base: 'sm', sm: 'xl' }} radius="md" bg="gray.0" ta="center">
@@ -511,6 +583,24 @@ export default function SEBPreparationLayout() {
         </Paper>}
       </Box>
       {activeStep === 7 && <SEBPreparationReport baseline={baseline} revision={revision} siaCase={selectedCase} site={selectedSite} items={reviewItems} reviewed={reviewed} submitted={submittedForReview} busy={busy} />}
+      <Modal opened={Boolean(editingSeb)} onClose={() => setEditingSeb(null)} title={<Text fw={700} size="sm">Edit SEB</Text>} centered>
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">SEB Code: <Text span fw={700} c="#007336">{editingSeb?.seb_code}</Text></Text>
+          <Select required label="Assessment Stage" data={ASSESSMENT_STAGES} value={editingSebForm.assessment_stage} onChange={value => setEditingSebForm(current => ({ ...current, assessment_stage: value || '' }))} />
+          <TextInput label="Current Revision No" value={editingSebForm.current_revision_no} onChange={event => setEditingSebForm(current => ({ ...current, current_revision_no: event.currentTarget.value }))} />
+          <Select required label="Status" data={BASELINE_STATUSES} value={editingSebForm.status} onChange={value => setEditingSebForm(current => ({ ...current, status: value || '' }))} />
+          <Group justify="flex-end" mt="md"><Button variant="default" onClick={() => setEditingSeb(null)}>Cancel</Button><Button color="green" loading={loading} onClick={updateSeb}>Save</Button></Group>
+        </Stack>
+      </Modal>
+      <Modal opened={Boolean(editingRevision)} onClose={() => setEditingRevision(null)} title={<Text fw={700} size="sm">Edit Revision</Text>} centered>
+        <Stack gap="sm">
+          <TextInput required label="Revision No" value={editingRevisionForm.revision_no} onChange={event => setEditingRevisionForm(current => ({ ...current, revision_no: event.currentTarget.value }))} />
+          <Select required label="Revision Status" data={EDITABLE_REVISION_STATUSES} value={editingRevisionForm.revision_status} onChange={value => setEditingRevisionForm(current => ({ ...current, revision_status: value || '' }))} />
+          <DatePickerInput label="Issue Date" value={editingRevisionForm.issue_date} onChange={value => setEditingRevisionForm(current => ({ ...current, issue_date: value }))} />
+          <TextInput label="Revision Reason" value={editingRevisionForm.revision_reason} onChange={event => setEditingRevisionForm(current => ({ ...current, revision_reason: event.currentTarget.value }))} />
+          <Group justify="flex-end" mt="md"><Button variant="default" onClick={() => setEditingRevision(null)}>Cancel</Button><Button color="green" loading={loading} onClick={updateRevision}>Save</Button></Group>
+        </Stack>
+      </Modal>
       <Group className={styles.actions} justify="space-between" mt="xl" pt="lg" style={{ borderTop: '1px solid #e5e7eb' }}>
         <Button variant="default" leftSection={<IconArrowLeft size={16} />} disabled={activeStep === 0 || busy} onClick={() => setActiveStep(current => current - 1)}>Back</Button>
         {activeStep < 7 ? <Button color="green" rightSection={<IconArrowRight size={16} />} disabled={!canContinue || busy} onClick={activeStep === 5 ? loadReviewItems : () => setActiveStep(current => current + 1)}>{activeStep === 5 ? 'Review SEB items' : 'Continue'}</Button> : <Text size="sm" c={submittedForReview ? 'green.8' : 'dimmed'} role="status">{submittedForReview ? 'Submitted for review' : 'Submit R01 to finish'}</Text>}
@@ -518,3 +608,5 @@ export default function SEBPreparationLayout() {
     </Paper>
   </Box>;
 }
+
+

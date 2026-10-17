@@ -157,7 +157,7 @@ export default function SiteContextLayout({ spec }) {
         if (json && json.data) {
           notifications.show({
             title: 'Site Context Confirmed',
-            message: `Site ${json.data.site_name} created/updated with ID: ${json.data.id}`,
+            message: `Site ${json.data.site_name} created/updated`,
             color: 'green'
           });
           setSiteData(json.data);
@@ -224,7 +224,7 @@ export default function SiteContextLayout({ spec }) {
         if (json && json.data) {
           notifications.show({
             title: 'Draft Saved',
-            message: `Site draft ${json.data.site_name} saved successfully with ID: ${json.data.id}`,
+            message: `Site draft ${json.data.site_name} saved successfully`,
             color: 'green'
           });
           setSiteData(json.data);
@@ -571,3 +571,5 @@ export default function SiteContextLayout({ spec }) {
     </Box>
   );
 }
+
+

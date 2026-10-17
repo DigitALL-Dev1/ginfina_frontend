@@ -15,7 +15,7 @@ export default function FieldControl({ row, value, onChange, fieldName }) {
   const isTypeOrRoleField = labelLower.includes('type') || labelLower.includes('role');
   const predefinedOptions = getFieldOptions(fieldName || labelLower.replace(/[^a-z0-9]+/g, '_').replace(/_$/, ''));
 
-  if (/phone|telephone|contact.number|mobile.number/.test(labelLower) || t === 'tel') return <PhoneNumberInput {...common} value={value ?? ''} onChange={onChange} readOnly={t.includes('read-only')} />;
+  if (/phone|telephone|contact[\s._-]*(number|phone)?|mobile[\s._-]*(number|phone)?|emergency[\s._-]*contact/.test(labelLower) || t === 'tel') return <PhoneNumberInput {...common} value={value ?? ''} onChange={onChange} readOnly={t.includes('read-only')} />;
   
   if (t.includes('password')) return <PasswordInput {...common}/>;
   if (t.includes('pin')) return <PinInput length={6} value={String(value ?? example ?? '')} onChange={onChange}/>;

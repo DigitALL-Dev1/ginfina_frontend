@@ -103,7 +103,7 @@ export default function ReviewWorkspaceLayout() {
                 <Table verticalSpacing="xs" horizontalSpacing="xs" style={{ minWidth: 260 }}>
                   <Table.Thead>
                     <Table.Tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                      <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>ID</Table.Th>
+                      <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>Code</Table.Th>
                       <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>Deliverable</Table.Th>
                       <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>Revision</Table.Th>
                       <Table.Th style={{ color: '#374151', fontSize: 12, fontWeight: 700 }}>Status</Table.Th>

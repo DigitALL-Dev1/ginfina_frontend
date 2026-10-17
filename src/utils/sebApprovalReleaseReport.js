@@ -1,4 +1,5 @@
 import { recordFields } from './siaCompletionReport';
+import { displayRecord } from './siaRecordDisplay';
 
 const isRecord = value => value && typeof value === 'object' && !Array.isArray(value);
 
@@ -18,13 +19,13 @@ export function buildSebApprovalReleaseReport(summary, sebId, revisionId) {
     { label: 'Revision status', value: summary.revision.revision_status || 'Not provided' },
     { label: 'Report generated at (UTC)', value: new Date().toISOString() },
   ] },
-  { title: 'SEB context', fields: recordFields(summary.seb) },
-  { title: 'Revision details', fields: recordFields(revisionDetails) }];
-  const addRecord = (title, record, empty) => sections.push({ title, fields: isRecord(record) && Object.keys(record).length ? recordFields(record) : [{ label: 'Details', value: empty }] });
+  { title: 'SEB context', fields: recordFields(displayRecord(summary.seb)) },
+  { title: 'Revision details', fields: recordFields(displayRecord(revisionDetails)) }];
+  const addRecord = (title, record, empty) => sections.push({ title, fields: isRecord(record) && Object.keys(record).length ? recordFields(displayRecord(record)) : [{ label: 'Details', value: empty }] });
   function addRows(title, rows) {
     if (!Array.isArray(rows) || rows.some(row => !isRecord(row))) throw new Error(`The ${title.toLowerCase()} data is incomplete. Reload the report.`);
     if (!rows.length) sections.push({ title, fields: [{ label: 'Records', value: 'None recorded' }] });
-    rows.forEach((row, index) => sections.push({ title: `${title} — ${index + 1} of ${rows.length}`, fields: recordFields(row) }));
+    rows.forEach((row, index) => sections.push({ title: `${title} — ${index + 1} of ${rows.length}`, fields: recordFields(displayRecord(row)) }));
   }
   let items, evidence;
   if (released) {
@@ -50,5 +51,6 @@ export function buildSebApprovalReleaseReport(summary, sebId, revisionId) {
       ['SEB items', items], ['Item sources', summary.item_sources], ['Evidence references', evidence], ['Review comments', summary.review_comments]]) addRows(title, rows);
   }
   const counts = [{ label: released ? 'Frozen items' : 'SEB items', value: items.length }, { label: 'Evidence references', value: evidence.length }];
-  return { code: `${summary.seb.seb_code || sebId}-${summary.revision.revision_no || revisionId}`, sections, counts };
+  return { code: `${summary.seb.seb_code || 'SEB'}-${summary.revision.revision_no || 'Revision'}`, sections, counts };
 }
+

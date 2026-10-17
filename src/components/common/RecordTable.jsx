@@ -69,7 +69,6 @@ export default function RecordTable({ title = 'Controlled records', search = '',
           <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md" miw={680}>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>ID</Table.Th>
                 <Table.Th>Project Name</Table.Th>
                 <Table.Th>Code</Table.Th>
                 <Table.Th>Customer</Table.Th>
@@ -82,9 +81,6 @@ export default function RecordTable({ title = 'Controlled records', search = '',
             <Table.Tbody>
               {filteredProjects.map((project) => (
                 <Table.Tr key={project.id}>
-                  <Table.Td>
-                    <Text size="xs" fw={600}>{project.id}</Text>
-                  </Table.Td>
                   <Table.Td>
                     <Text fw={600} size="sm">{project.project_name}</Text>
                   </Table.Td>
@@ -108,7 +104,7 @@ export default function RecordTable({ title = 'Controlled records', search = '',
               ))}
               {filteredProjects.length === 0 && !loading && (
                 <Table.Tr>
-                  <Table.Td colSpan={8} style={{ textAlign: 'center' }}>
+                  <Table.Td colSpan={7} style={{ textAlign: 'center' }}>
                     <Text size="sm" c="dimmed" py="md">No projects found matching the current search parameters.</Text>
                   </Table.Td>
                 </Table.Tr>
@@ -130,7 +126,7 @@ export default function RecordTable({ title = 'Controlled records', search = '',
         <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md" miw={680}>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>ID</Table.Th>
+              <Table.Th>Code</Table.Th>
               <Table.Th>Deliverable / Record</Table.Th>
               <Table.Th>Revision</Table.Th>
               <Table.Th>Owner</Table.Th>

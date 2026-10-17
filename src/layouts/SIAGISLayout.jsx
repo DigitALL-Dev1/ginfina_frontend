@@ -8,12 +8,11 @@ import DatePickerInput from '../components/common/DatePickerInput';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconWorld, IconMapPin, IconDatabase,
-  IconFileText, IconLayersIntersect, IconMap,
+  IconFileText, IconLayersIntersect, IconMap, IconEdit,
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
 import SIAGISReport from '../components/common/SIAGISReport';
 import GISMap from '../components/GISMap';
-import { autoCode } from '../utils/autoCode';
 import styles from './SIADroneGISClimateLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -27,6 +26,12 @@ const SOURCE_TYPES = [
   'UTILITY_NETWORK', 'GEOLOGICAL_MAP', 'LAND_USE', 'ENVIRONMENTAL_DATA',
   'GOVERNMENT_DATASET', 'COMMERCIAL_DATASET'
 ];
+const REQUIRED_BY_PATH = {
+  '/sia/gis-layers': ['layer_name', 'layer_type', 'geometry_type', 'crs', 'source_name', 'source_date', 'resolution_scale', 'reliability_status'],
+  '/sia/gis-features': ['feature_name', 'feature_type', 'reliability_status', 'geometry_data'],
+  '/sia/external-geo-sources': ['provider_name', 'dataset_name', 'source_type', 'source_reference', 'imported_at', 'reliability_status'],
+};
+const MANDATORY_FIELDS = new Set(Object.values(REQUIRED_BY_PATH).flat());
 
 // ── hooks & helpers ─────────────────────────────────────
 function useApi(url, deps = []) {
@@ -51,6 +56,16 @@ async function postApi(path, body) {
   const cleaned = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, v === '' ? null : v]));
   const res = await fetch(`${API}${path}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cleaned),
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+  return res.json();
+}
+
+async function patchApi(path, body) {
+  const cleaned = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, v === '' ? null : v]));
+  const res = await fetch(`${API}${path}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(cleaned),
   });
   if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
@@ -114,17 +129,18 @@ function FR({ children }) { return <Box className={styles.formRow}>{children}</B
 function FI({ label, field, fv, setFv, textarea, select, readonly }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
+  const displayLabel = MANDATORY_FIELDS.has(field) ? `${label} *` : label;
   const fieldLower = field.toLowerCase();
   const isDateField = fieldLower.includes('date') || fieldLower.includes('_at');
   const s = { input: { borderColor: readonly ? '#bbf7d0' : '#d1d5db', borderRadius: 6, minHeight: 44, backgroundColor: readonly ? '#f0fdf4' : undefined } };
   
-  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Select aria-label={label} data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
-  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Textarea aria-label={label} value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
-  if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
+  if (isDateField) return <DatePickerInput label={displayLabel} value={val} onChange={upd} styles={s} />;
   
-  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <TextInput aria-label={label} value={val} onChange={e => upd(e.target.value)} readOnly={readonly} styles={s} /></Box>;
 }
 
@@ -197,7 +213,6 @@ export default function SIAGISLayout() {
 
   const openModal = (key, defaults = {}) => {
     const codePrefills = {
-      feature: { feature_code: autoCode('FEAT') },
     };
     const enriched = {
       sia_case_id: caseId,
@@ -216,6 +231,18 @@ export default function SIAGISLayout() {
       notifications.show({ title: 'Site required', message: 'Select a site before saving.', color: 'red' });
       return;
     }
+    const missing = (REQUIRED_BY_PATH[path] || []).filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({
+        title: 'Required fields missing',
+        message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`,
+        color: 'orange',
+      });
+      return;
+    }
     if (!caseId) {
       notifications.show({ title: 'Case required', message: 'Select an SIA case before saving.', color: 'red' });
       return;
@@ -227,6 +254,105 @@ export default function SIAGISLayout() {
       reload(); closeModal();
     } catch (e) {
       notifications.show({ title: 'Error', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditLayer = record => {
+    setFv({
+      id: record.id, layer_name: record.layer_name || '', layer_type: record.layer_type || '',
+      geometry_type: record.geometry_type || '', crs: record.crs || '', source_name: record.source_name || '',
+      source_date: record.source_date || '', resolution_scale: record.resolution_scale || '',
+      reliability_status: record.reliability_status || '', licence_info: record.licence_info || '',
+      is_active: record.is_active !== false, remarks: record.remarks || '',
+    });
+    setModal('edit-layer');
+  };
+
+  const updateLayer = async () => {
+    const missing = REQUIRED_BY_PATH['/sia/gis-layers'].filter(field => {
+      const value = fv[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const body = Object.fromEntries(Object.entries(fv).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      const updated = await patchApi(`/sia/gis-layers/${encodeURIComponent(fv.id)}`, body);
+      notifications.show({ title: 'GIS Layer updated', message: 'The GIS layer was saved successfully.', color: 'green' });
+      rLayer();
+      if (gisLayer?.id === fv.id) setGisLayer(updated);
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update GIS Layer', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditFeature = record => {
+    setFv({
+      id: record.id,
+      feature_name: record.feature_name || '', feature_type: record.feature_type || '',
+      geometry_data: record.geometry_data || '', description: record.description || '',
+      reliability_status: record.reliability_status || '', remarks: record.remarks || '',
+    });
+    setModal('edit-feature');
+  };
+
+  const updateFeature = async () => {
+    const missing = REQUIRED_BY_PATH['/sia/gis-features'].filter(field => {
+      const value = fv[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const body = Object.fromEntries(Object.entries(fv).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      await patchApi(`/sia/gis-features/${encodeURIComponent(fv.id)}`, body);
+      notifications.show({ title: 'GIS Feature updated', message: 'The feature was saved successfully.', color: 'green' });
+      rFeat();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update GIS Feature', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditGeoSource = record => {
+    setFv({
+      id: record.id, provider_name: record.provider_name || '', dataset_name: record.dataset_name || '',
+      source_type: record.source_type || '', source_reference: record.source_reference || '',
+      imported_at: record.imported_at || '', publication_date: record.publication_date || '',
+      coverage_area: record.coverage_area || '', spatial_resolution: record.spatial_resolution || '',
+      temporal_resolution: record.temporal_resolution || '', licence_info: record.licence_info || '',
+      access_conditions: record.access_conditions || '', cost_info: record.cost_info || '',
+      limitation_notes: record.limitation_notes || '', reliability_status: record.reliability_status || '',
+      contact_info: record.contact_info || '',
+    });
+    setModal('edit-geosource');
+  };
+
+  const updateGeoSource = async () => {
+    const missing = REQUIRED_BY_PATH['/sia/external-geo-sources'].filter(field => {
+      const value = fv[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const body = Object.fromEntries(Object.entries(fv).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      await patchApi(`/sia/external-geo-sources/${encodeURIComponent(fv.id)}`, body);
+      notifications.show({ title: 'External Geo Source updated', message: 'The external geo source was saved successfully.', color: 'green' });
+      rGeo();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update External Geo Source', message: e.message, color: 'red' });
     } finally { setSaving(false); }
   };
 
@@ -274,7 +400,7 @@ export default function SIAGISLayout() {
         </Group>
         <Select label="Select site" placeholder={sitesLoading ? 'Loading sites...' : 'Select a site to continue'}
           mt="sm" searchable allowDeselect={false} value={loadedSiteId || null}
-          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') || site.id }))}
+          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') }))}
           disabled={sitesLoading || saving || !sites.length} error={sitesError || undefined}
           onChange={value => selectSite(value || '')} />
         {!caseId && <Text size="xs" c="dimmed" mt={6}>Select an SIA case in Start and Case Control first.</Text>}
@@ -284,7 +410,7 @@ export default function SIAGISLayout() {
       {gisLayer && (
         <Paper p="sm" mb="md" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6 }}>
           <Group gap="xl" wrap="wrap">
-            <Text size="xs" c="#374151">Layer: <Text span fw={700} c="#007336">{gisLayer.layer_name || gisLayer.id}</Text></Text>
+            <Text size="xs" c="#374151">Layer: <Text span fw={700} c="#007336">{gisLayer.layer_name || 'Selected layer'}</Text></Text>
             <Button variant="subtle" color="gray" size="xs" ml="auto"
               onClick={() => { setGisLayer(null); setTab('map'); }}>Clear</Button>
           </Group>
@@ -331,26 +457,28 @@ export default function SIAGISLayout() {
 
           <Tabs.Panel value="layers">
             <TabHeader title="GIS Layers" onAdd={() => openModal('layer')} addLabel="Add Layer" />
-            <DataTable loading={layL} cols={['Layer Name', 'Type', 'Geometry', 'CRS', 'Source', 'Reliability', 'Active']}
+            <DataTable loading={layL} cols={['Layer Name', 'Type', 'Geometry', 'CRS', 'Source', 'Reliability', 'Active', '']}
               rows={gisLayers} render={r => (
                 <Table.Tr key={r.id} onClick={() => { setGisLayer(r); setTab('features'); }}
                   style={{ cursor: 'pointer', backgroundColor: gisLayer?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (gisLayer?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (gisLayer?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={gisLayer?.id === r.id}>{r.layer_name || r.id}</Button></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={gisLayer?.id === r.id}>{r.layer_name || 'Reference'}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.layer_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.geometry_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.crs || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.source_name || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
                   <Table.Td><BoolBadge v={r.is_active} /></Table.Td>
+                  <Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={13} />}
+                    onClick={event => { event.stopPropagation(); openEditLayer(r); }}>Edit</Button></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
 
           <Tabs.Panel value="features">
             <TabHeader title={`Features — ${gisLayer?.layer_name || ''}`} onAdd={() => openModal('feature')} addLabel="Add Feature" />
-            <DataTable loading={featL} cols={['Code', 'Name', 'Type', 'Reliability', 'POI ID']}
+            <DataTable loading={featL} cols={['Code', 'Name', 'Type', 'Reliability', 'POI ID', '']}
               rows={gisFeatures} render={r => (
                 <Table.Tr key={r.id}>
                   <Table.Td><Text size="sm" fw={600} c="#007336">{r.feature_code || '—'}</Text></Table.Td>
@@ -358,13 +486,15 @@ export default function SIAGISLayout() {
                   <Table.Td><Text size="sm" c="#6b7280">{r.feature_type || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
                   <Table.Td><Text size="xs" c="#9ca3af" style={{ fontFamily: 'monospace' }}>{r.poi_id || '—'}</Text></Table.Td>
+                  <Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={13} />}
+                    onClick={() => openEditFeature(r)}>Edit</Button></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
 
           <Tabs.Panel value="geosources">
             <TabHeader title="External Geo Sources" onAdd={() => openModal('geosource')} addLabel="Add Source" />
-            <DataTable loading={geoL} cols={['Provider', 'Dataset', 'Type', 'Source Ref', 'Reliability']}
+            <DataTable loading={geoL} cols={['Provider', 'Dataset', 'Type', 'Source Ref', 'Reliability', '']}
               rows={geoSources} render={r => (
                 <Table.Tr key={r.id}>
                   <Table.Td><Text size="sm" fw={600}>{r.provider_name || '—'}</Text></Table.Td>
@@ -372,6 +502,8 @@ export default function SIAGISLayout() {
                   <Table.Td><Text size="sm" c="#6b7280">{r.source_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.source_reference || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
+                  <Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={13} />}
+                    onClick={() => openEditGeoSource(r)}>Edit</Button></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -395,13 +527,36 @@ export default function SIAGISLayout() {
         </Group>
       </FormModal>
 
+      <FormModal opened={modal === 'edit-layer'} onClose={closeModal} title="Edit GIS Layer" saving={saving}
+        onSubmit={updateLayer}>
+        <FR><FI label="Layer Name" field="layer_name" fv={fv} setFv={setFv} /><FI label="Layer Type" field="layer_type" fv={fv} setFv={setFv} select={LAYER_TYPES} /></FR>
+        <FR><FI label="Geometry Type" field="geometry_type" fv={fv} setFv={setFv} select={GEOM_TYPES} /><FI label="CRS" field="crs" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Source Name" field="source_name" fv={fv} setFv={setFv} /><FI label="Source Date" field="source_date" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Resolution/Scale" field="resolution_scale" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={RELIABILITY_STATUS} /></FR>
+        <FI label="Licence Info" field="licence_info" fv={fv} setFv={setFv} />
+        <Group mt="sm" gap="xs"><Text size="xs" fw={600} c="#374151">Active</Text>
+          <Switch aria-label="Active" checked={fv.is_active !== false} onChange={e => setFv(p => ({ ...p, is_active: e.currentTarget.checked }))} color="green" />
+        </Group>
+        <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
+      </FormModal>
+
       <FormModal opened={modal === 'feature'} onClose={closeModal} title="Add GIS Feature" saving={saving}
         onSubmit={() => save('/sia/gis-features', { gis_layer_id: lid, ...fv }, rFeat)}>
-        <FR><FI label="Feature Code" field="feature_code" fv={fv} setFv={setFv} /><FI label="Feature Name" field="feature_name" fv={fv} setFv={setFv} /></FR>
+        <FI label="Feature Name" field="feature_name" fv={fv} setFv={setFv} />
         <FR><FI label="Feature Type" field="feature_type" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={RELIABILITY_STATUS} /></FR>
-        <FI label="POI ID (optional)" field="poi_id" fv={fv} setFv={setFv} />
+        
         <FI label="Geometry Data (GeoJSON/WKT)" field="geometry_data" fv={fv} setFv={setFv} textarea />
         <FI label="Description" field="description" fv={fv} setFv={setFv} textarea />
+      </FormModal>
+
+      <FormModal opened={modal === 'edit-feature'} onClose={closeModal} title="Edit GIS Feature" saving={saving}
+        onSubmit={updateFeature}>
+        <FI label="Feature Name" field="feature_name" fv={fv} setFv={setFv} />
+        <FR><FI label="Feature Type" field="feature_type" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={RELIABILITY_STATUS} /></FR>
+        
+        <FI label="Geometry Data (GeoJSON/WKT)" field="geometry_data" fv={fv} setFv={setFv} textarea />
+        <FI label="Description" field="description" fv={fv} setFv={setFv} textarea />
+        <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
       </FormModal>
 
       <FormModal opened={modal === 'geosource'} onClose={closeModal} title="Add External Geo Source" saving={saving}
@@ -412,6 +567,24 @@ export default function SIAGISLayout() {
         <FI label="Licence Info" field="licence_info" fv={fv} setFv={setFv} />
         <FI label="Limitation Notes" field="limitation_notes" fv={fv} setFv={setFv} textarea />
       </FormModal>
+
+      <FormModal opened={modal === 'edit-geosource'} onClose={closeModal} title="Edit External Geo Source" saving={saving}
+        onSubmit={updateGeoSource}>
+        <FR><FI label="Provider Name" field="provider_name" fv={fv} setFv={setFv} /><FI label="Dataset Name" field="dataset_name" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Source Type" field="source_type" fv={fv} setFv={setFv} select={SOURCE_TYPES} /><FI label="Source Reference" field="source_reference" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Imported At" field="imported_at" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={RELIABILITY_STATUS} /></FR>
+        <FR><FI label="Publication Date" field="publication_date" fv={fv} setFv={setFv} /><FI label="Spatial Resolution" field="spatial_resolution" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Coverage Area" field="coverage_area" fv={fv} setFv={setFv} /><FI label="Temporal Resolution" field="temporal_resolution" fv={fv} setFv={setFv} /></FR>
+        <FI label="Licence Info" field="licence_info" fv={fv} setFv={setFv} />
+        <FI label="Access Conditions" field="access_conditions" fv={fv} setFv={setFv} textarea />
+        <FI label="Cost Info" field="cost_info" fv={fv} setFv={setFv} />
+        <FI label="Limitation Notes" field="limitation_notes" fv={fv} setFv={setFv} textarea />
+        <FI label="Contact Info" field="contact_info" fv={fv} setFv={setFv} />
+      </FormModal>
     </Box>
   );
 }
+
+
+
+

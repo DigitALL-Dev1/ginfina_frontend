@@ -16,6 +16,7 @@ import SIAStepFlow from '../components/common/SIAStepFlow';
 import SIADroneReport from '../components/common/SIADroneReport';
 import { autoCode } from '../utils/autoCode';
 import styles from './SIADroneGISClimateLayout.module.css';
+import useDisciplines from '../hooks/useDisciplines';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
 const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -23,6 +24,18 @@ const thS = { fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'u
 const MISSION_STATUS = ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 const QA_STATUS = ['PENDING', 'PASSED', 'FAILED', 'CONDITIONAL'];
 const PRODUCT_TYPES = ['ORTHOMOSAIC', 'POINT_CLOUD', 'DSM', 'DTM', 'CONTOUR', '3D_MESH', 'THERMAL', 'MULTISPECTRAL'];
+const REQUIRED_BY_PATH = {
+  '/sia/drone-missions': ['survey_visit_id', 'mission_status', 'mission_purpose', 'target_discipline', 'planned_date'],
+  '/sia/drone-operators': ['competency_ref', 'permission_ref', 'regulatory_ref'],
+  '/sia/drone-platforms': ['drone_make', 'drone_model', 'serial_number', 'sensor_type', 'camera_model', 'firmware_version'],
+  '/sia/drone-capture-plans': ['crs', 'datum', 'vertical_datum', 'gnss_method', 'flight_altitude', 'target_gsd', 'front_overlap', 'side_overlap', 'camera_angle', 'capture_type', 'boundary_notes'],
+  '/sia/ground-control-points': ['point_type', 'latitude', 'longitude', 'elevation', 'accuracy', 'survey_method', 'status'],
+  '/sia/drone-field-conditions': ['recorded_at', 'weather_condition', 'wind_speed', 'temperature', 'lighting_condition', 'visibility', 'rain_condition'],
+  '/sia/drone-raw-data': ['file_name', 'data_type', 'file_path', 'file_hash', 'file_size', 'captured_at', 'import_status'],
+  '/sia/drone-quality-checks': ['coverage_status', 'blur_status', 'exposure_status', 'overlap_status', 'gnss_status', 'control_point_status', 'qa_status', 'checked_at'],
+  '/sia/drone-derived-products': ['file_name', 'product_type', 'file_path', 'crs', 'resolution', 'accuracy', 'reliability_class', 'processing_version', 'status'],
+};
+const MANDATORY_FIELDS = new Set(Object.values(REQUIRED_BY_PATH).flat());
 
 // ── hooks & helpers ─────────────────────────────────────
 function useApi(url, deps = []) {
@@ -110,19 +123,20 @@ function FR({ children }) { return <Box className={styles.formRow}>{children}</B
 function FI({ label, field, fv, setFv, textarea, number, select, readonly }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
+  const displayLabel = MANDATORY_FIELDS.has(field) ? `${label} *` : label;
   const fieldLower = field.toLowerCase();
   const isDateField = fieldLower.includes('date') || fieldLower.includes('_at');
   const s = { input: { borderColor: readonly ? '#bbf7d0' : '#d1d5db', borderRadius: 6, minHeight: 44, backgroundColor: readonly ? '#f0fdf4' : undefined } };
   
-  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Select aria-label={label} data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
-  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Textarea aria-label={label} value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
-  if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <NumberInput aria-label={label} value={val === '' ? undefined : val} onChange={v => upd(v)} styles={s} /></Box>;
-  if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
+  if (isDateField) return <DatePickerInput label={displayLabel} value={val} onChange={upd} styles={s} />;
   
-  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <TextInput aria-label={label} value={val} onChange={e => upd(e.target.value)} readOnly={readonly} styles={s} /></Box>;
 }
 
@@ -143,6 +157,7 @@ function BoolBadge({ v, yes = 'Yes', no = 'No' }) {
 
 // ════════════════════════════════════════════════════════
 export default function SIADroneLayout() {
+  const { names: disciplineNames } = useDisciplines();
   const [caseId] = useState(() => localStorage.getItem('sia_case_id') || '');
   const [loadedSiteId, setLoaded] = useState('');
   const [sites, setSites] = useState([]);
@@ -207,8 +222,6 @@ export default function SIADroneLayout() {
 
   const openModal = (key, defaults = {}) => {
     const codePrefills = {
-      mission: { mission_code: autoCode('DRN') },
-      gcp: { gcp_code: autoCode('GCP') },
     };
     const enriched = {
       sia_case_id: caseId,
@@ -226,6 +239,14 @@ export default function SIADroneLayout() {
   const save = async (path, body, reload) => {
     if (!loadedSiteId || !sites.some(site => site.id === loadedSiteId)) {
       notifications.show({ title: 'Site required', message: 'Select a site before saving.', color: 'red' });
+      return;
+    }
+    const missing = (REQUIRED_BY_PATH[path] || []).filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
       return;
     }
     if (!caseId) {
@@ -286,7 +307,7 @@ export default function SIADroneLayout() {
         </Group>
         <Select label="Select site" placeholder={sitesLoading ? 'Loading sites...' : 'Select a site to continue'}
           mt="sm" searchable allowDeselect={false} value={loadedSiteId || null}
-          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') || site.id }))}
+          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') }))}
           disabled={sitesLoading || saving || !sites.length} error={sitesError || undefined}
           onChange={value => selectSite(value || '')} />
         {!caseId && <Text size="xs" c="dimmed" mt={6}>Select an SIA case in Start and Case Control first.</Text>}
@@ -333,7 +354,7 @@ export default function SIADroneLayout() {
                   style={{ cursor: 'pointer', backgroundColor: mission?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (mission?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (mission?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={mission?.id === r.id}>{r.mission_code || r.id}</Button></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={mission?.id === r.id}>{r.mission_code || 'Reference'}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.mission_purpose || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.target_discipline || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.planned_date || '—')}</Text></Table.Td>
@@ -479,9 +500,9 @@ export default function SIADroneLayout() {
       <FormModal opened={modal === 'mission'} onClose={closeModal} title="New Drone Mission" saving={saving}
         onSubmit={() => save('/sia/drone-missions', fv, rMiss)}>
         {!fv.survey_visit_id && <Text size="xs" c="orange" mb="xs">⚠ No survey visit found. Create one in Sites and Survey first.</Text>}
-        <FR><FI label="Mission Code *" field="mission_code" fv={fv} setFv={setFv} /><FI label="Mission Status" field="mission_status" fv={fv} setFv={setFv} select={MISSION_STATUS} /></FR>
+        <FR><FI label="Mission Status" field="mission_status" fv={fv} setFv={setFv} select={MISSION_STATUS} /></FR>
         <FI label="Mission Purpose" field="mission_purpose" fv={fv} setFv={setFv} />
-        <FI label="Target Discipline" field="target_discipline" fv={fv} setFv={setFv} />
+        <FI label="Target Discipline" field="target_discipline" fv={fv} setFv={setFv} select={disciplineNames} />
         <FR><FI label="Planned Date" field="planned_date" fv={fv} setFv={setFv} /><FI label="Actual Date" field="actual_date" fv={fv} setFv={setFv} /></FR>
         <FI label="Remarks" field="remarks" fv={fv} setFv={setFv} textarea />
       </FormModal>
@@ -518,7 +539,7 @@ export default function SIADroneLayout() {
 
       <FormModal opened={modal === 'gcp'} onClose={closeModal} title="Add Ground Control Point" saving={saving}
         onSubmit={() => save('/sia/ground-control-points', { drone_mission_id: mid, ...fv }, rGcp)}>
-        <FR><FI label="GCP Code" field="gcp_code" fv={fv} setFv={setFv} /><FI label="Point Type" field="point_type" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Point Type" field="point_type" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Latitude" field="latitude" fv={fv} setFv={setFv} number /><FI label="Longitude" field="longitude" fv={fv} setFv={setFv} number /></FR>
         <FR><FI label="Elevation (m)" field="elevation" fv={fv} setFv={setFv} number /><FI label="Accuracy (m)" field="accuracy" fv={fv} setFv={setFv} number /></FR>
         <FR><FI label="Survey Method" field="survey_method" fv={fv} setFv={setFv} /><FI label="Status" field="status" fv={fv} setFv={setFv} select={['ACTIVE', 'DAMAGED', 'LOST']} /></FR>
@@ -576,3 +597,5 @@ export default function SIADroneLayout() {
     </Box>
   );
 }
+
+

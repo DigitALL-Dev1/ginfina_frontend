@@ -12,9 +12,9 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
-import { autoCode } from '../utils/autoCode';
 import SIACaseReport from '../components/common/SIACaseReport';
 import styles from './SIAStartCaseControlLayout.module.css';
+import useDisciplines from '../hooks/useDisciplines';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -46,6 +46,7 @@ function statusBadge(status) {
 
 export default function SIAStartCaseControlLayout() {
   const navigate = useNavigate();
+  const { names: disciplineNames } = useDisciplines();
 
   // ── Stepper: 0=Select Project, 1=Create Case, 2=Assign Team, 3=Assessment Packs, 4=Done
   const [active, setActive] = useState(0);
@@ -75,7 +76,7 @@ export default function SIAStartCaseControlLayout() {
 
   // ── Step 1: SIA Case form ────────────────────────────────
   const [caseForm, setCaseForm] = useState({
-    case_code: autoCode('SIA'), assessment_purpose: '', assessment_stage: '', opportunity_id: '',
+    assessment_purpose: '', assessment_stage: '', opportunity_id: '',
   });
   const [caseSubmitting, setCaseSubmitting] = useState(false);
   const [createdCase, setCreatedCase] = useState(null);
@@ -171,7 +172,7 @@ export default function SIAStartCaseControlLayout() {
     setAssignedTeam([]);
     setSelectedPacks([]);
     setLinkedPacks([]);
-    setCaseForm({ case_code: autoCode('SIA'), assessment_purpose: '', assessment_stage: '', opportunity_id: '' });
+    setCaseForm({ assessment_purpose: '', assessment_stage: '', opportunity_id: '' });
     // Clear stored case context
     localStorage.removeItem('sia_case_id');
     localStorage.removeItem('sia_project_id');
@@ -179,8 +180,13 @@ export default function SIAStartCaseControlLayout() {
 
   // ── Step 1 submit ────────────────────────────────────────
   const handleCreateCase = async () => {
-    if (!caseForm.case_code.trim()) {
-      notifications.show({ title: 'Validation', message: 'Case code is required.', color: 'orange' });
+    const missing = [];
+    if (!selectedProject?.id) missing.push('project');
+    if (!caseForm.assessment_stage.trim()) missing.push('assessment stage');
+    if (!caseForm.opportunity_id.trim()) missing.push('CRM opportunity');
+    if (!caseForm.assessment_purpose.trim()) missing.push('assessment purpose');
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.`, color: 'orange' });
       return;
     }
     setCaseSubmitting(true);
@@ -191,7 +197,6 @@ export default function SIAStartCaseControlLayout() {
         body: JSON.stringify({
           project_id: selectedProject.id,
           owner_user_id: localStorage.getItem('user_id') || null,
-          case_code: caseForm.case_code,
           assessment_purpose: caseForm.assessment_purpose || null,
           assessment_stage: caseForm.assessment_stage || null,
           crm_reference_id: 'CRM-DUMMY-001',
@@ -220,8 +225,8 @@ export default function SIAStartCaseControlLayout() {
   };
 
   const handleAssignTeam = async () => {
-    if (!teamForm.consultant_id) {
-      notifications.show({ title: 'Validation', message: 'Please select a consultant', color: 'orange' });
+    if (!teamForm.consultant_id || !teamForm.team_role || !teamForm.discipline.trim()) {
+      notifications.show({ title: 'Required fields missing', message: 'Select a consultant, team role, and discipline.', color: 'orange' });
       return;
     }
     setSavingTeam(true);
@@ -424,16 +429,10 @@ export default function SIAStartCaseControlLayout() {
           <Stack gap="md">
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <Box>
-                <Text size="xs" fw={600} c="#374151" mb={4}>Case Code <Text span c="red">*</Text></Text>
-                <TextInput aria-label="Case Code" placeholder="e.g. SIA-2026-001"
-                  value={caseForm.case_code} onChange={(e) => updateCase('case_code', e.target.value)}
-                  styles={{ input: { borderColor: '#d1d5db', borderRadius: 6, height: 38 } }} />
-              </Box>
-              <Box>
                 <Text size="xs" fw={600} c="#374151" mb={4}>Assessment Stage</Text>
-                <Select aria-label="Assessment Stage" placeholder="Select stage" data={ASSESSMENT_STAGES}
+                <Select aria-label="Assessment Stage" label="Assessment Stage *" placeholder="Select stage" data={ASSESSMENT_STAGES}
                   value={caseForm.assessment_stage} onChange={(val) => updateCase('assessment_stage', val || '')}
-                  clearable styles={{ input: { borderColor: '#d1d5db', borderRadius: 6, height: 38 } }} />
+                  required styles={{ input: { borderColor: '#d1d5db', borderRadius: 6, height: 38 } }} />
               </Box>
             </SimpleGrid>
 
@@ -441,6 +440,7 @@ export default function SIAStartCaseControlLayout() {
               <Text size="xs" fw={600} c="#374151" mb={4}>CRM Opportunity</Text>
               <Select
                 aria-label="CRM Opportunity"
+                label="CRM Opportunity *"
                 placeholder={crmLoading ? 'Loading…' : 'Select CRM opportunity'}
                 disabled={crmLoading}
                 data={crmRecords.map((c) => ({
@@ -449,16 +449,16 @@ export default function SIAStartCaseControlLayout() {
                 }))}
                 value={caseForm.opportunity_id}
                 onChange={(val) => updateCase('opportunity_id', val || '')}
-                clearable searchable
+                clearable searchable required
                 styles={{ input: { borderColor: '#d1d5db', borderRadius: 6, height: 38 } }}
               />
             </Box>
 
             <Box>
-              <Text size="xs" fw={600} c="#374151" mb={4}>Assessment Purpose</Text>
+              <Text size="xs" fw={600} c="#374151" mb={4}>Assessment Purpose *</Text>
               <Textarea aria-label="Assessment Purpose" placeholder="Describe the purpose of this assessment…"
                 value={caseForm.assessment_purpose} onChange={(e) => updateCase('assessment_purpose', e.target.value)}
-                autosize minRows={3} styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }} />
+                required autosize minRows={3} styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }} />
             </Box>
           </Stack>
 
@@ -466,7 +466,7 @@ export default function SIAStartCaseControlLayout() {
             <Button variant="default" leftSection={<IconArrowLeft size={15} />} onClick={() => setActive(0)}>Back</Button>
             <Button color="green"
               rightSection={caseSubmitting ? <Loader size={14} color="white" /> : <IconArrowRight size={15} />}
-              loading={caseSubmitting} disabled={!caseForm.case_code.trim()}
+              loading={caseSubmitting}
               onClick={handleCreateCase} style={{ backgroundColor: '#007336' }}>
               Create Case & Continue
             </Button>
@@ -628,15 +628,18 @@ export default function SIAStartCaseControlLayout() {
             ]}
             value={teamForm.team_role}
             onChange={(val) => setTeamForm((prev) => ({ ...prev, team_role: val || '' }))}
-            clearable
+            required
             styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }}
           />
 
-          <TextInput
+          <Select
             label="Discipline"
-            placeholder="e.g. Civil Engineering, Electrical"
+            placeholder="Select discipline"
+            data={disciplineNames}
             value={teamForm.discipline}
-            onChange={(e) => setTeamForm((prev) => ({ ...prev, discipline: e.target.value }))}
+            onChange={(val) => setTeamForm((prev) => ({ ...prev, discipline: val || '' }))}
+            searchable
+            required
             styles={{ input: { borderColor: '#d1d5db', borderRadius: 6 } }}
           />
 
@@ -656,7 +659,7 @@ export default function SIAStartCaseControlLayout() {
             <Button
               color="green"
               loading={savingTeam}
-              disabled={consultantsLoading || Boolean(consultantsError) || !teamForm.consultant_id}
+              disabled={consultantsLoading || Boolean(consultantsError) || !teamForm.consultant_id || !teamForm.team_role || !teamForm.discipline.trim()}
               onClick={handleAssignTeam}
               style={{ backgroundColor: '#007336' }}
             >
@@ -774,7 +777,19 @@ export default function SIAStartCaseControlLayout() {
               <Text span fw={700} c="#007336">{linkedPacks.length}</Text> pack{linkedPacks.length !== 1 ? 's' : ''} linked.
             </Text>
 
-            <SIACaseReport project={selectedProject} siaCase={createdCase} links={linkedPacks} packs={packs} />
+            <SIACaseReport
+              project={selectedProject}
+              siaCase={createdCase}
+              links={linkedPacks}
+              packs={packs}
+              team={assignedTeam}
+              onEdit={(section) => {
+                if (section === 'Project details') setActive(0);
+                else if (section === 'Assigned survey team') setActive(2);
+                else if (section === 'Linked assessment packs') setActive(3);
+                else setActive(1);
+              }}
+            />
 
             <Group className={styles.actions} gap="sm" mt="sm">
               <Button variant="default" onClick={resetAll}>Create Another Case</Button>

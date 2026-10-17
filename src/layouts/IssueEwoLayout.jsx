@@ -146,7 +146,7 @@ function StepContext({ form, onChange, ewpList = [], onSelectEwp, loadingEwps })
   const ewpOptions = ewpList.length > 0
     ? ewpList.map((e) => ({
         value: e.id,
-        label: `${e.ewp_code || e.id} - ${e.ewp_title} (${e.status})`,
+        label: `${e.ewp_code || e.name || 'Unnamed EWP'} - ${e.ewp_title} (${e.status})`,
       }))
     : [
         { value: 'ewp-sample-001', label: 'UNI-BOR-ELE-001 - Boregaina Solar PV Layout & Single Line (Ready)' },
@@ -363,8 +363,8 @@ export default function IssueEwoLayout() {
     setForm((prev) => ({
       ...prev,
       ewpId: ewp.id,
-      ewpRef: ewp.ewp_code || ewp.id,
-      ewpCode: ewp.ewp_code || ewp.id,
+      ewpRef: ewp.ewp_code || ewp.name || 'Selected EWP',
+      ewpCode: ewp.ewp_code || ewp.name || 'Selected EWP',
       project: ewp.project_name || ewp.project_id || 'UNICEF PNG Solar Systems',
       discipline: ewp.discipline || prev.discipline,
       designStage: ewp.design_stage || prev.designStage,
@@ -474,7 +474,7 @@ export default function IssueEwoLayout() {
         if (showToast) {
           notifications.show({
             title: 'EWO Draft Created',
-            message: `EWO draft saved with ID: ${json.data.id} (${json.data.status || 'Draft'})`,
+            message: `EWO draft saved${json.data.ewo_code ? ` (${json.data.ewo_code})` : ''} (${json.data.status || 'Draft'})`,
             color: 'green',
           });
         }
@@ -656,3 +656,5 @@ export default function IssueEwoLayout() {
     </Box>
   );
 }
+
+

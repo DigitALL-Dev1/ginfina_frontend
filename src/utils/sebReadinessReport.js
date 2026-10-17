@@ -1,4 +1,5 @@
 import { recordFields } from './siaCompletionReport';
+import { displayRecord } from './siaRecordDisplay';
 
 export const READINESS_STATUSES = ['READY', 'CONDITIONAL', 'BLOCKED', 'NOT_APPLICABLE'];
 export const readinessStatus = item => typeof item.discipline_readiness === 'string' ? item.discipline_readiness : item.discipline_readiness?.status;
@@ -16,8 +17,8 @@ export function buildSebReadinessReport({ baseline, revision, items }) {
       { label: 'Report generated at (UTC)', value: new Date().toISOString() },
       ...counts.map(count => ({ label: count.label, value: String(count.value) })),
     ] },
-    { title: 'SEB details', fields: recordFields(baseline) },
-    { title: 'Revision details', fields: recordFields(revision) },
+    { title: 'SEB details', fields: recordFields(displayRecord(baseline)) },
+    { title: 'Revision details', fields: recordFields(displayRecord(revision)) },
   ];
   const groups = new Map();
   for (const item of items) {
@@ -27,16 +28,17 @@ export function buildSebReadinessReport({ baseline, revision, items }) {
   }
   if (!items.length) sections.push({ title: 'Assessed items', fields: [{ label: 'Items', value: 'No reviewed SEB items returned for this revision.' }] });
   for (const [discipline, records] of groups) {
-    sections.push({ title: `${discipline} — item readiness`, fields: records.map(item => ({ label: item.fact_name || item.fact_id || item.id, value: readinessStatus(item) || 'NOT_ASSESSED' })) });
+    sections.push({ title: `${discipline} — item readiness`, fields: records.map(item => ({ label: item.fact_name || 'Source fact', value: readinessStatus(item) || 'NOT_ASSESSED' })) });
     for (const item of records) {
       const { fact_data, discipline_readiness, ...details } = item;
-      sections.push({ title: `Item: ${item.fact_name || item.fact_id || item.id}`, fields: recordFields(details) });
+      sections.push({ title: `Item: ${item.fact_name || 'Source fact'}`, fields: recordFields(displayRecord(details)) });
       sections.push({ title: 'Readiness, conditions and blockers', fields: discipline_readiness && typeof discipline_readiness === 'object'
         ? recordFields(discipline_readiness)
         : [{ label: 'Readiness', value: discipline_readiness || 'NOT_ASSESSED' }, { label: 'Condition / blocker details', value: 'No structured details returned for this item.' }] });
       sections.push({ title: 'Source fact / evidence references', fields: fact_data && typeof fact_data === 'object' && !Array.isArray(fact_data) && Object.keys(fact_data).length
-        ? recordFields(fact_data) : [{ label: 'Source data', value: 'Fact details unavailable. Refer to the fact ID and collection above.' }] });
+        ? recordFields(displayRecord(fact_data)) : [{ label: 'Source data', value: 'Fact details unavailable.' }] });
     }
   }
-  return { code: `${baseline.seb_code || baseline.id}-${revision.revision_no || revision.id}`, counts, sections };
+  return { code: `${baseline.seb_code || 'SEB'}-${revision.revision_no || 'Revision'}`, counts, sections };
 }
+

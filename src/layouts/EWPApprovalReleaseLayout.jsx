@@ -120,6 +120,19 @@ export default function EWPApprovalReleaseLayout() {
   const busy = saving || loading || loadingDocuments || loadingPackage;
 
   const act = async (path, method, body, title) => {
+    const missing = [
+      !revisionId && 'Reviewed revision',
+      path === 'approver' && !body.approver_id && 'Engineering approver',
+      path === 'approval' && !body.decision && 'Decision',
+      path === 'approval' && !body.comment?.trim() && 'Approval comment',
+      path === 'approval' && body.decision === 'APPROVE_WITH_CONDITION' && !body.condition?.trim() && 'Approval condition',
+      path === 'approval' && !body.package_reviewed && 'Review confirmation',
+      path === 'release' && !body.comment?.trim() && 'Release comment',
+    ].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ color: 'orange', title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.` });
+      return;
+    }
     setSaving(true); setError('');
     try {
       const data = await request(`/revisions/${encodeURIComponent(revisionId)}/${path}`, { method, body: JSON.stringify(body) });
@@ -153,9 +166,9 @@ export default function EWPApprovalReleaseLayout() {
     <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}>
       <Group justify="space-between" mb="md"><Box><Text fw={750}>Select reviewed output</Text><Text size="xs" c="dimmed">Review-completed revisions, approval decisions, and existing releases.</Text></Box><Button variant="subtle" color="green" leftSection={<IconRefresh size={15} />} disabled={busy} onClick={() => setRefresh(value => value + 1)}>Refresh</Button></Group>
       <SimpleGrid cols={{ base: 1, sm: 3 }}>
-        <Select classNames={{ dropdown: styles.dropdown }} label="EWP" placeholder="Select EWP" searchable clearable disabled={busy} data={ewps.map(row => ({ value: row.id, label: `${row.code} · ${row.name}` }))} value={ewpId} onChange={value => { setEwpId(value); setDocumentId(null); setRevisionId(null); setDocuments([]); setContext(null); setError(''); }} />
-        <Select classNames={{ dropdown: styles.dropdown }} label="Document" placeholder="Select reviewed document" searchable clearable disabled={!ewpId || busy} data={documents.map(row => ({ value: row.id, label: `${row.code} · ${row.title}` }))} value={documentId} onChange={value => { setDocumentId(value); setRevisionId(null); setContext(null); setError(''); }} />
-        <Select classNames={{ dropdown: styles.dropdown }} label="Reviewed revision" placeholder="Select exact revision" disabled={!documentId || busy} data={(selectedDocument?.revisions || []).map(row => ({ value: row.id, label: `${row.revision_no} · ${row.status.replaceAll('_', ' ')}` }))} value={revisionId} onChange={setRevisionId} />
+        <Select classNames={{ dropdown: styles.dropdown }} required label="EWP" placeholder="Select EWP" searchable clearable disabled={busy} data={ewps.map(row => ({ value: row.id, label: `${row.code} · ${row.name}` }))} value={ewpId} onChange={value => { setEwpId(value); setDocumentId(null); setRevisionId(null); setDocuments([]); setContext(null); setError(''); }} />
+        <Select classNames={{ dropdown: styles.dropdown }} required label="Document" placeholder="Select reviewed document" searchable clearable disabled={!ewpId || busy} data={documents.map(row => ({ value: row.id, label: `${row.code} · ${row.title}` }))} value={documentId} onChange={value => { setDocumentId(value); setRevisionId(null); setContext(null); setError(''); }} />
+        <Select classNames={{ dropdown: styles.dropdown }} required label="Reviewed revision" placeholder="Select exact revision" disabled={!documentId || busy} data={(selectedDocument?.revisions || []).map(row => ({ value: row.id, label: `${row.revision_no} · ${row.status.replaceAll('_', ' ')}` }))} value={revisionId} onChange={setRevisionId} />
       </SimpleGrid>
       {(loading || loadingDocuments || loadingPackage) && <Group mt="md"><Loader size="xs" color="green" /><Text size="sm" c="dimmed">Loading saved engineering records…</Text></Group>}
       {ewpId && !loadingDocuments && !documents.length && <Alert color="blue" mt="md">No reviewed document revisions are available for this EWP. Complete technical review in Documents & Reviews first.</Alert>}
@@ -188,13 +201,13 @@ export default function EWPApprovalReleaseLayout() {
           </Stack></Tabs.Panel>
           <Tabs.Panel value="inputs" pt="md"><Stack>
             <Text size="sm" c="dimmed">Inputs remain linked to the frozen SEB release used by this EWP.</Text>
-            <Accordion variant="separated">{pkg.inputs.map(row => <Accordion.Item value={row.link_id} key={row.link_id}><Accordion.Control><Text size="sm" fw={600}>{row.item.display_value || row.item.item_name || row.release_item_id}</Text><Text size="xs" c="dimmed">{row.item.discipline || 'Discipline not recorded'}</Text></Accordion.Control><Accordion.Panel><ReadinessDetails item={row.item} /><Text size="xs" c="dimmed" mt="sm">Released item: {row.release_item_id}</Text><Text size="xs" c="dimmed">Source fact: {row.item.fact_id || row.item.source_reference?.fact_id || 'Not recorded'}</Text></Accordion.Panel></Accordion.Item>)}</Accordion>
+            <Accordion variant="separated">{pkg.inputs.map(row => <Accordion.Item value={row.link_id} key={row.link_id}><Accordion.Control><Text size="sm" fw={600}>{row.item.display_value || row.item.item_name || row.release_item_id}</Text><Text size="xs" c="dimmed">{row.item.discipline || 'Discipline not recorded'}</Text></Accordion.Control><Accordion.Panel><ReadinessDetails item={row.item} /><Text size="xs" c="dimmed" mt="sm">Released item: {row.item.item_code || row.item.fact_id || 'Selected release item'}</Text><Text size="xs" c="dimmed">Source fact: {row.item.fact_id || row.item.source_reference?.fact_id || 'Not recorded'}</Text></Accordion.Panel></Accordion.Item>)}</Accordion>
             {!pkg.inputs.length && <Text size="sm" c="dimmed">No SEB inputs recorded.</Text>}
             {pkg.input_confirmations.map(row => <Field key={row.id} label="Engineering inputs confirmed by" value={`${row.confirmed_by || 'Not recorded'} · ${formatDisplayValue(row.confirmed_at || '')}`} />)}
             {approval?.condition && <Alert color="orange" title="Approval condition">{approval.condition}</Alert>}
           </Stack></Tabs.Panel>
           <Tabs.Panel value="traceability" pt="md"><Stack>
-            <Field label="Document revision ID" value={pkg.revision.id} /><Field label="Frozen SEB snapshot" value={pkg.seb_basis.freeze_snapshot_id} />
+            <Field label="Document revision" value={pkg.revision.revision_no} /><Field label="Frozen SEB release" value={pkg.seb_basis.released_revision?.revision_no || 'Frozen release'} />
             <Field label="Document SHA-256" value={pkg.file.sha256} /><Field label="Approved package SHA-256" value={approval?.package_hash} />
             {release && <><Field label="Release record" value={release.release_code} /><Field label="Release SHA-256" value={release.release_hash} /><Field label="Released by" value={release.released_by} /><Field label="Released at" value={release.released_at} /></>}
           </Stack></Tabs.Panel>
@@ -206,10 +219,10 @@ export default function EWPApprovalReleaseLayout() {
         <Group className={styles.actions} align="flex-end"><Select classNames={{ dropdown: styles.dropdown }} style={{ flex: 1 }} label="Engineering approver" searchable required placeholder="Select user" disabled={saving} value={approverId} data={people.users.map(row => ({ value: row.id, label: row.name }))} onChange={setApproverId} /><Button variant="light" color="green" loading={saving} disabled={!approverId || approverId === approval?.approver_id} onClick={() => act('approver', 'PUT', { approver_id: approverId }, 'Approver assigned')}>Assign approver</Button></Group>
         {approval?.approver && <Text size="sm">Assigned to: <strong>{approval.approver}</strong></Text>}
         {!reviewValid && <Alert color="orange">Approval requires the reviewed file, accepted reviewer decisions, and no open comments.</Alert>}
-        <Grid><Grid.Col span={{ base: 12, md: 4 }}><Select classNames={{ dropdown: styles.dropdown }} label="Decision" required data={DECISIONS.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={decision} disabled={saving || !hasAssignedApprover} onChange={value => setDecision(value || 'APPROVE')} /></Grid.Col><Grid.Col span={{ base: 12, md: 8 }}><Textarea label="Comment" required={decision !== 'APPROVE'} minRows={3} value={comment} disabled={saving || !hasAssignedApprover} onChange={event => setComment(event.currentTarget.value)} /></Grid.Col></Grid>
+        <Grid><Grid.Col span={{ base: 12, md: 4 }}><Select classNames={{ dropdown: styles.dropdown }} label="Decision" required data={DECISIONS.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={decision} disabled={saving || !hasAssignedApprover} onChange={value => setDecision(value || '')} /></Grid.Col><Grid.Col span={{ base: 12, md: 8 }}><Textarea label="Comment" required minRows={3} value={comment} disabled={saving || !hasAssignedApprover} onChange={event => setComment(event.currentTarget.value)} /></Grid.Col></Grid>
         {decision === 'APPROVE_WITH_CONDITION' && <Textarea label="Approval condition" required minRows={3} value={condition} disabled={saving || !hasAssignedApprover} onChange={event => setCondition(event.currentTarget.value)} />}
         <Checkbox label={`I have reviewed ${pkg.document.code} / ${pkg.revision.revision_no}, its inputs, reviewer decisions, and comment closure.`} checked={reviewed} disabled={saving || !hasAssignedApprover} onChange={event => setReviewed(event.currentTarget.checked)} />
-        <Group className={styles.actions} justify="flex-end"><Button color="green" leftSection={<IconShieldCheck size={16} />} loading={saving} disabled={!hasAssignedApprover || approverId !== approval?.approver_id || !reviewed || !reviewValid || (decision !== 'APPROVE' && !comment.trim()) || (decision === 'APPROVE_WITH_CONDITION' && !condition.trim())} onClick={() => act('approval', 'POST', { decision, comment, condition, package_reviewed: reviewed, package_hash: context.package_hash }, 'Approval decision saved')}>Submit approval</Button></Group>
+        <Group className={styles.actions} justify="flex-end"><Button color="green" leftSection={<IconShieldCheck size={16} />} loading={saving} disabled={!hasAssignedApprover || approverId !== approval?.approver_id || !reviewed || !reviewValid || !decision || !comment.trim() || (decision === 'APPROVE_WITH_CONDITION' && !condition.trim())} onClick={() => act('approval', 'POST', { decision, comment, condition, package_reviewed: reviewed, package_hash: context.package_hash }, 'Approval decision saved')}>Submit approval</Button></Group>
       </Stack></Paper>}
 
       {approval?.decision && <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}><Stack>
@@ -229,9 +242,11 @@ export default function EWPApprovalReleaseLayout() {
     <Modal fullScreen={isMobile} classNames={{ content: styles.modal }} opened={releaseModal} onClose={() => { if (!saving) setReleaseModal(false); }} title={`Release ${pkg?.document.code || ''} / ${pkg?.revision.revision_no || ''}`} centered size="lg">
       <Stack><Alert color="orange" icon={<IconLock size={18} />}>This exact revision, file hash, review results, SEB inputs, conditions, and approval will be frozen. Subsequent changes require another revision.</Alert>
         <Field label="Release user" value="Prototype pilot" />
-        <Textarea label="Release comment" minRows={3} value={releaseComment} disabled={saving} onChange={event => setReleaseComment(event.currentTarget.value)} />
-        <Group className={styles.actions} justify="flex-end"><Button variant="default" disabled={saving} onClick={() => setReleaseModal(false)}>Cancel</Button><Button color="green" loading={saving} disabled={!canRelease} onClick={() => act('release', 'POST', { comment: releaseComment }, 'Document revision released')}>Confirm release</Button></Group>
+        <Textarea label="Release comment" required minRows={3} value={releaseComment} disabled={saving} onChange={event => setReleaseComment(event.currentTarget.value)} />
+        <Group className={styles.actions} justify="flex-end"><Button variant="default" disabled={saving} onClick={() => setReleaseModal(false)}>Cancel</Button><Button color="green" loading={saving} disabled={!canRelease || !releaseComment.trim()} onClick={() => act('release', 'POST', { comment: releaseComment }, 'Document revision released')}>Confirm release</Button></Group>
       </Stack>
     </Modal>
   </Box>;
 }
+
+

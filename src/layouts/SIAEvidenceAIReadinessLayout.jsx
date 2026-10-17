@@ -10,7 +10,7 @@ import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconFile, IconRobot, IconAlertTriangle,
   IconDatabase, IconShieldCheck, IconBulb, IconClipboardCheck,
-  IconX, IconCheck, IconBolt, IconLock, IconFileText, IconArrowRight,
+  IconX, IconCheck, IconBolt, IconLock, IconFileText, IconArrowRight, IconEdit,
 } from '@tabler/icons-react';
 import SIAStepFlow from '../components/common/SIAStepFlow';
 import SIAEvidenceAIReadinessReport from '../components/common/SIAEvidenceAIReadinessReport';
@@ -26,6 +26,23 @@ const STATUS_OPTS = ['Open', 'In Progress', 'Closed', 'Not Applicable'];
 const DISPOSITIONS = ['ACCEPTED', 'REJECTED', 'MODIFIED', 'ESCALATED'];
 const READINESS_ST = ['NOT_ASSESSED', 'READY', 'CONDITIONAL', 'BLOCKED', 'NOT_APPLICABLE'];
 const RECORD_TYPES = ['CONSTRAINT', 'ASSUMPTION'];
+const REQUIRED_BY_PATH = {
+  '/sia/evidence': ['evidence_type', 'source_type', 'reliability_status', 'file_name', 'captured_at', 'file_path', 'evidence_status'],
+  '/sia/evidence-verifications': ['verification_status', 'verification_comment'],
+  '/sia/source-facts': ['fact_name', 'fact_value', 'source_type', 'reliability_status', 'fact_status'],
+  '/sia/ai-observations': ['task_type', 'model_name', 'model_version', 'input_reference', 'output_value', 'confidence_score', 'reliability_status'],
+  '/sia/ai-dispositions': ['disposition', 'reviewer_comment'],
+  '/sia/conflicts': ['discipline', 'conflict_type', 'priority', 'source_a', 'value_a', 'source_b', 'value_b', 'description', 'status'],
+  '/sia/conflict-resolutions': ['accepted_value', 'resolution_reason', 'resolution_status'],
+  '/sia/data-gaps': ['discipline', 'priority', 'target_date', 'gap_description', 'impact', 'status'],
+  '/sia/rfi-actions': ['action_type', 'subject', 'description', 'target_date', 'status', 'response'],
+  '/sia/constraints-assumptions': ['record_type', 'discipline', 'reliability_status', 'status', 'description', 'impact'],
+  '/sia/discipline-readiness': ['discipline', 'readiness_status', 'summary'],
+  '/sia/readiness-conditions': ['condition_description', 'required_action', 'target_date', 'status'],
+  '/sia/readiness-blockers': ['blocker_type', 'severity', 'status', 'blocker_description'],
+  '/sia/readiness-reviews': ['review_decision', 'review_comment'],
+};
+const MANDATORY_FIELDS = new Set(Object.values(REQUIRED_BY_PATH).flat());
 
 // ── hooks & helpers ─────────────────────────────────────
 function useApi(url, deps = [], siteId = null) {
@@ -52,6 +69,13 @@ async function postApi(path, body) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(cleaned),
   });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+  return res.json();
+}
+
+async function patchApi(path, body) {
+  const cleaned = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, v === '' ? null : v]));
+  const res = await fetch(`${API}${path}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cleaned) });
   if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
   return res.json();
 }
@@ -94,6 +118,9 @@ function TabHeader({ title, onAdd, addLabel, disabled = false }) {
       onClick={onAdd} style={{ backgroundColor: disabled ? undefined : '#007336' }}>{addLabel}</Button>
   </Group>;
 }
+function EditButton({ onClick }) {
+  return <Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={13} />} onClick={event => { event.stopPropagation(); onClick(); }}>Edit</Button>;
+}
 function FormModal({ opened, onClose, title, saving, onSubmit, children }) {
   return <Modal classNames={{ content: styles.modal }} opened={opened} onClose={onClose} title={<Text fw={700} size="sm">{title}</Text>} size="lg">
     <Stack gap="sm">{children}
@@ -108,6 +135,7 @@ function FR({ children }) { return <Box className={styles.formRow}>{children}</B
 function FI({ label, field, fv, setFv, textarea, select }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
+  const displayLabel = MANDATORY_FIELDS.has(field) ? `${label.replace(/\s*\*$/, '')} *` : label;
   
   // Auto-detect Type, Role, and Date fields
   const fieldLower = field.toLowerCase();
@@ -127,20 +155,20 @@ function FI({ label, field, fv, setFv, textarea, select }) {
   const autoOpts = getTypeRoleOptions(field);
   
   const s = { input: { borderColor: '#d1d5db', borderRadius: 6, minHeight: 44 } };
-  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Select aria-label={label} data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
-  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Textarea aria-label={label} value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
   
-  if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
+  if (isDateField) return <DatePickerInput label={displayLabel} value={val} onChange={upd} styles={s} />;
   
   // Convert Type and Role fields to dropdowns
   if (isTypeOrRoleField && autoOpts.length > 0) {
-    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
       <Select aria-label={label} data={autoOpts} value={val || null} onChange={v => upd(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
   }
   
-  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <TextInput aria-label={label} value={val} onChange={e => upd(e.target.value)} styles={s} /></Box>;
 }
 function SBadge({ v }) {
@@ -248,11 +276,6 @@ export default function SIAEvidenceAIReadinessLayout() {
 
   const openModal = (key, defaults = {}) => {
     const codePrefills = {
-      evidence:   { evidence_code: autoCode('EVD') },
-      aiobs:      { observation_code: autoCode('OBS') },
-      conflict:   { conflict_code: autoCode('CON') },
-      datagap:    { gap_code: autoCode('DG') },
-      rfi:        { action_code: autoCode('RFI') },
     };
     setFv({ ...(codePrefills[key] || {}), ...defaults });
     setModal(key);
@@ -264,6 +287,14 @@ export default function SIAEvidenceAIReadinessLayout() {
       notifications.show({ title: 'Site required', message: 'Select a site for the active SIA case before saving.', color: 'red' });
       return;
     }
+    const missing = (REQUIRED_BY_PATH[path] || []).filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
     setSaving(true);
     try {
       await postApi(path, { ...body, sia_case_id: loadedCaseId, site_id: siteId });
@@ -272,6 +303,40 @@ export default function SIAEvidenceAIReadinessLayout() {
     } catch (e) {
       notifications.show({ title: 'Error', message: e.message, color: 'red' });
     } finally { setSaving(false); }
+  };
+
+  const EDIT_RESOURCE = {
+    evidence: ['/sia/evidence', rEv], 'ev-verif': ['/sia/evidence-verifications', rVf], sourcefacts: ['/sia/source-facts', rSf],
+    aiobs: ['/sia/ai-observations', rAo], aidisp: ['/sia/ai-dispositions', rAd], conflicts: ['/sia/conflicts', rCf],
+    'cf-resol': ['/sia/conflict-resolutions', rCr], datagaps: ['/sia/data-gaps', rDg], rfi: ['/sia/rfi-actions', rRfi],
+    constraints: ['/sia/constraints-assumptions', rCn], readiness: ['/sia/discipline-readiness', rRl], 'r-conds': ['/sia/readiness-conditions', rRc],
+    'r-blockers': ['/sia/readiness-blockers', rRb], 'r-reviews': ['/sia/readiness-reviews', rRr],
+  };
+  const openEdit = (type, record) => {
+    const ignored = new Set(['id', 'created_at', 'updated_at', 'evidence_code', 'observation_code', 'conflict_code', 'gap_code', 'action_code', 'sia_case_id', 'site_id', 'evidence_id', 'ai_observation_id', 'conflict_id', 'data_gap_id', 'discipline_readiness_id']);
+    setFv({ ...Object.fromEntries(Object.entries(record).filter(([key]) => !ignored.has(key))), id: record.id });
+    setModal(`edit-${type}`);
+  };
+  const updateRecord = async () => {
+    const type = String(modal || '').replace(/^edit-/, '');
+    const resource = EDIT_RESOURCE[type];
+    if (!resource || !fv.id) return;
+    const missing = (REQUIRED_BY_PATH[`/sia/${type}`] || []).filter(field => {
+      const value = fv[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const body = Object.fromEntries(Object.entries(fv).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      await patchApi(`${resource[0]}/${encodeURIComponent(fv.id)}`, body);
+      notifications.show({ title: 'Record updated', message: 'The record was saved successfully.', color: 'green' });
+      resource[1](); closeModal();
+    } catch (e) { notifications.show({ title: 'Unable to update record', message: e.message, color: 'red' }); }
+    finally { setSaving(false); }
   };
 
   const selectSite = (id) => {
@@ -326,7 +391,7 @@ export default function SIAEvidenceAIReadinessLayout() {
         </Group>
         <Select label="Select site" placeholder={sitesLoading ? 'Loading sites...' : 'Select a site to continue'}
           mt="sm" searchable allowDeselect={false} value={siteId || null}
-          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') || site.id }))}
+          data={sites.map(site => ({ value: site.id, label: [site.site_code, site.site_name].filter(Boolean).join(' / ') }))}
           disabled={sitesLoading || saving || !sites.length} error={sitesError || undefined}
           onChange={value => selectSite(value || '')} />
         {loadedCaseId && !sitesLoading && !sitesError && !sites.length && <Text size="xs" c="dimmed" mt={6}>Create a site in Sites and Survey for this case to continue.</Text>}
@@ -338,8 +403,8 @@ export default function SIAEvidenceAIReadinessLayout() {
           <Group gap="xl" wrap="wrap">
             {selEvidence && <Text size="xs" c="#374151">Evidence: <Text span fw={700} c="#007336">{selEvidence.evidence_code}</Text></Text>}
             {selAIObs && <Text size="xs" c="#374151">AI Obs: <Text span fw={700} c="#007336">{selAIObs.observation_code}</Text></Text>}
-            {selConflict && <Text size="xs" c="#374151">Conflict: <Text span fw={700} c="#007336">{selConflict.conflict_code || selConflict.id}</Text></Text>}
-            {selGap && <Text size="xs" c="#374151">Gap: <Text span fw={700} c="#007336">{selGap.gap_code || selGap.id}</Text></Text>}
+            {selConflict && <Text size="xs" c="#374151">Conflict: <Text span fw={700} c="#007336">{selConflict.conflict_code || 'Selected conflict'}</Text></Text>}
+            {selGap && <Text size="xs" c="#374151">Gap: <Text span fw={700} c="#007336">{selGap.gap_code || 'Selected gap'}</Text></Text>}
             {selReadiness && <Text size="xs" c="#374151">Readiness: <Text span fw={700} c="#007336">{selReadiness.discipline}</Text></Text>}
             <Button variant="subtle" color="gray" size="xs" ml="auto"
               onClick={() => { setSelEvidence(null); setSelAIObs(null); setSelConflict(null); setSelGap(null); setSelReadiness(null); setTab('evidence'); }}>Clear</Button>
@@ -386,19 +451,19 @@ export default function SIAEvidenceAIReadinessLayout() {
           {/* EVIDENCE */}
           <Tabs.Panel value="evidence">
             <TabHeader title="Evidence" onAdd={() => openModal('evidence')} addLabel="Add Evidence" />
-            <DataTable loading={evL} cols={['Code', 'Type', 'Source', 'File', 'Captured At', 'Reliability', 'Status']}
+            <DataTable loading={evL} cols={['Code', 'Type', 'Source', 'File', 'Captured At', 'Reliability', 'Status', '']}
               rows={evidence} render={r => (
                 <Table.Tr key={r.id} onClick={() => { setSelEvidence(r); setTab('ev-verif'); }}
                   style={{ cursor: 'pointer', backgroundColor: selEvidence?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selEvidence?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selEvidence?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selEvidence?.id === r.id} onClick={event => { event.stopPropagation(); setSelEvidence(r); setTab('ev-verif'); }}>{r.evidence_code || r.id}</Button></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selEvidence?.id === r.id} onClick={event => { event.stopPropagation(); setSelEvidence(r); setTab('ev-verif'); }}>{r.evidence_code || 'Reference'}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.evidence_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.source_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.file_name || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.captured_at || '—')}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
-                  <Table.Td><SBadge v={r.evidence_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.evidence_status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('evidence', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -407,13 +472,13 @@ export default function SIAEvidenceAIReadinessLayout() {
           <Tabs.Panel value="ev-verif">
             <TabHeader title={`Verifications — ${selEvidence?.evidence_code || ''}`}
               onAdd={() => openModal('evverif')} addLabel="Add Verification" />
-            <DataTable loading={vfL} cols={['Verified By', 'Status', 'Comment', 'Verified At']}
+            <DataTable loading={vfL} cols={['Verified By', 'Status', 'Comment', 'Verified At', '']}
               rows={evVerifs} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.verified_by || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.verification_status} /></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.verification_comment || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.verified_at || '—')}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.verified_at || '—')}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('ev-verif', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -421,7 +486,7 @@ export default function SIAEvidenceAIReadinessLayout() {
           {/* SOURCE FACTS */}
           <Tabs.Panel value="sourcefacts">
             <TabHeader title="Source Facts" onAdd={() => openModal('sourcefact')} addLabel="Add Fact" />
-            <DataTable loading={sfL} cols={['Fact Name', 'Value', 'Unit', 'Source', 'Reliability', 'Status']}
+            <DataTable loading={sfL} cols={['Fact Name', 'Value', 'Unit', 'Source', 'Reliability', 'Status', '']}
               rows={sourceFacts} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" fw={600}>{r.fact_name || '—'}</Text></Table.Td>
@@ -429,7 +494,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Text size="sm" c="#6b7280">{r.unit || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.source_type || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
-                  <Table.Td><SBadge v={r.fact_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.fact_status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('sourcefacts', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -437,17 +502,17 @@ export default function SIAEvidenceAIReadinessLayout() {
           {/* AI OBSERVATIONS */}
           <Tabs.Panel value="aiobs">
             <TabHeader title="AI Observations" onAdd={() => openModal('aiobs')} addLabel="Add Observation" />
-            <DataTable loading={aoL} cols={['Code', 'Task Type', 'Model', 'Confidence', 'Reliability']}
+            <DataTable loading={aoL} cols={['Code', 'Task Type', 'Model', 'Confidence', 'Reliability', '']}
               rows={aiObs} render={r => (
                 <Table.Tr key={r.id} onClick={() => { setSelAIObs(r); setTab('aidisp'); }}
                   style={{ cursor: 'pointer', backgroundColor: selAIObs?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selAIObs?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selAIObs?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selAIObs?.id === r.id} onClick={event => { event.stopPropagation(); setSelAIObs(r); setTab('aidisp'); }}>{r.observation_code || r.id}</Button></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selAIObs?.id === r.id} onClick={event => { event.stopPropagation(); setSelAIObs(r); setTab('aidisp'); }}>{r.observation_code || 'Reference'}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.task_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.model_name || '—'} {r.model_version ? `v${r.model_version}` : ''}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.confidence_score != null ? `${(r.confidence_score * 100).toFixed(0)}%` : '—'}</Text></Table.Td>
-                  <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
+                  <Table.Td><SBadge v={r.reliability_status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('aiobs', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -456,14 +521,14 @@ export default function SIAEvidenceAIReadinessLayout() {
           <Tabs.Panel value="aidisp">
             <TabHeader title={`Dispositions — ${selAIObs?.observation_code || ''}`}
               onAdd={() => openModal('aidisp')} addLabel="Add Disposition" />
-            <DataTable loading={adL} cols={['Disposition', 'Reviewer', 'Comment', 'Modified Value', 'At']}
+            <DataTable loading={adL} cols={['Disposition', 'Reviewer', 'Comment', 'Modified Value', 'At', '']}
               rows={aiDisps} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><SBadge v={r.disposition} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.reviewer_user_id || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.reviewer_comment || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.modified_value || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.disposition_at || '—')}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.disposition_at || '—')}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('aidisp', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -471,19 +536,19 @@ export default function SIAEvidenceAIReadinessLayout() {
           {/* CONFLICTS */}
           <Tabs.Panel value="conflicts">
             <TabHeader title="Conflicts" onAdd={() => openModal('conflict')} addLabel="Add Conflict" />
-            <DataTable loading={cfL} cols={['Code', 'Discipline', 'Type', 'Source A', 'Source B', 'Priority', 'Status']}
+            <DataTable loading={cfL} cols={['Code', 'Discipline', 'Type', 'Source A', 'Source B', 'Priority', 'Status', '']}
               rows={conflicts} render={r => (
                 <Table.Tr key={r.id} onClick={() => { setSelConflict(r); setTab('cf-resol'); }}
                   style={{ cursor: 'pointer', backgroundColor: selConflict?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selConflict?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selConflict?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selConflict?.id === r.id} onClick={event => { event.stopPropagation(); setSelConflict(r); setTab('cf-resol'); }}>{r.conflict_code || r.id}</Button></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selConflict?.id === r.id} onClick={event => { event.stopPropagation(); setSelConflict(r); setTab('cf-resol'); }}>{r.conflict_code || 'Conflict reference'}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.discipline || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280">{r.conflict_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280" className={styles.description}>{r.source_a || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280" className={styles.description}>{r.source_b || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.priority} /></Table.Td>
-                  <Table.Td><SBadge v={r.status} /></Table.Td>
+                  <Table.Td><SBadge v={r.status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('conflicts', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -492,14 +557,14 @@ export default function SIAEvidenceAIReadinessLayout() {
           <Tabs.Panel value="cf-resol">
             <TabHeader title={`Resolutions — ${selConflict?.conflict_code || selConflict?.id || ''}`}
               onAdd={() => openModal('cfresol')} addLabel="Add Resolution" />
-            <DataTable loading={crL} cols={['Accepted Value', 'Resolution Reason', 'Status', 'Resolved By', 'Resolved At']}
+            <DataTable loading={crL} cols={['Accepted Value', 'Resolution Reason', 'Status', 'Resolved By', 'Resolved At', '']}
               rows={cfResols} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" className={styles.description}>{r.accepted_value || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.resolution_reason || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.resolution_status} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.resolved_by || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.resolved_at || '—')}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.resolved_at || '—')}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('cf-resol', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -507,18 +572,18 @@ export default function SIAEvidenceAIReadinessLayout() {
           {/* DATA GAPS */}
           <Tabs.Panel value="datagaps">
             <TabHeader title="Data Gaps" onAdd={() => openModal('datagap')} addLabel="Add Gap" />
-            <DataTable loading={dgL} cols={['Code', 'Discipline', 'Priority', 'Target Date', 'Status', 'Description']}
+            <DataTable loading={dgL} cols={['Code', 'Discipline', 'Priority', 'Target Date', 'Status', 'Description', '']}
               rows={dataGaps} render={r => (
                 <Table.Tr key={r.id} onClick={() => { setSelGap(r); setTab('gap-rfi'); }}
                   style={{ cursor: 'pointer', backgroundColor: selGap?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selGap?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selGap?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selGap?.id === r.id} onClick={event => { event.stopPropagation(); setSelGap(r); setTab('gap-rfi'); }}>{r.gap_code || r.id}</Button></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selGap?.id === r.id} onClick={event => { event.stopPropagation(); setSelGap(r); setTab('gap-rfi'); }}>{r.gap_code || 'Gap reference'}</Button></Table.Td>
                   <Table.Td><Text size="sm">{r.discipline || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.priority} /></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.target_date || '—')}</Text></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.gap_description || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.gap_description || '—'}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('datagaps', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -526,7 +591,7 @@ export default function SIAEvidenceAIReadinessLayout() {
           {/* RFI ACTIONS (all case-level) */}
           <Tabs.Panel value="rfi">
             <TabHeader title="RFI Actions" onAdd={() => openModal('rfi')} addLabel="Add RFI Action" />
-            <DataTable loading={rfL} cols={['Code', 'Type', 'Subject', 'Assigned To', 'Target Date', 'Status']}
+            <DataTable loading={rfL} cols={['Code', 'Type', 'Subject', 'Assigned To', 'Target Date', 'Status', '']}
               rows={rfiActions} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" fw={600} c="#007336">{r.action_code || '—'}</Text></Table.Td>
@@ -534,7 +599,7 @@ export default function SIAEvidenceAIReadinessLayout() {
                   <Table.Td><Text size="sm" className={styles.description}>{r.subject || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.assigned_to || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.target_date || '—')}</Text></Table.Td>
-                  <Table.Td><SBadge v={r.status} /></Table.Td>
+                  <Table.Td><SBadge v={r.status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('rfi', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -543,14 +608,14 @@ export default function SIAEvidenceAIReadinessLayout() {
           <Tabs.Panel value="gap-rfi">
             <TabHeader title={`RFI Actions for Gap — ${selGap?.gap_code || selGap?.id || ''}`}
               onAdd={() => openModal('rfi', { data_gap_id: dgid })} addLabel="Add RFI for Gap" />
-            <DataTable loading={grL} cols={['Code', 'Type', 'Subject', 'Assigned To', 'Status']}
+            <DataTable loading={grL} cols={['Code', 'Type', 'Subject', 'Assigned To', 'Status', '']}
               rows={gapRfis} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" fw={600} c="#007336">{r.action_code || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm">{r.action_type || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" className={styles.description}>{r.subject || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.assigned_to || '—'}</Text></Table.Td>
-                  <Table.Td><SBadge v={r.status} /></Table.Td>
+                  <Table.Td><SBadge v={r.status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('gap-rfi', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -558,14 +623,14 @@ export default function SIAEvidenceAIReadinessLayout() {
           {/* CONSTRAINTS / ASSUMPTIONS */}
           <Tabs.Panel value="constraints">
             <TabHeader title="Constraints and Assumptions" onAdd={() => openModal('constraint')} addLabel="Add Record" />
-            <DataTable loading={cnL} cols={['Type', 'Discipline', 'Reliability', 'Status', 'Description']}
+            <DataTable loading={cnL} cols={['Type', 'Discipline', 'Reliability', 'Status', 'Description', '']}
               rows={constraints} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Badge size="sm" color={r.record_type === 'CONSTRAINT' ? 'red' : 'orange'} variant="light">{r.record_type || '—'}</Badge></Table.Td>
                   <Table.Td><Text size="sm">{r.discipline || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.reliability_status} /></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.description || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.description || '—'}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('constraints', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -573,16 +638,16 @@ export default function SIAEvidenceAIReadinessLayout() {
           {/* DISCIPLINE READINESS */}
           <Tabs.Panel value="readiness">
             <TabHeader title="Discipline Readiness" onAdd={() => openModal('readiness')} addLabel="Add Readiness" />
-            <DataTable loading={rlL} cols={['Discipline', 'Readiness Status', 'Assessment Date', 'Summary']}
+            <DataTable loading={rlL} cols={['Discipline', 'Readiness Status', 'Assessment Date', 'Summary', '']}
               rows={readinessList} render={r => (
                 <Table.Tr key={r.id} onClick={() => { setSelReadiness(r); setTab('r-conds'); }}
                   style={{ cursor: 'pointer', backgroundColor: selReadiness?.id === r.id ? '#f0fdf4' : 'transparent' }}
                   onMouseEnter={e => { if (selReadiness?.id !== r.id) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
                   onMouseLeave={e => { if (selReadiness?.id !== r.id) e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selReadiness?.id === r.id} onClick={event => { event.stopPropagation(); setSelReadiness(r); setTab('r-conds'); }}>{r.discipline || r.id}</Button></Table.Td>
+                  <Table.Td><Button variant="subtle" color="green" className={styles.recordButton} aria-pressed={selReadiness?.id === r.id} onClick={event => { event.stopPropagation(); setSelReadiness(r); setTab('r-conds'); }}>{r.discipline || 'Reference'}</Button></Table.Td>
                   <Table.Td><SBadge v={r.readiness_status} /></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.assessment_date || '—')}</Text></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.summary || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.summary || '—'}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('readiness', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -591,13 +656,13 @@ export default function SIAEvidenceAIReadinessLayout() {
           <Tabs.Panel value="r-conds">
             <TabHeader title={`Conditions — ${selReadiness?.discipline || ''}`}
               onAdd={() => openModal('rcond')} addLabel="Add Condition" />
-            <DataTable loading={rcL} cols={['Condition', 'Required Action', 'Target Date', 'Status']}
+            <DataTable loading={rcL} cols={['Condition', 'Required Action', 'Target Date', 'Status', '']}
               rows={readyConds} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm" className={styles.description}>{r.condition_description || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.required_action || '—'}</Text></Table.Td>
                   <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.target_date || '—')}</Text></Table.Td>
-                  <Table.Td><SBadge v={r.status} /></Table.Td>
+                  <Table.Td><SBadge v={r.status} /></Table.Td><Table.Td><EditButton onClick={() => openEdit('r-conds', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -606,13 +671,13 @@ export default function SIAEvidenceAIReadinessLayout() {
           <Tabs.Panel value="r-blockers">
             <TabHeader title={`Blockers — ${selReadiness?.discipline || ''}`}
               onAdd={() => openModal('rblocker')} addLabel="Add Blocker" />
-            <DataTable loading={rbL} cols={['Blocker Type', 'Severity', 'Status', 'Description']}
+            <DataTable loading={rbL} cols={['Blocker Type', 'Severity', 'Status', 'Description', '']}
               rows={readyBlkrs} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><Text size="sm">{r.blocker_type || '—'}</Text></Table.Td>
                   <Table.Td><SBadge v={r.severity} /></Table.Td>
                   <Table.Td><SBadge v={r.status} /></Table.Td>
-                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.blocker_description || '—'}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.blocker_description || '—'}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('r-blockers', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -621,13 +686,13 @@ export default function SIAEvidenceAIReadinessLayout() {
           <Tabs.Panel value="r-reviews">
             <TabHeader title={`Reviews — ${selReadiness?.discipline || ''}`}
               onAdd={() => openModal('rreview')} addLabel="Add Review" />
-            <DataTable loading={rrL} cols={['Decision', 'Reviewer', 'Comment', 'Reviewed At']}
+            <DataTable loading={rrL} cols={['Decision', 'Reviewer', 'Comment', 'Reviewed At', '']}
               rows={readyRevs} render={r => (
                 <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <Table.Td><SBadge v={r.review_decision} /></Table.Td>
                   <Table.Td><Text size="xs" style={{ fontFamily: 'monospace' }}>{r.reviewer_user_id || '—'}</Text></Table.Td>
                   <Table.Td><Text size="sm" c="#6b7280" className={styles.description}>{r.review_comment || '—'}</Text></Table.Td>
-                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.reviewed_at || '—')}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(r.reviewed_at || '—')}</Text></Table.Td><Table.Td><EditButton onClick={() => openEdit('r-reviews', r)} /></Table.Td>
                 </Table.Tr>
               )} />
           </Tabs.Panel>
@@ -643,7 +708,7 @@ export default function SIAEvidenceAIReadinessLayout() {
       {/* Evidence */}
       <FormModal opened={modal === 'evidence'} onClose={closeModal} title="Add Evidence" saving={saving}
         onSubmit={() => save('/sia/evidence', { sia_case_id: loadedCaseId, captured_by: uid, ...fv }, rEv)}>
-        <FR><FI label="Evidence Code *" field="evidence_code" fv={fv} setFv={setFv} /><FI label="Evidence Type" field="evidence_type" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Evidence Type" field="evidence_type" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Source Type" field="source_type" fv={fv} setFv={setFv} /><FI label="Reliability Status" field="reliability_status" fv={fv} setFv={setFv} select={RELIABILITY} /></FR>
         <FR><FI label="File Name" field="file_name" fv={fv} setFv={setFv} /><FI label="Captured At" field="captured_at" fv={fv} setFv={setFv} /></FR>
         <FI label="File Path" field="file_path" fv={fv} setFv={setFv} />
@@ -671,7 +736,7 @@ export default function SIAEvidenceAIReadinessLayout() {
       {/* AI Observation */}
       <FormModal opened={modal === 'aiobs'} onClose={closeModal} title="Add AI Observation" saving={saving}
         onSubmit={() => save('/sia/ai-observations', { sia_case_id: loadedCaseId, ...fv }, rAo)}>
-        <FR><FI label="Observation Code *" field="observation_code" fv={fv} setFv={setFv} /><FI label="Task Type" field="task_type" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Task Type" field="task_type" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Model Name" field="model_name" fv={fv} setFv={setFv} /><FI label="Model Version" field="model_version" fv={fv} setFv={setFv} /></FR>
         <FI label="Input Reference" field="input_reference" fv={fv} setFv={setFv} textarea />
         <FI label="Output Value" field="output_value" fv={fv} setFv={setFv} textarea />
@@ -689,7 +754,7 @@ export default function SIAEvidenceAIReadinessLayout() {
       {/* Conflict */}
       <FormModal opened={modal === 'conflict'} onClose={closeModal} title="Add Conflict" saving={saving}
         onSubmit={() => save('/sia/conflicts', { sia_case_id: loadedCaseId, ...fv }, rCf)}>
-        <FR><FI label="Conflict Code" field="conflict_code" fv={fv} setFv={setFv} /><FI label="Discipline" field="discipline" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Discipline" field="discipline" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Conflict Type" field="conflict_type" fv={fv} setFv={setFv} /><FI label="Priority" field="priority" fv={fv} setFv={setFv} select={PRIORITY_OPTS} /></FR>
         <FR><FI label="Source A" field="source_a" fv={fv} setFv={setFv} /><FI label="Value A" field="value_a" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Source B" field="source_b" fv={fv} setFv={setFv} /><FI label="Value B" field="value_b" fv={fv} setFv={setFv} /></FR>
@@ -708,7 +773,7 @@ export default function SIAEvidenceAIReadinessLayout() {
       {/* Data Gap */}
       <FormModal opened={modal === 'datagap'} onClose={closeModal} title="Add Data Gap" saving={saving}
         onSubmit={() => save('/sia/data-gaps', { sia_case_id: loadedCaseId, owner_user_id: uid, ...fv }, rDg)}>
-        <FR><FI label="Gap Code" field="gap_code" fv={fv} setFv={setFv} /><FI label="Discipline" field="discipline" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Discipline" field="discipline" fv={fv} setFv={setFv} /></FR>
         <FR><FI label="Priority" field="priority" fv={fv} setFv={setFv} select={PRIORITY_OPTS} /><FI label="Target Date (DD/MMM/YYYY)" field="target_date" fv={fv} setFv={setFv} /></FR>
         <FI label="Gap Description" field="gap_description" fv={fv} setFv={setFv} textarea />
         <FI label="Impact" field="impact" fv={fv} setFv={setFv} textarea />
@@ -718,7 +783,7 @@ export default function SIAEvidenceAIReadinessLayout() {
       {/* RFI Action */}
       <FormModal opened={modal === 'rfi'} onClose={closeModal} title="Add RFI Action" saving={saving}
         onSubmit={() => save('/sia/rfi-actions', { sia_case_id: loadedCaseId, assigned_to: uid, ...fv }, rRfi)}>
-        <FR><FI label="Action Code" field="action_code" fv={fv} setFv={setFv} /><FI label="Action Type" field="action_type" fv={fv} setFv={setFv} select={['RFI', 'TQ', 'Clarification', 'Site Visit']} /></FR>
+        <FR><FI label="Action Type" field="action_type" fv={fv} setFv={setFv} select={['RFI', 'TQ', 'Clarification', 'Site Visit']} /></FR>
         <FI label="Subject" field="subject" fv={fv} setFv={setFv} />
         <FI label="Description" field="description" fv={fv} setFv={setFv} textarea />
         <FR><FI label="Target Date (DD/MMM/YYYY)" field="target_date" fv={fv} setFv={setFv} /><FI label="Status" field="status" fv={fv} setFv={setFv} select={STATUS_OPTS} /></FR>
@@ -765,6 +830,16 @@ export default function SIAEvidenceAIReadinessLayout() {
           select={['Approved', 'Conditional Approval', 'Rejected', 'Needs More Evidence']} />
         <FI label="Review Comment" field="review_comment" fv={fv} setFv={setFv} textarea />
       </FormModal>
+
+      <FormModal opened={Boolean(modal && String(modal).startsWith('edit-'))} onClose={closeModal}
+        title={`Edit ${String(modal || '').replace(/^edit-/, '').replace(/-/g, ' ')}`} saving={saving} onSubmit={updateRecord}>
+        {Object.entries(fv).filter(([field]) => field !== 'id').map(([field, value]) => {
+          const label = field.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+          const textarea = /description|comment|impact|value|reference|summary|action|response|notes|reason/.test(field);
+          return <FI key={field} label={label} field={field} fv={fv} setFv={setFv} textarea={textarea} />;
+        })}
+      </FormModal>
     </Box>
   );
 }
+

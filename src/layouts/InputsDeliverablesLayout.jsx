@@ -174,6 +174,14 @@ export default function InputsDeliverablesLayout() {
     : current.filter(id => id !== inputId));
 
   const confirmInputs = async () => {
+    const missing = [
+      !workItemId && 'Ready engineering activity',
+      !selectedInputIds.length && 'At least one required input',
+    ].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ color: 'orange', title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.` });
+      return;
+    }
     setSavingConfirmation(true); setError('');
     try {
       const confirmation = await request(`/ewp/inputs-deliverables/work-items/${encodeURIComponent(workItemId)}/confirm-inputs`, {
@@ -206,7 +214,20 @@ export default function InputsDeliverablesLayout() {
   };
 
   const saveDeliverable = async () => {
-    if (!deliverableForm.code.trim() || !deliverableForm.name.trim() || !deliverableForm.responsible_engineer.trim()) return;
+    const missing = [
+      !workItemId && 'Ready engineering activity',
+      !deliverableForm.code.trim() && 'Code',
+      !deliverableForm.name.trim() && 'Deliverable name',
+      !deliverableForm.deliverable_type && 'Type',
+      !deliverableForm.discipline.trim() && 'Discipline',
+      !deliverableForm.responsible_engineer.trim() && 'Responsible engineer',
+      !deliverableForm.planned_issue_date && 'Planned issue date',
+      !deliverableForm.status && 'Preparation status',
+    ].filter(Boolean);
+    if (missing.length) {
+      notifications.show({ color: 'orange', title: 'Required fields missing', message: `Complete: ${missing.join(', ')}.` });
+      return;
+    }
     setSavingDeliverable(true); setError('');
     try {
       const path = editingDeliverable
@@ -254,7 +275,7 @@ export default function InputsDeliverablesLayout() {
 
         <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} style={surface}>
           <Group justify="space-between" align="flex-start" mb="md" wrap="wrap"><Box><Text fw={800}>Engineering Work</Text><Text size="xs" c="dimmed">Only activities with status READY FOR OUTPUT are available.</Text></Box><Button variant="subtle" color="green" leftSection={<IconRefresh size={15} />} loading={loading} onClick={loadReadyWork}>Refresh</Button></Group>
-          <Select classNames={{ dropdown: styles.dropdown }} label="Ready engineering activity" placeholder={loading ? 'Loading engineering work…' : 'Select a READY FOR OUTPUT activity'} data={readyWork.map(item => ({ value: item.id, label: `${item.ewp.code} · ${item.work_code} · ${item.title}` }))} value={workItemId || null} onChange={selectWork} searchable clearable />
+          <Select classNames={{ dropdown: styles.dropdown }} required label="Ready engineering activity" placeholder={loading ? 'Loading engineering work…' : 'Select a READY FOR OUTPUT activity'} data={readyWork.map(item => ({ value: item.id, label: `${item.ewp.code} · ${item.work_code} · ${item.title}` }))} value={workItemId || null} onChange={selectWork} searchable clearable />
           {!loading && !readyWork.length && <Alert color="yellow" mt="md" icon={<IconAlertTriangle size={18} />}>No engineering work activity is READY FOR OUTPUT.</Alert>}
           {selectedWork && <Paper withBorder p="md" radius="md" mt="md" bg="#f3fbf6"><SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}><Box><Text size="xs" c="dimmed">EWP</Text><Text fw={700} size="sm">{selectedWork.ewp.code}</Text></Box><Box><Text size="xs" c="dimmed">Activity</Text><Text fw={700} size="sm">{selectedWork.work_code} · {selectedWork.title}</Text></Box><Box><Text size="xs" c="dimmed">Discipline</Text><Text fw={700} size="sm">{selectedWork.ewp.discipline}</Text></Box><Box><Text size="xs" c="dimmed">Status</Text><StatusBadge value={selectedWork.status} /></Box></SimpleGrid></Paper>}
         </Paper>
@@ -287,11 +308,11 @@ export default function InputsDeliverablesLayout() {
         <Stack>
           <Alert color="blue" icon={<IconLink size={18} />}>Linked activity: <b>{selectedWork?.work_code} · {selectedWork?.title}</b></Alert>
           <Grid><Grid.Col span={{ base: 12, sm: 4 }}><TextInput label="Code" required value={deliverableForm.code} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, code: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 8 }}><TextInput label="Deliverable name" required value={deliverableForm.name} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, name: value })); }} /></Grid.Col></Grid>
-          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><Select classNames={{ dropdown: styles.dropdown }} label="Type" data={TYPES} value={deliverableForm.deliverable_type} onChange={value => setDeliverableForm(form => ({ ...form, deliverable_type: value || 'OTHER' }))} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="Discipline" required value={deliverableForm.discipline} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, discipline: value })); }} /></Grid.Col></Grid>
-          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="Responsible engineer" required value={deliverableForm.responsible_engineer} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, responsible_engineer: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput label="Planned issue date" value={deliverableForm.planned_issue_date || ''} onChange={value => { setDeliverableForm(form => ({ ...form, planned_issue_date: value })); }} /></Grid.Col></Grid>
+          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><Select classNames={{ dropdown: styles.dropdown }} required label="Type" data={TYPES} value={deliverableForm.deliverable_type} onChange={value => setDeliverableForm(form => ({ ...form, deliverable_type: value || 'OTHER' }))} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="Discipline" required value={deliverableForm.discipline} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, discipline: value })); }} /></Grid.Col></Grid>
+          <Grid><Grid.Col span={{ base: 12, sm: 6 }}><TextInput label="Responsible engineer" required value={deliverableForm.responsible_engineer} onChange={event => { const value = event.currentTarget.value; setDeliverableForm(form => ({ ...form, responsible_engineer: value })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><DatePickerInput required label="Planned issue date" value={deliverableForm.planned_issue_date || ''} onChange={value => { setDeliverableForm(form => ({ ...form, planned_issue_date: value })); }} /></Grid.Col></Grid>
           <Grid><Grid.Col span={{ base: 12, sm: 6 }}><Switch color="green" label="Review required" checked={deliverableForm.review_required} onChange={event => { const checked = event.currentTarget.checked; setDeliverableForm(form => ({ ...form, review_required: checked })); }} /></Grid.Col><Grid.Col span={{ base: 12, sm: 6 }}><Switch color="green" label="Approval required" checked={deliverableForm.approval_required} onChange={event => { const checked = event.currentTarget.checked; setDeliverableForm(form => ({ ...form, approval_required: checked })); }} /></Grid.Col></Grid>
-          <Select classNames={{ dropdown: styles.dropdown }} label="Preparation status" data={DELIVERABLE_STATUSES.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={deliverableForm.status} onChange={value => setDeliverableForm(form => ({ ...form, status: value || 'NOT_STARTED' }))} />
-          <Group className={styles.actions} justify="flex-end" mt="md"><Button variant="default" disabled={savingDeliverable} onClick={() => setDeliverableModal(false)}>Cancel</Button><Button color="green" loading={savingDeliverable} disabled={!deliverableForm.code.trim() || !deliverableForm.name.trim() || !deliverableForm.responsible_engineer.trim()} onClick={saveDeliverable}>Save Deliverable</Button></Group>
+          <Select classNames={{ dropdown: styles.dropdown }} required label="Preparation status" data={DELIVERABLE_STATUSES.map(value => ({ value, label: value.replaceAll('_', ' ') }))} value={deliverableForm.status} onChange={value => setDeliverableForm(form => ({ ...form, status: value || 'NOT_STARTED' }))} />
+          <Group className={styles.actions} justify="flex-end" mt="md"><Button variant="default" disabled={savingDeliverable} onClick={() => setDeliverableModal(false)}>Cancel</Button><Button color="green" loading={savingDeliverable} disabled={!deliverableForm.code.trim() || !deliverableForm.name.trim() || !deliverableForm.deliverable_type || !deliverableForm.discipline.trim() || !deliverableForm.responsible_engineer.trim() || !deliverableForm.planned_issue_date || !deliverableForm.status} onClick={saveDeliverable}>Save Deliverable</Button></Group>
         </Stack>
       </Modal>
     </Box>

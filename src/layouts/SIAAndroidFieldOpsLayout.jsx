@@ -27,6 +27,30 @@ const SESS_STATUS  = ['Active', 'Completed', 'Aborted', 'Synced'];
 const EV_STATUS    = ['COLLECTED', 'NOT_APPLICABLE', 'INACCESSIBLE_UNSAFE', 'UNKNOWN', 'DATA_GAP'];
 const AI_CHECKS    = ['IMAGE_BLUR', 'DUPLICATE_IMAGE', 'OCR', 'MISSING_EVIDENCE', 'VALUE_CONFLICT', 'GPS_PLAUSIBILITY'];
 const EXIT_DEC     = ['Approved', 'Approved with Exceptions', 'Blocked'];
+const REQUIRED_BY_PATH = {
+  '/sia/mobile-devices': ['device_uuid', 'device_name', 'device_model', 'os_version', 'app_version'],
+  '/sia/field-case-downloads': ['sia_case_id', 'device_id', 'site_id', 'survey_visit_id', 'pack_version', 'download_status'],
+  '/sia/field-sessions': ['field_case_download_id', 'device_id', 'survey_visit_id', 'session_status'],
+  '/sia/mobile-form-responses': ['field_session_id', 'question_code', 'question_text', 'response_value', 'applicability_status', 'validation_status'],
+  '/sia/mobile-poi-captures': ['field_session_id', 'poi_id', 'geometry_type', 'geometry_data', 'gps_accuracy'],
+  '/sia/mobile-photo-captures': ['field_session_id', 'file_name', 'file_path', 'latitude', 'longitude', 'gps_accuracy'],
+  '/sia/mobile-video-captures': ['field_session_id', 'file_name', 'file_path', 'start_latitude', 'start_longitude', 'spoken_note'],
+  '/sia/mobile-measurements': ['field_session_id', 'measurement_type', 'unit', 'measurement_value', 'measurement_method', 'instrument_serial', 'calibration_status', 'accuracy', 'tolerance', 'latitude', 'longitude'],
+  '/sia/mobile-nameplate-captures': ['field_session_id', 'image_file_path', 'ocr_text', 'proposed_data', 'confirmed_data'],
+  '/sia/mobile-voice-notes': ['field_session_id', 'audio_file_path', 'transcription', 'transcription_status'],
+  '/sia/mobile-sketches': ['field_session_id', 'sketch_type', 'file_path', 'description'],
+  '/sia/mobile-ai-checks': ['field_session_id', 'check_type', 'result', 'confidence_score', 'source_record_type', 'message'],
+  '/sia/required-evidence-status': ['field_session_id', 'survey_requirement_id', 'evidence_status'],
+  '/sia/site-exit-gates': ['field_session_id', 'survey_visit_id', 'mandatory_count', 'completed_count', 'exception_count', 'unresolved_count', 'gate_status', 'exit_decision', 'exit_comment'],
+  '/sia/mobile-storage-status': ['device_id', 'total_storage_mb', 'used_storage_mb', 'free_storage_mb', 'pending_media_count', 'warning_status'],
+  '/sia/sync-queue': ['device_id', 'operation_type', 'record_type', 'record_id', 'idempotency_key', 'sync_status'],
+  '/sia/sync-batches': ['device_id', 'batch_code', 'batch_status', 'total_items', 'accepted_items', 'rejected_items', 'quarantined_items'],
+  '/sia/sync-conflicts': ['sync_batch_id', 'record_type', 'conflict_type', 'local_value', 'server_value', 'resolution_status'],
+  '/sia/sync-integrity-receipts': ['sync_batch_id', 'receipt_code', 'manifest_hash', 'integrity_status', 'accepted_count', 'rejected_count', 'quarantined_count'],
+  '/sia/portable-data-packs': ['sia_case_id', 'pack_code', 'site_id', 'pack_version', 'schema_version', 'export_method', 'pack_status', 'checksum'],
+  '/sia/device-audits': ['device_id', 'event_type', 'local_timestamp', 'timezone_offset', 'event_details'],
+};
+const MANDATORY_FIELDS = new Set(Object.values(REQUIRED_BY_PATH).flat());
 
 // ── hooks & helpers ─────────────────────────────────────
 function useApi(url, deps = []) {
@@ -91,6 +115,7 @@ function FR({ children }) { return <Group className={styles.formRow} grow align=
 function FI({ label, field, fv, setFv, textarea, number, select }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
+  const displayLabel = MANDATORY_FIELDS.has(field) ? `${label.replace(/\s*\*$/, '')} *` : label;
   
   // Auto-detect Type, Role, and Date fields
   const fieldLower = field.toLowerCase();
@@ -107,22 +132,22 @@ function FI({ label, field, fv, setFv, textarea, number, select }) {
   const autoOpts = getTypeRoleOptions(field);
   
   const s = { input: { borderColor: '#d1d5db', borderRadius: 6, height: textarea ? undefined : 36 } };
-  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Select data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
-  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Textarea value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
-  if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (number) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <NumberInput value={val === '' ? undefined : val} onChange={v => upd(v)} styles={s} /></Box>;
   
-  if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
+  if (isDateField) return <DatePickerInput label={displayLabel} value={val} onChange={upd} styles={s} />;
   
   // Convert Type and Role fields to dropdowns
   if (isTypeOrRoleField && autoOpts.length > 0) {
-    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
       <Select data={autoOpts} value={val || null} onChange={v => upd(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
   }
   
-  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <TextInput value={val} onChange={e => upd(e.target.value)} styles={s} /></Box>;
 }
 function SBadge({ v }) {
@@ -201,6 +226,14 @@ export default function SIAAndroidFieldOpsLayout() {
   };
   const close = () => { setModal(null); setFv({}); };
   const save  = async (path, body, reload) => {
+    const missing = (REQUIRED_BY_PATH[path] || []).filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
     setSaving(true);
     try {
       await postApi(path, body);
@@ -332,7 +365,7 @@ export default function SIAAndroidFieldOpsLayout() {
         {/* DOWNLOADS */}
         <Tabs.Panel value="downloads">
           <TH title="Field Case Downloads" onAdd={() => open('download', { device_id: did, downloaded_by: uid })} addLabel="Add Download" disabled={!caseId.trim()} />
-          {!caseId.trim() && <Text size="xs" c="orange" mb="sm">Enter a Case ID above to load downloads.</Text>}
+          {!caseId.trim() && <Text size="xs" c="orange" mb="sm">Enter a Case reference above to load downloads.</Text>}
           <DT loading={dlL} cols={['Case ID', 'Site ID', 'Pack Version', 'Status', 'Offline Ready', 'Downloaded At']}
             rows={downloads} render={r => (
               <Table.Tr key={r.id} onClick={() => { setDown(r); setTab('sessions'); }}
@@ -539,7 +572,7 @@ export default function SIAAndroidFieldOpsLayout() {
         {/* SYNC QUEUE */}
         <Tabs.Panel value="syncq">
           <TH title="Sync Queue" onAdd={() => open('syncq')} addLabel="Add Queue Item" />
-          <DT loading={sqL} cols={['Operation', 'Record Type', 'Record ID', 'Retries', 'Status', 'Last Error']}
+          <DT loading={sqL} cols={['Operation', 'Record Type', 'Record reference', 'Retries', 'Status', 'Last Error']}
             rows={syncQ} render={r => (
               <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                 <Table.Td><Text size="sm">{r.operation_type || '—'}</Text></Table.Td>
@@ -605,7 +638,7 @@ export default function SIAAndroidFieldOpsLayout() {
         {/* DATA PACKS */}
         <Tabs.Panel value="packs">
           <TH title="Portable Data Packs" onAdd={() => open('pack')} addLabel="Create Pack" disabled={!caseId.trim()} />
-          {!caseId.trim() && <Text size="xs" c="orange" mb="sm">Enter a Case ID above to load packs.</Text>}
+          {!caseId.trim() && <Text size="xs" c="orange" mb="sm">Enter a Case reference above to load packs.</Text>}
           <DT loading={pkL} cols={['Pack Code', 'Version', 'Schema', 'Export Method', 'Status', 'Created At']}
             rows={packs} render={r => (
               <Table.Tr key={r.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
@@ -765,7 +798,7 @@ export default function SIAAndroidFieldOpsLayout() {
       <FM opened={modal === 'syncq'} onClose={close} title="Add Sync Queue Item" saving={saving}
         onSubmit={() => save('/sia/sync-queue', { device_id: did, ...fv }, rSq)}>
         <FR><FI label="Operation Type" field="operation_type" fv={fv} setFv={setFv} select={['CREATE', 'UPDATE', 'DELETE', 'SYNC']} /><FI label="Record Type" field="record_type" fv={fv} setFv={setFv} /></FR>
-        <FR><FI label="Record ID" field="record_id" fv={fv} setFv={setFv} /><FI label="Idempotency Key" field="idempotency_key" fv={fv} setFv={setFv} /></FR>
+        <FR><FI label="Record reference" field="record_id" fv={fv} setFv={setFv} /><FI label="Idempotency Key" field="idempotency_key" fv={fv} setFv={setFv} /></FR>
         <FI label="Sync Status" field="sync_status" fv={fv} setFv={setFv} select={SYNC_STATUS} />
       </FM>
 

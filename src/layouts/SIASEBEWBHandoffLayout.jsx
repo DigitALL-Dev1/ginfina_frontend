@@ -25,6 +25,22 @@ const CHANGE_TYPES   = ['Addition', 'Deletion', 'Material Change', 'Minor Correc
 const MATERIALITY    = ['Material', 'Non-Material', 'Undetermined'];
 const REVIEW_DEC     = ['Approved', 'Conditional Approval', 'Rejected', 'Needs Revision'];
 const APPROVAL_DEC   = ['Approved', 'Approved with Conditions', 'Rejected'];
+const REQUIRED_BY_PATH = {
+  '/sia/seb': ['sia_case_id', 'seb_code', 'site_id', 'assessment_stage', 'status'],
+  '/sia/seb-revisions': ['seb_id', 'revision_no', 'revision_status', 'issue_date', 'revision_reason'],
+  '/sia/seb-items': ['seb_revision_id', 'item_name', 'item_type', 'discipline', 'unit', 'item_value', 'reliability_status', 'status', 'source_record_type', 'source_record_id'],
+  '/sia/seb-evidence': ['seb_revision_id', 'evidence_id'],
+  '/sia/seb-discipline-results': ['seb_revision_id', 'discipline', 'readiness_status', 'status', 'assessment_summary', 'condition_summary'],
+  '/sia/seb-constraint-gaps': ['seb_revision_id', 'record_type', 'discipline', 'status', 'description', 'impact'],
+  '/sia/seb-reviews': ['seb_revision_id', 'review_status', 'review_comment'],
+  '/sia/seb-approvals': ['seb_revision_id', 'approval_decision', 'approval_condition', 'approval_comment'],
+  '/sia/seb-releases': ['seb_revision_id', 'release_hash', 'release_status'],
+  '/sia/seb-change-impacts': ['seb_revision_id', 'change_type', 'materiality', 'affected_discipline', 'impact_status', 'change_description', 'impact_description'],
+  '/sia/ewb-handoffs': ['seb_revision_id', 'handoff_code', 'project_id', 'ewp_reference_id', 'handoff_status', 'readiness_status'],
+  '/sia/ewb-handoff-items': ['ewb_handoff_id', 'seb_item_id', 'discipline', 'applicability', 'status'],
+  '/sia/ewb-handoff-conditions': ['ewb_handoff_id', 'condition_type', 'discipline', 'status', 'condition_description', 'required_action'],
+};
+const MANDATORY_FIELDS = new Set(Object.values(REQUIRED_BY_PATH).flat());
 
 // ── hooks & helpers ─────────────────────────────────────
 function useApi(url, deps = []) {
@@ -88,6 +104,7 @@ function FR({ children }) { return <Group grow align="flex-start" gap="sm">{chil
 function FI({ label, field, fv, setFv, textarea, select }) {
   const val = fv[field] ?? '';
   const upd = v => setFv(p => ({ ...p, [field]: v }));
+  const displayLabel = MANDATORY_FIELDS.has(field) ? `${label.replace(/\s*\*$/, '')} *` : label;
   
   // Auto-detect Type, Role, and Date fields
   const fieldLower = field.toLowerCase();
@@ -106,20 +123,20 @@ function FI({ label, field, fv, setFv, textarea, select }) {
   const autoOpts = getTypeRoleOptions(field);
   
   const s = { input: { borderColor: '#d1d5db', borderRadius: 6, height: textarea ? undefined : 36 } };
-  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (select) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Select data={select} value={val} onChange={v => upd(v || '')} clearable styles={s} /></Box>;
-  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  if (textarea) return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <Textarea value={val} onChange={e => upd(e.target.value)} autosize minRows={2} styles={s} /></Box>;
   
-  if (isDateField) return <DatePickerInput label={label} value={val} onChange={upd} styles={s} />;
+  if (isDateField) return <DatePickerInput label={displayLabel} value={val} onChange={upd} styles={s} />;
   
   // Convert Type and Role fields to dropdowns
   if (isTypeOrRoleField && autoOpts.length > 0) {
-    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+    return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
       <Select data={autoOpts} value={val || null} onChange={v => upd(v || '')} clearable searchable placeholder={`Select ${label}`} styles={s} /></Box>;
   }
   
-  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+  return <Box><Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
     <TextInput value={val} onChange={e => upd(e.target.value)} styles={s} /></Box>;
 }
 function SBadge({ v }) {
@@ -185,6 +202,14 @@ export default function SIASEBEWBHandoffLayout() {
   };
   const closeModal = () => { setModal(null); setFv({}); };
   const save = async (path, body, reload) => {
+    const missing = (REQUIRED_BY_PATH[path] || []).filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
     setSaving(true);
     try {
       await postApi(path, body);
@@ -244,7 +269,7 @@ export default function SIASEBEWBHandoffLayout() {
           <Group gap="xl" wrap="wrap">
             {selSeb     && <Text size="xs" c="#374151">SEB: <Text span fw={700} c="#007336">{selSeb.seb_code}</Text></Text>}
             {selRev     && <Text size="xs" c="#374151">Revision: <Text span fw={700} c="#374151">{selRev.revision_no}</Text></Text>}
-            {selHandoff && <Text size="xs" c="#374151">Handoff: <Text span fw={700} c="#374151">{selHandoff.handoff_code || selHandoff.id}</Text></Text>}
+            {selHandoff && <Text size="xs" c="#374151">Handoff: <Text span fw={700} c="#374151">{selHandoff.handoff_code || 'Selected handoff'}</Text></Text>}
             <Text size="xs" c="#9ca3af" style={{ marginLeft: 'auto', cursor: 'pointer' }}
               onClick={() => { setSelSeb(null); setSelRev(null); setSelHandoff(null); }}>Clear</Text>
           </Group>
@@ -611,3 +636,4 @@ export default function SIASEBEWBHandoffLayout() {
     </Box>
   );
 }
+

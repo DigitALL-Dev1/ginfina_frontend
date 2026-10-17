@@ -228,7 +228,7 @@ export default function AuditEvidenceLayout() {
               {/* Event ID */}
               <Grid.Col span={6}>
                 <Box>
-                  <Text size="xs" fw={600} c="#374151" mb={4}>Event ID</Text>
+                  <Text size="xs" fw={600} c="#374151" mb={4}>Event code</Text>
                   <TextInput value={selectedEvent.id} readOnly styles={roSt} />
                 </Box>
               </Grid.Col>

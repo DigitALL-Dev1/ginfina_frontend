@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
+import useDisciplines from '../hooks/useDisciplines';
 
 /* ─── Pilot fallback data (R1.0 controlled) ─────────────────────────────── */
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -43,6 +44,7 @@ function getStatusColour(status) {
 }
 
 export default function EwpRegisterLayout() {
+  const { names: disciplineNames } = useDisciplines();
   const navigate = useNavigate();
 
   const [ewps, setEwps]                   = useState([]);
@@ -167,7 +169,7 @@ export default function EwpRegisterLayout() {
                 </Box>
                 <Box>
                   <Text size="xs" fw={600} c="#374151" mb={4}>Discipline</Text>
-                  <MultiSelect data={['Electrical', 'Civil', 'Structural', 'Mechanical', 'Instrumentation']}
+                  <MultiSelect data={disciplineNames}
                     value={discipline} onChange={setDiscipline}
                     styles={{ input: { borderColor: '#d1d5db', borderRadius: 6, minHeight: 38 } }} />
                   <Text size="11px" c="#9ca3af" mt={4}>MultiSelect · Controlled taxonomy</Text>
@@ -219,7 +221,7 @@ export default function EwpRegisterLayout() {
                         style={{ backgroundColor: isSelected ? '#ebfbee' : 'transparent', cursor: 'pointer', transition: 'background-color 150ms ease' }}>
                         <Table.Td style={{ padding: '12px 14px' }}>
                           <Text size="sm" fw={isSelected ? 700 : 500} c={isSelected ? '#007336' : '#374151'}>
-                            {ewp.ewp_code || ewp.ewp_id || ewp.id}
+                            {ewp.ewp_code || ewp.ewp_id || ewp.name || 'Selected EWP'}
                           </Text>
                         </Table.Td>
                         <Table.Td style={{ padding: '12px 14px' }}>
@@ -253,3 +255,4 @@ export default function EwpRegisterLayout() {
     </Box>
   );
 }
+

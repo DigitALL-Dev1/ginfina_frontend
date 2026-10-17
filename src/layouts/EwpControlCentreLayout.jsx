@@ -288,7 +288,7 @@ function PlaceholderTab({ label, ewpData }) {
     <Paper p="xl" style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
       <Title order={5} fw={700} c="#111827" mb="xs">{label} Evidence</Title>
       <Text c="#4b5563" size="sm">
-        {label} records for EWP <Text span fw={600}>{ewpData?.ewp_code || ewpData?.id || 'UNI-BOR-ELE-001'}</Text>.
+        {label} records for EWP <Text span fw={600}>{ewpData?.ewp_code || ewpData?.name || 'Selected EWP'}</Text>.
       </Text>
       {ewpData?.scope_statement && (
         <Text c="#6b7280" size="xs" mt="sm">
@@ -533,3 +533,5 @@ export default function EwpControlCentreLayout() {
     </Box>
   );
 }
+
+

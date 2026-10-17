@@ -4,6 +4,7 @@ import {
   Table, Text, TextInput, Title, Badge, ScrollArea, Stack,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import useDisciplines from '../hooks/useDisciplines';
 
 /* ─── Pilot Released Data ────────────────────────────────────────── */
 const PILOT_RELEASED = [
@@ -14,6 +15,7 @@ const PILOT_RELEASED = [
 ];
 
 export default function CurrentReleasedSetLayout() {
+  const { names: disciplineNames } = useDisciplines();
   const [topSearch, setTopSearch]       = useState('');
   const [topStatus, setTopStatus]       = useState('Active / Open');
   const [savedView, setSavedView]       = useState('My Priority Work');
@@ -160,7 +162,7 @@ export default function CurrentReleasedSetLayout() {
                 <Box>
                   <Text size="xs" fw={600} c="#374151" mb={4}>Discipline</Text>
                   <Select
-                    data={['All', 'Electrical', 'Structural', 'Civil', 'Mechanical']}
+                    data={['All', ...disciplineNames]}
                     value={discipline}
                     onChange={(v) => setDiscipline(v || 'All')}
                     styles={inputSt}
@@ -214,7 +216,7 @@ export default function CurrentReleasedSetLayout() {
                         style={{ backgroundColor: isSel ? '#ebfbee' : 'transparent', cursor: 'pointer', transition: 'background-color 150ms ease' }}
                       >
                         <Table.Td style={{ padding: '12px 14px' }}>
-                          <Text size="sm" fw={isSel ? 700 : 500} c={isSel ? '#007336' : '#374151'}>{row.id}</Text>
+                          <Text size="sm" fw={isSel ? 700 : 500} c={isSel ? '#007336' : '#374151'}>{row.code || row.reference || 'Reference'}</Text>
                         </Table.Td>
                         <Table.Td style={{ padding: '12px 14px' }}>
                           <Text size="sm" c="#4b5563">{row.title}</Text>
@@ -242,3 +244,4 @@ export default function CurrentReleasedSetLayout() {
     </Box>
   );
 }
+

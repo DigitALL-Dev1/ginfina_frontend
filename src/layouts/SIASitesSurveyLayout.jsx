@@ -1,4 +1,4 @@
-import { formatDate, formatDisplayValue } from '../utils/dateOnly';
+﻿import { formatDate, formatDisplayValue } from '../utils/dateOnly';
 import { Children, cloneElement, isValidElement, useEffect, useState } from 'react';
 import {
   Badge, Box, Button, Group, Loader,
@@ -12,11 +12,10 @@ import SIASitesSurveyReport from '../components/common/SIASitesSurveyReport';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconMapPin, IconBuilding, IconDoor,
-  IconLocation, IconCalendar, IconUsers, IconLock,
+  IconLocation, IconCalendar, IconLock,
   IconShield, IconClipboard, IconTool, IconArrowRight,
-  IconFolder, IconSearch, IconChevronRight, IconCheck, IconFileText,
+  IconFolder, IconSearch, IconChevronRight, IconCheck, IconFileText, IconEdit,
 } from '@tabler/icons-react';
-import { autoCode } from '../utils/autoCode';
 import styles from './SIASitesSurveyLayout.module.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -30,13 +29,27 @@ const FLOOR_LEVELS = [
   'Rooftop', 'Other',
 ];
 
-// ── shared style ─────────────────────────────────────────
+// Fields required to create a meaningful record in each Sites and Survey form.
+const REQUIRED_BY_PATH = {
+  '/sia/sites': ['site_name', 'site_type', 'address', 'contact_name', 'contact_phone', 'latitude', 'longitude', 'status'],
+  '/sia/buildings': ['building_name', 'building_type', 'floor_count'],
+  '/sia/room-areas': ['area_name', 'area_type', 'floor_level'],
+  '/sia/pois': ['poi_name', 'poi_type', 'category', 'latitude', 'longitude'],
+  '/sia/survey-visits': ['visit_type', 'purpose', 'planned_date'],
+  '/sia/site-access': ['access_type', 'road_condition', 'transport_method', 'working_hours'],
+  '/sia/site-safety': ['hazard_type', 'risk_level', 'description', 'ppe_required', 'emergency_contact', 'control_action'],
+  '/sia/survey-requirements': ['requirement_name', 'requirement_type', 'status', 'notes'],
+  '/sia/survey-instruments': ['instrument_name', 'instrument_type', 'serial_number', 'calibration_status'],
+};
+const MANDATORY_FIELDS = new Set(Object.values(REQUIRED_BY_PATH).flat());
+
+// â”€â”€ shared style â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const thS = {
   fontSize: 11, fontWeight: 700, color: '#374151',
   textTransform: 'uppercase', letterSpacing: '0.05em',
 };
 
-// ── breadcrumb step indicator ─────────────────────────────
+// â”€â”€ breadcrumb step indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const STEPS = [
   { key: 'case',    label: 'SIA Case' },
   { key: 'sites',   label: 'Sites' },
@@ -84,7 +97,7 @@ function Breadcrumb({ step, caseObj, site, onCase, onSites }) {
   );
 }
 
-// ── helpers ───────────────────────────────────────────────
+// â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function EmptyRow({ cols, msg = 'No records found.' }) {
   return (
     <Table.Tr>
@@ -117,6 +130,15 @@ async function postApi(path, body) {
     body: JSON.stringify(body),
   });
   if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+  return res.json();
+}
+
+async function patchApi(path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${res.status}`); }
   return res.json();
 }
 
@@ -188,7 +210,8 @@ function FI({ label, field, form, textarea, number, select, min, digitsOnly }) {
   const val = form.values[field] ?? '';
   const onChange = (v) => form.setFieldValue(field, v);
   
-  if (field === 'contact_phone') return <PhoneNumberInput label={label} value={val} onChange={onChange} />;
+  const displayLabel = MANDATORY_FIELDS.has(field) ? `${label} *` : label;
+  if (field === 'contact_phone' || field === 'emergency_contact') return <PhoneNumberInput label={displayLabel} value={val} onChange={onChange} />;
 
   // Auto-detect Type and Role fields and convert to dropdowns
   const fieldLower = field.toLowerCase();
@@ -203,7 +226,6 @@ function FI({ label, field, form, textarea, number, select, min, digitsOnly }) {
       area_type: ['Interior', 'Exterior', 'Rooftop', 'Ground Level', 'Basement', 'Parking'],
       poi_type: ['Electrical Panel', 'Junction Box', 'Meter Location', 'Equipment Room', 'Access Point', 'Utility Connection'],
       visit_type: ['Initial Survey', 'Follow-up', 'Technical Assessment', 'Final Inspection', 'Progress Review'],
-      team_role: ['Team Lead', 'Site Engineer', 'Electrical Engineer', 'Structural Engineer', 'Survey Technician', 'Safety Officer', 'Documentation Specialist'],
       access_type: ['Public Road', 'Private Road', 'Footpath Only', 'Restricted Access', 'No Direct Access'],
       hazard_type: ['Electrical', 'Structural', 'Chemical', 'Biological', 'Environmental', 'Height', 'Confined Space', 'Traffic'],
       requirement_type: ['Safety', 'Regulatory', 'Technical', 'Environmental', 'Documentation', 'Equipment'],
@@ -216,30 +238,30 @@ function FI({ label, field, form, textarea, number, select, min, digitsOnly }) {
   const inputStyle = { input: { borderColor: '#d1d5db', borderRadius: 6, height: textarea ? undefined : 36 } };
   if (select) return (
     <Box>
-      <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+      <Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
       <Select data={select} aria-label={label} value={val} onChange={v => onChange(v || '')} clearable styles={inputStyle} />
     </Box>
   );
   if (textarea) return (
     <Box>
-      <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+      <Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
       <Textarea aria-label={label} value={val} onChange={e => onChange(e.target.value)} autosize minRows={2} styles={inputStyle} />
     </Box>
   );
   if (number) return (
     <Box>
-      <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+      <Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
       <NumberInput aria-label={label} value={val === '' ? undefined : val} onChange={v => onChange(v)} min={min} allowNegative={min === undefined || min < 0} styles={inputStyle} />
     </Box>
   );
   
-  if (isDateField) return <DatePickerInput label={label} aria-label={label} value={val} onChange={onChange} styles={inputStyle} />;
+  if (isDateField) return <DatePickerInput label={displayLabel} aria-label={label} value={val} onChange={onChange} styles={inputStyle} />;
   
   // Convert Type and Role fields to dropdowns automatically
   if (isTypeOrRoleField && autoDetectedOptions.length > 0) {
     return (
       <Box>
-        <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+        <Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
         <Select data={autoDetectedOptions} aria-label={label} value={val || null} onChange={v => onChange(v || '')} clearable searchable placeholder={`Select ${label}`} styles={inputStyle} />
       </Box>
     );
@@ -247,7 +269,7 @@ function FI({ label, field, form, textarea, number, select, min, digitsOnly }) {
   
   return (
     <Box>
-      <Text size="xs" fw={600} c="#374151" mb={4}>{label}</Text>
+      <Text size="xs" fw={600} c="#374151" mb={4}>{displayLabel}</Text>
       <TextInput aria-label={label} value={val} inputMode={digitsOnly ? 'numeric' : undefined}
         pattern={digitsOnly ? '[0-9]*' : undefined}
         onChange={e => onChange(digitsOnly ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)} styles={inputStyle} />
@@ -268,22 +290,22 @@ function StatusBadge({ v }) {
   return (
     <Badge size="sm" radius="xl"
       style={{ backgroundColor: col + '18', color: col, border: 'none', fontWeight: 600 }}>
-      {v || '—'}
+      {v || 'â€”'}
     </Badge>
   );
 }
 
 function RiskBadge({ v }) { return <StatusBadge v={v} />; }
 
-// ════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // MAIN COMPONENT
-// ════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export default function SIASitesSurveyLayout() {
 
-  // ── Step tracking: 'case' | 'sites' | 'survey' ───────
+  // â”€â”€ Step tracking: 'case' | 'sites' | 'survey' â”€â”€â”€â”€â”€â”€â”€
   const [step, setStep] = useState('case');
 
-  // ── Step 1: SIA Case ──────────────────────────────────
+  // â”€â”€ Step 1: SIA Case â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [allCases, setAllCases] = useState([]);
   const [casesLoading, setCasesL] = useState(true);
   const [caseSearch, setCaseSearch] = useState('');
@@ -331,7 +353,7 @@ export default function SIASitesSurveyLayout() {
     setSurveyTab('buildings');
   };
 
-  // ── Step 2: Sites ─────────────────────────────────────
+  // â”€â”€ Step 2: Sites â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [siteSearch, setSiteSearch] = useState('');
   const { data: sites, loading: sitesL, reload: reloadSites } = useApi(
     siaCaseId ? `${API}/sia/cases/${siaCaseId}/sites` : null, [siaCaseId]
@@ -356,7 +378,7 @@ export default function SIASitesSurveyLayout() {
     setStep('survey');
   };
 
-  // ── Step 3: Survey tabs ───────────────────────────────
+  // â”€â”€ Step 3: Survey tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [surveyTab, setSurveyTab] = useState('buildings');
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedVisit, setSelectedVisit] = useState(null);
@@ -373,9 +395,12 @@ export default function SIASitesSurveyLayout() {
   const { data: visits, loading: visitsL, reload: reloadVisits } = useApi(
     selectedSite ? `${API}/sia/sites/${selectedSite.id}/survey-visits` : null, [selectedSite]
   );
-  const { data: team, loading: teamL, reload: reloadTeam } = useApi(
-    selectedVisit ? `${API}/sia/survey-visits/${selectedVisit.id}/team` : null, [selectedVisit]
-  );
+  useEffect(() => {
+    const rememberedVisitId = localStorage.getItem('sia_survey_visit_id');
+    if (!rememberedVisitId || !visits.length) return;
+    const rememberedVisit = visits.find(visit => visit.id === rememberedVisitId);
+    if (rememberedVisit) setSelectedVisit(rememberedVisit);
+  }, [visits]);
   const { data: access, loading: accessL, reload: reloadAccess } = useApi(
     selectedSite ? `${API}/sia/sites/${selectedSite.id}/access` : null, [selectedSite]
   );
@@ -389,7 +414,7 @@ export default function SIASitesSurveyLayout() {
     selectedVisit ? `${API}/sia/survey-visits/${selectedVisit.id}/instruments` : null, [selectedVisit]
   );
 
-  // ── Modal / form state ────────────────────────────────
+  // â”€â”€ Modal / form state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [modal, setModal] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formValues, setFormValues] = useState({});
@@ -398,12 +423,29 @@ export default function SIASitesSurveyLayout() {
     setFieldValue: (k, v) => setFormValues(prev => ({ ...prev, [k]: v })),
     reset: () => setFormValues({}),
   };
-  const openModal = (key) => { setFormValues({ ...(key === 'site' && { site_code: autoCode('SITE') }), ...(key === 'building' && { building_code: autoCode('BLDG') }), ...(key === 'room' && { area_code: autoCode('AREA') }), ...(key === 'poi' && { poi_code: autoCode('POI') }), ...(key === 'visit' && { visit_code: autoCode('VISIT') }), }); setModal(key); };
+  const openModal = (key) => {
+    setFormValues(key === 'visit' ? { status: 'Planned' } : {});
+    setModal(key);
+  };
   const closeModal = () => { setModal(null); setFormValues({}); };
 
   const save = async (path, body, reload) => {
-    if (path === '/sia/sites' && phoneNumberError(body.contact_phone)) {
-      notifications.show({ title: 'Check contact phone', message: phoneNumberError(body.contact_phone), color: 'red' });
+    const missing = (REQUIRED_BY_PATH[path] || []).filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      const labels = missing.map(field => field.replace(/_/g, ' '));
+      notifications.show({
+        title: 'Required fields missing',
+        message: `Complete: ${labels.join(', ')}.`,
+        color: 'orange',
+      });
+      return;
+    }
+    const phoneField = path === '/sia/sites' ? 'contact_phone' : path === '/sia/site-safety' ? 'emergency_contact' : null;
+    if (phoneField && phoneNumberError(body[phoneField])) {
+      notifications.show({ title: 'Check contact phone', message: phoneNumberError(body[phoneField]), color: 'red' });
       return;
     }
     setSaving(true);
@@ -422,28 +464,313 @@ export default function SIASitesSurveyLayout() {
     } finally { setSaving(false); }
   };
 
-  // ════════════════════════════════════════════════════
+  const updateSite = async () => {
+    const body = form.values;
+    const missing = REQUIRED_BY_PATH['/sia/sites'].filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    const phoneError = phoneNumberError(body.contact_phone);
+    if (phoneError) {
+      notifications.show({ title: 'Check contact phone', message: phoneError, color: 'red' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const cleaned = Object.fromEntries(Object.entries(body).map(([key, value]) => [key, value === '' ? null : value]));
+      const result = await patchApi(`/sia/sites/${encodeURIComponent(form.values.id)}`, cleaned);
+      setSelectedSite(current => current?.id === result.id ? result : current);
+      notifications.show({ title: 'Site updated', message: 'The site details were saved successfully.', color: 'green' });
+      reloadSites();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update site', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditSite = site => {
+    setFormValues({
+      id: site.id,
+      site_name: site.site_name || '', site_type: site.site_type || '', address: site.address || '',
+      contact_name: site.contact_name || '', contact_phone: site.contact_phone || '',
+      latitude: site.latitude ?? '', longitude: site.longitude ?? '', status: site.status || '',
+    });
+    setModal('edit-site');
+  };
+
+  const updateBuilding = async () => {
+    const body = form.values;
+    const missing = REQUIRED_BY_PATH['/sia/buildings'].filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const cleaned = Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      const result = await patchApi(`/sia/buildings/${encodeURIComponent(form.values.id)}`, cleaned);
+      setSelectedBuilding(current => current?.id === result.id ? result : current);
+      notifications.show({ title: 'Building updated', message: 'The building details were saved successfully.', color: 'green' });
+      reloadBuildings();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update building', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditBuilding = building => {
+    setFormValues({
+      id: building.id,
+      building_name: building.building_name || '', building_type: building.building_type || '',
+      floor_count: building.floor_count ?? '', description: building.description || '',
+    });
+    setModal('edit-building');
+  };
+
+  const updateRoom = async () => {
+    const body = form.values;
+    const missing = REQUIRED_BY_PATH['/sia/room-areas'].filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const cleaned = Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      const result = await patchApi(`/sia/room-areas/${encodeURIComponent(form.values.id)}`, cleaned);
+      notifications.show({ title: 'Room / Area updated', message: 'The room or area details were saved successfully.', color: 'green' });
+      reloadRooms();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update room / area', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditRoom = room => {
+    setFormValues({
+      id: room.id, area_name: room.area_name || '', area_type: room.area_type || '',
+      floor_level: room.floor_level || '', description: room.description || '',
+    });
+    setModal('edit-room');
+  };
+
+  const updatePoi = async () => {
+    const body = form.values;
+    const missing = REQUIRED_BY_PATH['/sia/pois'].filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const cleaned = Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      await patchApi(`/sia/pois/${encodeURIComponent(form.values.id)}`, cleaned);
+      notifications.show({ title: 'Point of Interest updated', message: 'The POI details were saved successfully.', color: 'green' });
+      reloadPois();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update Point of Interest', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditPoi = poi => {
+    setFormValues({
+      id: poi.id, poi_name: poi.poi_name || '', poi_type: poi.poi_type || '', category: poi.category || '',
+      latitude: poi.latitude ?? '', longitude: poi.longitude ?? '', description: poi.description || '',
+    });
+    setModal('edit-poi');
+  };
+
+  const updateVisit = async () => {
+    const body = form.values;
+    const missing = REQUIRED_BY_PATH['/sia/survey-visits'].filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const cleaned = Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      const result = await patchApi(`/sia/survey-visits/${encodeURIComponent(form.values.id)}`, cleaned);
+      setSelectedVisit(current => current?.id === result.id ? result : current);
+      notifications.show({ title: 'Survey Visit updated', message: 'The survey visit details were saved successfully.', color: 'green' });
+      reloadVisits();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update Survey Visit', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditVisit = visit => {
+    setFormValues({
+      id: visit.id, visit_type: visit.visit_type || '', purpose: visit.purpose || '',
+      planned_date: visit.planned_date || '', planned_start_time: visit.planned_start_time || '',
+      planned_end_time: visit.planned_end_time || '', actual_start: visit.actual_start || '', actual_end: visit.actual_end || '',
+    });
+    setModal('edit-visit');
+  };
+
+  const updateAccess = async () => {
+    const body = form.values;
+    const missing = REQUIRED_BY_PATH['/sia/site-access'].filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const cleaned = Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      await patchApi(`/sia/site-access/${encodeURIComponent(form.values.id)}`, cleaned);
+      notifications.show({ title: 'Site Access updated', message: 'The site access details were saved successfully.', color: 'green' });
+      reloadAccess();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update Site Access', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditAccess = accessRecord => {
+    setFormValues({
+      id: accessRecord.id, access_type: accessRecord.access_type || '', road_condition: accessRecord.road_condition || '',
+      transport_method: accessRecord.transport_method || '', working_hours: accessRecord.working_hours ?? '',
+      access_restriction: accessRecord.access_restriction || '', logistics_notes: accessRecord.logistics_notes || '',
+      entry_permission: !!accessRecord.entry_permission,
+    });
+    setModal('edit-access');
+  };
+
+  const updateSafety = async () => {
+    const body = form.values;
+    const missing = REQUIRED_BY_PATH['/sia/site-safety'].filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const cleaned = Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      await patchApi(`/sia/site-safety/${encodeURIComponent(form.values.id)}`, cleaned);
+      notifications.show({ title: 'Site Safety updated', message: 'The site safety details were saved successfully.', color: 'green' });
+      reloadSafety();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update Site Safety', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditSafety = safetyRecord => {
+    setFormValues({
+      id: safetyRecord.id, hazard_type: safetyRecord.hazard_type || '', risk_level: safetyRecord.risk_level || '',
+      description: safetyRecord.description || '', ppe_required: safetyRecord.ppe_required || '',
+      restricted_area: !!safetyRecord.restricted_area, emergency_contact: safetyRecord.emergency_contact || '',
+      control_action: safetyRecord.control_action || '',
+    });
+    setModal('edit-safety');
+  };
+
+  const updateRequirement = async () => {
+    const body = form.values;
+    const missing = REQUIRED_BY_PATH['/sia/survey-requirements'].filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const cleaned = Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      await patchApi(`/sia/survey-requirements/${encodeURIComponent(form.values.id)}`, cleaned);
+      notifications.show({ title: 'Survey Requirement updated', message: 'The survey requirement details were saved successfully.', color: 'green' });
+      reloadReqs();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update Survey Requirement', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditRequirement = requirement => {
+    setFormValues({
+      id: requirement.id, requirement_name: requirement.requirement_name || '', requirement_type: requirement.requirement_type || '',
+      status: requirement.status || '', notes: requirement.notes || '', is_mandatory: !!requirement.is_mandatory,
+    });
+    setModal('edit-req');
+  };
+
+  const updateInstrument = async () => {
+    const body = form.values;
+    const missing = REQUIRED_BY_PATH['/sia/survey-instruments'].filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && !value.trim());
+    });
+    if (missing.length) {
+      notifications.show({ title: 'Required fields missing', message: `Complete: ${missing.map(field => field.replace(/_/g, ' ')).join(', ')}.`, color: 'orange' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const cleaned = Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'id').map(([key, value]) => [key, value === '' ? null : value]));
+      await patchApi(`/sia/survey-instruments/${encodeURIComponent(form.values.id)}`, cleaned);
+      notifications.show({ title: 'Survey Instrument updated', message: 'The survey instrument details were saved successfully.', color: 'green' });
+      reloadInst();
+      closeModal();
+    } catch (e) {
+      notifications.show({ title: 'Unable to update Survey Instrument', message: e.message, color: 'red' });
+    } finally { setSaving(false); }
+  };
+
+  const openEditInstrument = instrument => {
+    setFormValues({
+      id: instrument.id, instrument_name: instrument.instrument_name || '', instrument_type: instrument.instrument_type || '',
+      serial_number: instrument.serial_number || '', calibration_status: instrument.calibration_status || '', required: !!instrument.required,
+    });
+    setModal('edit-instrument');
+  };
+
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   const surveySections = [
                   { value: 'buildings', label: 'Buildings',     icon: <IconBuilding size={14} />,  enabled: true },
                   { value: 'rooms',     label: 'Room / Areas',  icon: <IconDoor size={14} />,      enabled: !!selectedBuilding },
                   { value: 'pois',      label: 'POIs',          icon: <IconLocation size={14} />,  enabled: true },
                   { value: 'visits',    label: 'Survey Visits', icon: <IconCalendar size={14} />,  enabled: true },
-                  { value: 'team',      label: 'Team',          icon: <IconUsers size={14} />,     enabled: !!selectedVisit },
                   { value: 'access',    label: 'Access',        icon: <IconLock size={14} />,      enabled: true },
                   { value: 'safety',    label: 'Safety',        icon: <IconShield size={14} />,    enabled: true },
-                  { value: 'reqs',      label: 'Requirements',  icon: <IconClipboard size={14} />, enabled: !!selectedVisit },
-                  { value: 'instruments', label: 'Instruments', icon: <IconTool size={14} />,      enabled: !!selectedVisit },
+                  { value: 'reqs',      label: 'Requirements',  icon: <IconClipboard size={14} />, enabled: true },
+                  { value: 'instruments', label: 'Instruments', icon: <IconTool size={14} />,      enabled: true },
                   { value: 'report', label: 'Report', icon: <IconFileText size={14} />, enabled: true },
                 ];
 
   return (
     <Box className={styles.root} p={{ base: 0, sm: 'xs', lg: 'lg' }}>
 
-      {/* ── Page header ── */}
+      {/* â”€â”€ Page header â”€â”€ */}
       <Box mb="md">
         <Group gap="sm" mb={4}>
           <Badge color="green" variant="light" size="lg" radius="sm">SIA</Badge>
-          <Text size="xs" c="dimmed" fw={500}>Module 1 · Section 2</Text>
+          <Text size="xs" c="dimmed" fw={500}>Module 1 Â· Section 2</Text>
         </Group>
         <Title order={2} fw={700} c="#111827">Sites and Survey</Title>
         <Text size="sm" c="#6b7280" mt={2}>
@@ -451,7 +778,7 @@ export default function SIASitesSurveyLayout() {
         </Text>
       </Box>
 
-      {/* ── Breadcrumb ── */}
+      {/* â”€â”€ Breadcrumb â”€â”€ */}
       <Breadcrumb
         step={step}
         caseObj={activeCase}
@@ -460,9 +787,9 @@ export default function SIASitesSurveyLayout() {
         onSites={() => { setStep('sites'); setSelectedSite(null); setSelectedBuilding(null); setSelectedVisit(null); }}
       />
 
-      {/* ════════════════════════════════════════════════
-          STEP 1 — Select SIA Case
-      ════════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          STEP 1 â€” Select SIA Case
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {step === 'case' && (
         <Paper p={{ base: 'md', sm: 'lg' }} style={{ border: '1px solid #e5e7eb', borderRadius: 8 }}>
           <Group gap="xs" mb="xs" align="center">
@@ -477,7 +804,7 @@ export default function SIASitesSurveyLayout() {
           <Group gap="xs" mb="md" align="center">
             <IconSearch size={14} color="#9ca3af" />
             <TextInput
-              aria-label="Search cases" placeholder="Search by case code, purpose or stage…"
+              aria-label="Search cases" placeholder="Search by case code, purpose or stageâ€¦"
               value={caseSearch}
               onChange={e => setCaseSearch(e.target.value)}
               style={{ flex: 1 }}
@@ -517,15 +844,15 @@ export default function SIASitesSurveyLayout() {
                           onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
                           <Table.Td><Text size="sm" fw={700} c="#007336">{c.case_code}</Text></Table.Td>
-                          <Table.Td><Text size="sm" c="#374151">{c.assessment_purpose || '—'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" c="#374151">{c.assessment_purpose || 'â€”'}</Text></Table.Td>
                           <Table.Td>
                             <Badge size="sm" radius="xl" variant="light" color="green">
-                              {c.assessment_stage || '—'}
+                              {c.assessment_stage || 'â€”'}
                             </Badge>
                           </Table.Td>
                           <Table.Td>
                             <Text size="xs" c="#6b7280" style={{ fontFamily: 'monospace' }}>
-                              {c.opportunity_id || '—'}
+                              {c.opportunity_id || 'â€”'}
                             </Text>
                           </Table.Td>
                           <Table.Td>
@@ -558,7 +885,7 @@ export default function SIASitesSurveyLayout() {
           <Group className={styles.actions} justify="space-between" align="center" mt="md">
             <Text size="xs" c="dimmed">
               {pendingCase
-                ? <><Text span fw={600} c="#007336">{pendingCase.case_code}</Text> selected — click Continue</>
+                ? <><Text span fw={600} c="#007336">{pendingCase.case_code}</Text> selected â€” click Continue</>
                 : 'Click a row to select a case'}
             </Text>
             <Button color="green" rightSection={<IconArrowRight size={15} />}
@@ -570,9 +897,9 @@ export default function SIASitesSurveyLayout() {
         </Paper>
       )}
 
-      {/* ════════════════════════════════════════════════
-          STEP 2 — Sites under the selected case
-      ════════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          STEP 2 â€” Sites under the selected case
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {step === 'sites' && (
         <Box>
           {/* Active case banner */}
@@ -610,7 +937,7 @@ export default function SIASitesSurveyLayout() {
                 <Group gap="xs" align="center">
                   <IconSearch size={13} color="#9ca3af" />
                   <TextInput
-                    className={styles.siteSearch} aria-label="Search sites" placeholder="Search sites…"
+                    className={styles.siteSearch} aria-label="Search sites" placeholder="Search sitesâ€¦"
                     value={siteSearch}
                     onChange={e => setSiteSearch(e.target.value)}
                     size="xs"
@@ -651,18 +978,22 @@ export default function SIASitesSurveyLayout() {
                           onClick={() => confirmSite(s)}
                         >
                           <Table.Td><Text size="sm" fw={700} c="#007336">{s.site_code}</Text></Table.Td>
-                          <Table.Td><Text size="sm" fw={500} c="#111827">{s.site_name || '—'}</Text></Table.Td>
-                          <Table.Td><Text size="sm" c="#6b7280">{s.site_type || '—'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" fw={500} c="#111827">{s.site_name || 'â€”'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" c="#6b7280">{s.site_type || 'â€”'}</Text></Table.Td>
                           <Table.Td><StatusBadge v={s.status} /></Table.Td>
-                          <Table.Td><Text size="xs" c="#6b7280">{s.contact_name || '—'}</Text></Table.Td>
+                          <Table.Td><Text size="xs" c="#6b7280">{s.contact_name || 'â€”'}</Text></Table.Td>
                           <Table.Td>
                             <Text size="xs" c="#9ca3af">
-                              {s.latitude != null ? `${s.latitude}, ${s.longitude}` : '—'}
+                              {s.latitude != null ? `${s.latitude}, ${s.longitude}` : 'â€”'}
                             </Text>
                           </Table.Td>
                           <Table.Td>
                             <Group gap={4} justify="flex-end">
-                              <Button size="xs" variant="subtle" color="green" rightSection={<IconArrowRight size={12} />}
+                              <Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={12} />}
+                                onClick={e => { e.stopPropagation(); openEditSite(s); }}>
+                                Edit
+                              </Button>
+                      <Button size="xs" variant="subtle" color="green" rightSection={<IconArrowRight size={12} />}
                                 onClick={e => { e.stopPropagation(); confirmSite(s); }}>
                                 Open
                               </Button>
@@ -677,9 +1008,9 @@ export default function SIASitesSurveyLayout() {
         </Box>
       )}
 
-      {/* ════════════════════════════════════════════════
-          STEP 3 — Survey: tabs for buildings, rooms, etc.
-      ════════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          STEP 3 â€” Survey: tabs for buildings, rooms, etc.
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {step === 'survey' && selectedSite && (
         <Box>
           {/* Active case + site banner */}
@@ -712,7 +1043,7 @@ export default function SIASitesSurveyLayout() {
               </Group>
               <Button size="xs" variant="subtle" color="green"
                 onClick={() => { setStep('sites'); setSelectedSite(null); setSelectedBuilding(null); setSelectedVisit(null); setSurveyTab('buildings'); }}>
-                ← Back to Sites
+                â† Back to Sites
               </Button>
             </Group>
           </Paper>
@@ -762,12 +1093,12 @@ export default function SIASitesSurveyLayout() {
 
             {/* Hidden Mantine tab list for routing */}
             <Tabs.List style={{ display: 'none' }}>
-              {['buildings','rooms','pois','visits','team','access','safety','reqs','instruments','report'].map(v =>
+              {['buildings','rooms','pois','visits','access','safety','reqs','instruments','report'].map(v =>
                 <Tabs.Tab key={v} value={v}>{v}</Tabs.Tab>
               )}
             </Tabs.List>
 
-            {/* ── Buildings ── */}
+            {/* â”€â”€ Buildings â”€â”€ */}
             <Tabs.Panel value="buildings">
               <TabHeader title="Buildings" onAdd={() => openModal('building')} addLabel="Add Building" />
               <DataTable loading={buildingsL} cols={['Code', 'Name', 'Type', 'Floors', 'Description', '']}
@@ -777,12 +1108,16 @@ export default function SIASitesSurveyLayout() {
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0fdf4'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                     onClick={() => { setSelectedBuilding(b); setSurveyTab('rooms'); }}>
-                    <Table.Td><Text size="sm" fw={700} c="#007336">{b.building_code || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm">{b.building_name || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{b.building_type || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{b.floor_count ?? '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="#9ca3af">{b.description || '—'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" fw={700} c="#007336">{b.building_code || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm">{b.building_name || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{b.building_type || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{b.floor_count ?? 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#9ca3af">{b.description || 'â€”'}</Text></Table.Td>
                     <Table.Td>
+                      <Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={12} />}
+                        onClick={e => { e.stopPropagation(); openEditBuilding(b); }}>
+                        Edit
+                      </Button>
                       <Button size="xs" variant="subtle" color="green" rightSection={<IconArrowRight size={12} />}
                         onClick={e => { e.stopPropagation(); setSelectedBuilding(b); setSurveyTab('rooms'); }}>
                         Rooms
@@ -792,12 +1127,12 @@ export default function SIASitesSurveyLayout() {
                 )} />
             </Tabs.Panel>
 
-            {/* ── Room Areas ── */}
+            {/* â”€â”€ Room Areas â”€â”€ */}
             <Tabs.Panel value="rooms">
               {!selectedBuilding
                 ? <Paper p="md" style={{ border: '1px dashed #d1d5db', borderRadius: 8, textAlign: 'center' }}>
                     <Text size="sm" c="dimmed">Select a building from the Buildings tab first.</Text>
-                    <Button size="xs" mt="sm" variant="subtle" color="green" onClick={() => setSurveyTab('buildings')}>← Go to Buildings</Button>
+                    <Button size="xs" mt="sm" variant="subtle" color="green" onClick={() => setSurveyTab('buildings')}>â† Go to Buildings</Button>
                   </Paper>
                 : <>
                     <Paper p="xs" mb="sm" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6 }}>
@@ -808,40 +1143,44 @@ export default function SIASitesSurveyLayout() {
                       </Group>
                     </Paper>
                     <TabHeader title="Room / Areas" onAdd={() => openModal('room')} addLabel="Add Room/Area" />
-                    <DataTable loading={roomsL} cols={['Code', 'Name', 'Type', 'Floor', 'Description']}
+                    <DataTable loading={roomsL} cols={['Code', 'Name', 'Type', 'Floor', 'Description', '']}
                       rows={roomAreas} render={r => (
                         <Table.Tr key={r.id}
                           onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
                           onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                          <Table.Td><Text size="sm" fw={600} c="#007336">{r.area_code || '—'}</Text></Table.Td>
-                          <Table.Td><Text size="sm">{r.area_name || '—'}</Text></Table.Td>
-                          <Table.Td><Text size="sm" c="#6b7280">{r.area_type || '—'}</Text></Table.Td>
-                          <Table.Td><Text size="sm" c="#6b7280">{r.floor_level || '—'}</Text></Table.Td>
-                          <Table.Td><Text size="sm" c="#9ca3af">{r.description || '—'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" fw={600} c="#007336">{r.area_code || 'â€”'}</Text></Table.Td>
+                          <Table.Td><Text size="sm">{r.area_name || 'â€”'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" c="#6b7280">{r.area_type || 'â€”'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" c="#6b7280">{r.floor_level || 'â€”'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" c="#9ca3af">{r.description || 'â€”'}</Text></Table.Td>
+                          <Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={12} />}
+                            onClick={() => openEditRoom(r)}>Edit</Button></Table.Td>
                         </Table.Tr>
                       )} />
                   </>}
             </Tabs.Panel>
 
-            {/* ── POIs ── */}
+            {/* â”€â”€ POIs â”€â”€ */}
             <Tabs.Panel value="pois">
               <TabHeader title="Points of Interest" onAdd={() => openModal('poi')} addLabel="Add POI" />
-              <DataTable loading={poisL} cols={['Code', 'Name', 'Type', 'Category', 'Lat', 'Lng']}
+              <DataTable loading={poisL} cols={['Code', 'Name', 'Type', 'Category', 'Lat', 'Lng', '']}
                 rows={pois} render={p => (
                   <Table.Tr key={p.id}
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                    <Table.Td><Text size="sm" fw={600} c="#007336">{p.poi_code || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm">{p.poi_name || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{p.poi_type || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{p.category || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="xs" c="#9ca3af">{p.latitude ?? '—'}</Text></Table.Td>
-                    <Table.Td><Text size="xs" c="#9ca3af">{p.longitude ?? '—'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" fw={600} c="#007336">{p.poi_code || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm">{p.poi_name || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{p.poi_type || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{p.category || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#9ca3af">{p.latitude ?? 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#9ca3af">{p.longitude ?? 'â€”'}</Text></Table.Td>
+                    <Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={12} />}
+                      onClick={() => openEditPoi(p)}>Edit</Button></Table.Td>
                   </Table.Tr>
                 )} />
             </Tabs.Panel>
 
-            {/* ── Survey Visits ── */}
+            {/* â”€â”€ Survey Visits â”€â”€ */}
             <Tabs.Panel value="visits">
               <TabHeader title="Survey Visits" onAdd={() => openModal('visit')} addLabel="Add Visit" />
               <DataTable loading={visitsL} cols={['Code', 'Type', 'Purpose', 'Planned Date', 'Status', '']}
@@ -850,15 +1189,19 @@ export default function SIASitesSurveyLayout() {
                     style={{ cursor: 'pointer', transition: 'background 120ms' }}
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0fdf4'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                    onClick={() => { setSelectedVisit(v); localStorage.setItem('sia_survey_visit_id', v.id); setSurveyTab('team'); }}>
-                    <Table.Td><Text size="sm" fw={700} c="#007336">{v.visit_code || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm">{v.visit_type || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{v.purpose || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(v.planned_date || '—')}</Text></Table.Td>
+                    onClick={() => { setSelectedVisit(v); localStorage.setItem('sia_survey_visit_id', v.id); setSurveyTab('reqs'); }}>
+                    <Table.Td><Text size="sm" fw={700} c="#007336">{v.visit_code || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm">{v.visit_type || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{v.purpose || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="xs" c="#6b7280">{formatDisplayValue(v.planned_date || 'â€”')}</Text></Table.Td>
                     <Table.Td><StatusBadge v={v.status} /></Table.Td>
                     <Table.Td>
+                      <Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={12} />}
+                        onClick={e => { e.stopPropagation(); openEditVisit(v); }}>
+                        Edit
+                      </Button>
                       <Button size="xs" variant="subtle" color="green" rightSection={<IconArrowRight size={12} />}
-                        onClick={e => { e.stopPropagation(); setSelectedVisit(v); localStorage.setItem('sia_survey_visit_id', v.id); setSurveyTab('team'); }}>
+                        onClick={e => { e.stopPropagation(); setSelectedVisit(v); localStorage.setItem('sia_survey_visit_id', v.id); setSurveyTab('reqs'); }}>
                         Open
                       </Button>
                     </Table.Td>
@@ -866,107 +1209,93 @@ export default function SIASitesSurveyLayout() {
                 )} />
             </Tabs.Panel>
 
-            {/* ── Team ── */}
-            <Tabs.Panel value="team">
-              {!selectedVisit
-                ? <Paper p="md" style={{ border: '1px dashed #d1d5db', borderRadius: 8, textAlign: 'center' }}>
-                    <Text size="sm" c="dimmed">Select a visit from Survey Visits first.</Text>
-                    <Button size="xs" mt="sm" variant="subtle" color="green" onClick={() => setSurveyTab('visits')}>← Go to Visits</Button>
-                  </Paper>
-                : <>
-                    <VisitBanner visit={selectedVisit} onClear={() => setSelectedVisit(null)} />
-                    <TabHeader title="Survey Team" onAdd={() => openModal('team')} addLabel="Add Member" />
-                    <DataTable loading={teamL} cols={['User ID', 'Role', 'Lead']}
-                      rows={team} render={t => (
-                        <Table.Tr key={t.id}
-                          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                          <Table.Td><Text size="sm" style={{ fontFamily: 'monospace' }}>{t.user_id}</Text></Table.Td>
-                          <Table.Td><Text size="sm">{t.team_role || '—'}</Text></Table.Td>
-                          <Table.Td><Badge size="sm" color={t.is_lead ? 'green' : 'gray'} variant="light">{t.is_lead ? 'Lead' : 'Member'}</Badge></Table.Td>
-                        </Table.Tr>
-                      )} />
-                  </>}
-            </Tabs.Panel>
 
-            {/* ── Site Access ── */}
+            {/* â”€â”€ Site Access â”€â”€ */}
             <Tabs.Panel value="access">
               <TabHeader title="Site Access" onAdd={() => openModal('access')} addLabel="Add Access Record" />
-              <DataTable loading={accessL} cols={['Access Type', 'Road Condition', 'Transport', 'Entry Permission', 'Working Hours']}
+              <DataTable loading={accessL} cols={['Access Type', 'Road Condition', 'Transport', 'Entry Permission', 'Working Hours', '']}
                 rows={access} render={a => (
                   <Table.Tr key={a.id}
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                    <Table.Td><Text size="sm">{a.access_type || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{a.road_condition || '—'}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{a.transport_method || '—'}</Text></Table.Td>
+                    <Table.Td><Text size="sm">{a.access_type || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{a.road_condition || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{a.transport_method || 'â€”'}</Text></Table.Td>
                     <Table.Td><Badge size="sm" color={a.entry_permission ? 'green' : 'red'} variant="light">{a.entry_permission ? 'Permitted' : 'Denied'}</Badge></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{a.working_hours || '—'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{a.working_hours || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={12} />}
+                      onClick={() => openEditAccess(a)}>Edit</Button></Table.Td>
                   </Table.Tr>
                 )} />
             </Tabs.Panel>
 
-            {/* ── Site Safety ── */}
+            {/* â”€â”€ Site Safety â”€â”€ */}
             <Tabs.Panel value="safety">
               <TabHeader title="Site Safety" onAdd={() => openModal('safety')} addLabel="Add Safety Record" />
-              <DataTable loading={safetyL} cols={['Hazard Type', 'Risk Level', 'PPE Required', 'Restricted', 'Emergency Contact']}
+              <DataTable loading={safetyL} cols={['Hazard Type', 'Risk Level', 'PPE Required', 'Restricted', 'Emergency Contact', '']}
                 rows={safety} render={s => (
                   <Table.Tr key={s.id}
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                    <Table.Td><Text size="sm">{s.hazard_type || '—'}</Text></Table.Td>
+                    <Table.Td><Text size="sm">{s.hazard_type || 'â€”'}</Text></Table.Td>
                     <Table.Td><RiskBadge v={s.risk_level} /></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{s.ppe_required || '—'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{s.ppe_required || 'â€”'}</Text></Table.Td>
                     <Table.Td><Badge size="sm" color={s.restricted_area ? 'red' : 'green'} variant="light">{s.restricted_area ? 'Yes' : 'No'}</Badge></Table.Td>
-                    <Table.Td><Text size="sm" c="#6b7280">{s.emergency_contact || '—'}</Text></Table.Td>
+                    <Table.Td><Text size="sm" c="#6b7280">{s.emergency_contact || 'â€”'}</Text></Table.Td>
+                    <Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={12} />}
+                      onClick={() => openEditSafety(s)}>Edit</Button></Table.Td>
                   </Table.Tr>
                 )} />
             </Tabs.Panel>
 
-            {/* ── Requirements ── */}
+            {/* â”€â”€ Requirements â”€â”€ */}
             <Tabs.Panel value="reqs">
               {!selectedVisit
                 ? <Paper p="md" style={{ border: '1px dashed #d1d5db', borderRadius: 8, textAlign: 'center' }}>
                     <Text size="sm" c="dimmed">Select a visit from Survey Visits first.</Text>
-                    <Button size="xs" mt="sm" variant="subtle" color="green" onClick={() => setSurveyTab('visits')}>← Go to Visits</Button>
+                    <Button size="xs" mt="sm" variant="subtle" color="green" onClick={() => setSurveyTab('visits')}>â† Go to Visits</Button>
                   </Paper>
                 : <>
                     <VisitBanner visit={selectedVisit} onClear={() => setSelectedVisit(null)} />
                     <TabHeader title="Survey Requirements" onAdd={() => openModal('req')} addLabel="Add Requirement" />
-                    <DataTable loading={reqsL} cols={['Name', 'Type', 'Mandatory', 'Status']}
+                    <DataTable loading={reqsL} cols={['Name', 'Type', 'Mandatory', 'Status', '']}
                       rows={reqs} render={r => (
                         <Table.Tr key={r.id}
                           onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
                           onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                          <Table.Td><Text size="sm">{r.requirement_name || '—'}</Text></Table.Td>
-                          <Table.Td><Text size="sm" c="#6b7280">{r.requirement_type || '—'}</Text></Table.Td>
+                          <Table.Td><Text size="sm">{r.requirement_name || 'â€”'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" c="#6b7280">{r.requirement_type || 'â€”'}</Text></Table.Td>
                           <Table.Td><Badge size="sm" color={r.is_mandatory ? 'red' : 'gray'} variant="light">{r.is_mandatory ? 'Mandatory' : 'Optional'}</Badge></Table.Td>
                           <Table.Td><StatusBadge v={r.status} /></Table.Td>
+                          <Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={12} />}
+                            onClick={() => openEditRequirement(r)}>Edit</Button></Table.Td>
                         </Table.Tr>
                       )} />
                   </>}
             </Tabs.Panel>
 
-            {/* ── Instruments ── */}
+            {/* â”€â”€ Instruments â”€â”€ */}
             <Tabs.Panel value="instruments">
               {!selectedVisit
                 ? <Paper p="md" style={{ border: '1px dashed #d1d5db', borderRadius: 8, textAlign: 'center' }}>
                     <Text size="sm" c="dimmed">Select a visit from Survey Visits first.</Text>
-                    <Button size="xs" mt="sm" variant="subtle" color="green" onClick={() => setSurveyTab('visits')}>← Go to Visits</Button>
+                    <Button size="xs" mt="sm" variant="subtle" color="green" onClick={() => setSurveyTab('visits')}>â† Go to Visits</Button>
                   </Paper>
                 : <>
                     <VisitBanner visit={selectedVisit} onClear={() => setSelectedVisit(null)} />
                     <TabHeader title="Survey Instruments" onAdd={() => openModal('instrument')} addLabel="Add Instrument" />
-                    <DataTable loading={instL} cols={['Name', 'Type', 'Serial No', 'Calibration', 'Required']}
+                    <DataTable loading={instL} cols={['Name', 'Type', 'Serial No', 'Calibration', 'Required', '']}
                       rows={instruments} render={i => (
                         <Table.Tr key={i.id}
                           onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
                           onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                          <Table.Td><Text size="sm">{i.instrument_name || '—'}</Text></Table.Td>
-                          <Table.Td><Text size="sm" c="#6b7280">{i.instrument_type || '—'}</Text></Table.Td>
-                          <Table.Td><Text size="sm" c="#6b7280">{i.serial_number || '—'}</Text></Table.Td>
+                          <Table.Td><Text size="sm">{i.instrument_name || 'â€”'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" c="#6b7280">{i.instrument_type || 'â€”'}</Text></Table.Td>
+                          <Table.Td><Text size="sm" c="#6b7280">{i.serial_number || 'â€”'}</Text></Table.Td>
                           <Table.Td><StatusBadge v={i.calibration_status} /></Table.Td>
                           <Table.Td><Badge size="sm" color={i.required ? 'green' : 'gray'} variant="light">{i.required ? 'Yes' : 'No'}</Badge></Table.Td>
+                          <Table.Td><Button size="xs" variant="subtle" color="green" leftSection={<IconEdit size={12} />}
+                            onClick={() => openEditInstrument(i)}>Edit</Button></Table.Td>
                         </Table.Tr>
                       )} />
                   </>}
@@ -980,12 +1309,28 @@ export default function SIASitesSurveyLayout() {
         </Box>
       )}
 
-      {/* ════ MODALS ════ */}
+      {/* â•â•â•â• MODALS â•â•â•â• */}
 
       {/* Site Modal */}
       <FormModal opened={modal === 'site'} onClose={closeModal} title="Add Site" saving={saving}
         onSubmit={() => save('/sia/sites', { sia_case_id: siaCaseId, ...form.values }, reloadSites)}>
-        <FormRow><FI label="Site Code *" field="site_code" form={form} /></FormRow>
+        <FormRow>
+          <FI label="Site Name" field="site_name" form={form} />
+          <FI label="Site Type" field="site_type" form={form} />
+        </FormRow>
+        <FI label="Address" field="address" form={form} textarea />
+        <FormRow>
+          <FI label="Contact Name" field="contact_name" form={form} />
+          <FI label="Contact Phone" field="contact_phone" form={form} />
+        </FormRow>
+        <FormRow>
+          <FI label="Latitude" field="latitude" form={form} number />
+          <FI label="Longitude" field="longitude" form={form} number />
+        </FormRow>
+        <FI label="Status" field="status" form={form} select={['Active', 'Inactive', 'Pending', 'Surveyed']} />
+      </FormModal>
+
+      <FormModal opened={modal === 'edit-site'} onClose={closeModal} title="Edit Site" saving={saving} onSubmit={updateSite}>
         <FormRow>
           <FI label="Site Name" field="site_name" form={form} />
           <FI label="Site Type" field="site_type" form={form} />
@@ -1006,7 +1351,17 @@ export default function SIASitesSurveyLayout() {
       <FormModal opened={modal === 'building'} onClose={closeModal} title="Add Building" saving={saving}
         onSubmit={() => save('/sia/buildings', { site_id: selectedSite?.id, ...form.values }, reloadBuildings)}>
         <FormRow>
-          <FI label="Building Code" field="building_code" form={form} />
+          <FI label="Building Name" field="building_name" form={form} />
+        </FormRow>
+        <FormRow>
+          <FI label="Building Type" field="building_type" form={form} />
+          <FI label="Floor Count" field="floor_count" form={form} number />
+        </FormRow>
+        <FI label="Description" field="description" form={form} textarea />
+      </FormModal>
+
+      <FormModal opened={modal === 'edit-building'} onClose={closeModal} title="Edit Building" saving={saving} onSubmit={updateBuilding}>
+        <FormRow>
           <FI label="Building Name" field="building_name" form={form} />
         </FormRow>
         <FormRow>
@@ -1020,7 +1375,17 @@ export default function SIASitesSurveyLayout() {
       <FormModal opened={modal === 'room'} onClose={closeModal} title="Add Room / Area" saving={saving}
         onSubmit={() => save('/sia/room-areas', { site_id: selectedSite?.id, building_id: selectedBuilding?.id, ...form.values }, reloadRooms)}>
         <FormRow>
-          <FI label="Area Code" field="area_code" form={form} />
+          <FI label="Area Name" field="area_name" form={form} />
+        </FormRow>
+        <FormRow>
+          <FI label="Area Type" field="area_type" form={form} />
+          <FI label="Floor Level" field="floor_level" form={form} select={FLOOR_LEVELS} />
+        </FormRow>
+        <FI label="Description" field="description" form={form} textarea />
+      </FormModal>
+
+      <FormModal opened={modal === 'edit-room'} onClose={closeModal} title="Edit Room / Area" saving={saving} onSubmit={updateRoom}>
+        <FormRow>
           <FI label="Area Name" field="area_name" form={form} />
         </FormRow>
         <FormRow>
@@ -1034,7 +1399,21 @@ export default function SIASitesSurveyLayout() {
       <FormModal opened={modal === 'poi'} onClose={closeModal} title="Add Point of Interest" saving={saving}
         onSubmit={() => save('/sia/pois', { site_id: selectedSite?.id, ...form.values }, reloadPois)}>
         <FormRow>
-          <FI label="POI Code" field="poi_code" form={form} />
+          <FI label="POI Name" field="poi_name" form={form} />
+        </FormRow>
+        <FormRow>
+          <FI label="POI Type" field="poi_type" form={form} />
+          <FI label="Category" field="category" form={form} select={POI_CATEGORIES} />
+        </FormRow>
+        <FormRow>
+          <FI label="Latitude" field="latitude" form={form} number />
+          <FI label="Longitude" field="longitude" form={form} number />
+        </FormRow>
+        <FI label="Description" field="description" form={form} textarea />
+      </FormModal>
+
+      <FormModal opened={modal === 'edit-poi'} onClose={closeModal} title="Edit Point of Interest" saving={saving} onSubmit={updatePoi}>
+        <FormRow>
           <FI label="POI Name" field="poi_name" form={form} />
         </FormRow>
         <FormRow>
@@ -1052,27 +1431,51 @@ export default function SIASitesSurveyLayout() {
       <FormModal opened={modal === 'visit'} onClose={closeModal} title="Add Survey Visit" saving={saving}
         onSubmit={() => save('/sia/survey-visits', { site_id: selectedSite?.id, ...form.values }, reloadVisits)}>
         <FormRow>
-          <FI label="Visit Code" field="visit_code" form={form} />
           <FI label="Visit Type" field="visit_type" form={form} />
         </FormRow>
         <FI label="Purpose" field="purpose" form={form} />
         <FI label="Planned Date (DD/MMM/YYYY)" field="planned_date" form={form} />
-        <FI label="Status" field="status" form={form} select={['Planned', 'In Progress', 'Completed', 'Cancelled']} />
+        <Text size="xs" c="dimmed">Initial status: <Text span fw={700} c="green.8">Planned</Text>. Status is updated automatically as the survey workflow progresses.</Text>
       </FormModal>
 
-      {/* Team Modal */}
-      <FormModal opened={modal === 'team'} onClose={closeModal} title="Add Team Member" saving={saving}
-        onSubmit={() => save('/sia/survey-team', { survey_visit_id: selectedVisit?.id, user_id: localStorage.getItem('user_id') || 'unknown', ...form.values }, reloadTeam)}>
-        <FI label="Team Role" field="team_role" form={form} />
-        <Group mt="sm">
-          <Text size="xs" fw={600} c="#374151">Is Lead</Text>
-          <Switch checked={!!form.values.is_lead} onChange={e => form.setFieldValue('is_lead', e.currentTarget.checked)} color="green" />
-        </Group>
+      <FormModal opened={modal === 'edit-visit'} onClose={closeModal} title="Edit Survey Visit" saving={saving} onSubmit={updateVisit}>
+        <FormRow>
+          <FI label="Visit Type" field="visit_type" form={form} />
+        </FormRow>
+        <FI label="Purpose" field="purpose" form={form} />
+        <FI label="Planned Date (DD/MMM/YYYY)" field="planned_date" form={form} />
+        <FormRow>
+          <FI label="Planned Start Time" field="planned_start_time" form={form} />
+          <FI label="Planned End Time" field="planned_end_time" form={form} />
+        </FormRow>
+        <FormRow>
+          <FI label="Actual Start" field="actual_start" form={form} />
+          <FI label="Actual End" field="actual_end" form={form} />
+        </FormRow>
+        <Text size="xs" c="dimmed">Status is workflow-managed and cannot be edited here.</Text>
       </FormModal>
+
 
       {/* Access Modal */}
       <FormModal opened={modal === 'access'} onClose={closeModal} title="Add Site Access" saving={saving}
         onSubmit={() => save('/sia/site-access', { site_id: selectedSite?.id, ...form.values, working_hours: String(form.values.working_hours ?? '') }, reloadAccess)}>
+        <FormRow>
+          <FI label="Access Type" field="access_type" form={form} />
+          <FI label="Road Condition" field="road_condition" form={form} select={['Good', 'Fair', 'Poor', 'Under Construction', 'Impassable', 'Not Applicable']} />
+        </FormRow>
+        <FormRow>
+          <FI label="Transport Method" field="transport_method" form={form} select={['Car', '4WD / SUV', 'Motorcycle', 'Van / Minibus', 'Bus', 'Truck', 'Boat', 'On Foot', 'Other']} />
+          <FI label="Working Hours" field="working_hours" form={form} number min={0} />
+        </FormRow>
+        <FI label="Access Restriction" field="access_restriction" form={form} textarea />
+        <FI label="Logistics Notes" field="logistics_notes" form={form} textarea />
+        <Group mt="sm">
+          <Text size="xs" fw={600} c="#374151">Entry Permission</Text>
+          <Switch checked={!!form.values.entry_permission} onChange={e => form.setFieldValue('entry_permission', e.currentTarget.checked)} color="green" />
+        </Group>
+      </FormModal>
+
+      <FormModal opened={modal === 'edit-access'} onClose={closeModal} title="Edit Site Access" saving={saving} onSubmit={updateAccess}>
         <FormRow>
           <FI label="Access Type" field="access_type" form={form} />
           <FI label="Road Condition" field="road_condition" form={form} select={['Good', 'Fair', 'Poor', 'Under Construction', 'Impassable', 'Not Applicable']} />
@@ -1098,7 +1501,22 @@ export default function SIASitesSurveyLayout() {
         </FormRow>
         <FI label="Description" field="description" form={form} textarea />
         <FI label="PPE Required" field="ppe_required" form={form} />
-        <FI label="Emergency Contact" field="emergency_contact" form={form} digitsOnly />
+        <FI label="Emergency Contact" field="emergency_contact" form={form} />
+        <FI label="Control Action" field="control_action" form={form} textarea />
+        <Group mt="sm">
+          <Text size="xs" fw={600} c="#374151">Restricted Area</Text>
+          <Switch checked={!!form.values.restricted_area} onChange={e => form.setFieldValue('restricted_area', e.currentTarget.checked)} color="red" />
+        </Group>
+      </FormModal>
+
+      <FormModal opened={modal === 'edit-safety'} onClose={closeModal} title="Edit Site Safety" saving={saving} onSubmit={updateSafety}>
+        <FormRow>
+          <FI label="Hazard Type" field="hazard_type" form={form} />
+          <FI label="Risk Level" field="risk_level" form={form} select={['Low', 'Medium', 'High', 'Critical']} />
+        </FormRow>
+        <FI label="Description" field="description" form={form} textarea />
+        <FI label="PPE Required" field="ppe_required" form={form} />
+        <FI label="Emergency Contact" field="emergency_contact" form={form} />
         <FI label="Control Action" field="control_action" form={form} textarea />
         <Group mt="sm">
           <Text size="xs" fw={600} c="#374151">Restricted Area</Text>
@@ -1109,6 +1527,19 @@ export default function SIASitesSurveyLayout() {
       {/* Requirement Modal */}
       <FormModal opened={modal === 'req'} onClose={closeModal} title="Add Survey Requirement" saving={saving}
         onSubmit={() => save('/sia/survey-requirements', { survey_visit_id: selectedVisit?.id, ...form.values }, reloadReqs)}>
+        <FI label="Requirement Name" field="requirement_name" form={form} />
+        <FormRow>
+          <FI label="Requirement Type" field="requirement_type" form={form} />
+          <FI label="Status" field="status" form={form} select={['Pending', 'In Progress', 'Completed', 'Not Applicable']} />
+        </FormRow>
+        <FI label="Notes" field="notes" form={form} textarea />
+        <Group mt="sm">
+          <Text size="xs" fw={600} c="#374151">Mandatory</Text>
+          <Switch checked={!!form.values.is_mandatory} onChange={e => form.setFieldValue('is_mandatory', e.currentTarget.checked)} color="red" />
+        </Group>
+      </FormModal>
+
+      <FormModal opened={modal === 'edit-req'} onClose={closeModal} title="Edit Survey Requirement" saving={saving} onSubmit={updateRequirement}>
         <FI label="Requirement Name" field="requirement_name" form={form} />
         <FormRow>
           <FI label="Requirement Type" field="requirement_type" form={form} />
@@ -1139,22 +1570,40 @@ export default function SIASitesSurveyLayout() {
         </Group>
       </FormModal>
 
+      <FormModal opened={modal === 'edit-instrument'} onClose={closeModal} title="Edit Survey Instrument" saving={saving} onSubmit={updateInstrument}>
+        <FormRow>
+          <FI label="Instrument Name" field="instrument_name" form={form} />
+          <FI label="Instrument Type" field="instrument_type" form={form} />
+        </FormRow>
+        <FormRow>
+          <FI label="Serial Number" field="serial_number" form={form} digitsOnly />
+          <FI label="Calibration Status" field="calibration_status" form={form} select={['Valid', 'Expired', 'Pending', 'Unknown']} />
+        </FormRow>
+        <Group mt="sm">
+          <Text size="xs" fw={600} c="#374151">Required</Text>
+          <Switch checked={!!form.values.required} onChange={e => form.setFieldValue('required', e.currentTarget.checked)} color="green" />
+        </Group>
+      </FormModal>
+
     </Box>
   );
 }
 
-// ── small inline component ────────────────────────────────
+// â”€â”€ small inline component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function VisitBanner({ visit, onClear }) {
   return (
     <Paper p="xs" mb="sm" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6 }}>
       <Group gap="xs">
         <IconCalendar size={13} color="#007336" />
         <Text size="xs" c="#374151">Visit: <Text span fw={600} c="#007336">{visit.visit_code}</Text></Text>
-        {visit.visit_type && <Text size="xs" c="#6b7280">· {visit.visit_type}</Text>}
-        {visit.planned_date && <Text size="xs" c="#9ca3af">· {formatDisplayValue(visit.planned_date)}</Text>}
+        {visit.visit_type && <Text size="xs" c="#6b7280">Â· {visit.visit_type}</Text>}
+        {visit.planned_date && <Text size="xs" c="#9ca3af">Â· {formatDisplayValue(visit.planned_date)}</Text>}
         <StatusBadge v={visit.status} />
         <Text size="xs" c="#9ca3af" style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={onClear}>Clear</Text>
       </Group>
     </Paper>
   );
 }
+
+
+
